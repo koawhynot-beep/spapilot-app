@@ -140,6 +140,14 @@ const TRANSLATIONS = {
     requestStock: 'Request Stock', stockRequest: 'Stock Request',
     product: 'Product', quantityLabel: 'Quantity',
     stockRequestSubmitted: 'Stock request submitted',
+    permissionsLabel: 'Permissions',
+    permCanViewSchedule: 'Can view schedules',
+    permCanRequestTimeOff: 'Can request time off',
+    permCanSwapShifts: 'Can swap shifts',
+    permCanRequestStock: 'Can request product stock',
+    permCanRequestNewProducts: 'Can request new products',
+    permCanMarkViolations: 'Can mark SOP violations',
+    permCanPostAnnouncements: 'Can post announcements',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -266,6 +274,14 @@ const TRANSLATIONS = {
     requestStock: 'Minta Stok', stockRequest: 'Permintaan Stok',
     product: 'Produk', quantityLabel: 'Jumlah',
     stockRequestSubmitted: 'Permintaan stok dikirim',
+    permissionsLabel: 'Izin',
+    permCanViewSchedule: 'Boleh lihat jadwal',
+    permCanRequestTimeOff: 'Boleh minta cuti',
+    permCanSwapShifts: 'Boleh tukar shift',
+    permCanRequestStock: 'Boleh minta stok produk',
+    permCanRequestNewProducts: 'Boleh minta produk baru',
+    permCanMarkViolations: 'Boleh catat pelanggaran SOP',
+    permCanPostAnnouncements: 'Boleh kirim pengumuman',
   },
 };
 
@@ -359,6 +375,20 @@ function useCollection(path, enabled = true) {
 // ---------- Constants ----------
 const COLOR_OPTIONS = ['#2d5a4a', '#b8956a', '#8ba888', '#d4b896', '#6b8e7f', '#a17c52', '#c9a97a'];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const STAFF_DEFAULT_PERMISSIONS = {
+  canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true,
+  canRequestStock: true, canRequestNewProducts: false,
+  canMarkViolations: false, canPostAnnouncements: false,
+};
+const PERMISSION_DEFS = [
+  { key: 'canViewSchedule',        labelKey: 'permCanViewSchedule' },
+  { key: 'canRequestTimeOff',      labelKey: 'permCanRequestTimeOff' },
+  { key: 'canSwapShifts',          labelKey: 'permCanSwapShifts' },
+  { key: 'canRequestStock',        labelKey: 'permCanRequestStock' },
+  { key: 'canRequestNewProducts',  labelKey: 'permCanRequestNewProducts' },
+  { key: 'canMarkViolations',      labelKey: 'permCanMarkViolations' },
+  { key: 'canPostAnnouncements',   labelKey: 'permCanPostAnnouncements' },
+];
 const QUOTES = [
   { text: 'The cure for anything is salt water: sweat, tears, or the sea.', src: '— Isak Dinesen' },
   { text: 'Wherever you go, go with all your heart.', src: '— Confucius' },
@@ -1248,7 +1278,7 @@ function StaffModal({ member, onClose, onSaved }) {
   const [f, setF] = useState(member || {
     name: '', role: 'Therapist', avatar: '', color: COLOR_OPTIONS[0],
     birthday: '', schedule: ['Mon','Tue','Wed','Thu','Fri'], phone: '',
-    commissionRate: 30,
+    commissionRate: 30, permissions: { ...STAFF_DEFAULT_PERMISSIONS },
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -1299,6 +1329,22 @@ function StaffModal({ member, onClose, onSaved }) {
             {DAYS.map(d => (
               <div key={d} className={`chip ${f.schedule.includes(d) ? 'active' : ''}`} onClick={() => toggleDay(d)}>{t('days')[d]}</div>
             ))}
+          </div>
+        </div>
+        <div className="field">
+          <label>{t('permissionsLabel')}</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+            {PERMISSION_DEFS.map(p => {
+              const val = f.permissions ? (p.key in f.permissions ? f.permissions[p.key] : STAFF_DEFAULT_PERMISSIONS[p.key]) : STAFF_DEFAULT_PERMISSIONS[p.key];
+              return (
+                <label key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
+                  <input type="checkbox" checked={!!val}
+                    onChange={e => setF({ ...f, permissions: { ...STAFF_DEFAULT_PERMISSIONS, ...(f.permissions || {}), [p.key]: e.target.checked } })}
+                  />
+                  {t(p.labelKey)}
+                </label>
+              );
+            })}
           </div>
         </div>
         <div className="modal-actions">
@@ -1930,7 +1976,11 @@ function StaffScheduleView({ staff, bookings, staffId }) {
 function StaffInboxView({ announcements, staffId, staff, requests, inventory, onSubmitRequest, toast }) {
   const { t } = useT();
   const [mode, setMode] = useState(null);
+  const [stockItem, setStockItem] = useState(null);
   const mine = requests.filter(r => r.staffId === staffId);
+  const me = staff.find(s => s.id === staffId);
+  const perms = { ...STAFF_DEFAULT_PERMISSIONS, ...(me?.permissions || {}) };
+  const lowStock = (inventory || []).filter(i => i.stock <= i.threshold);
   const complaints = [
     { id: 1, text: 'Guest felt rushed during transition — slow handoffs are noticed.' },
     { id: 2, text: 'Towels warm next time — even a thermos helps.' },
@@ -1938,15 +1988,35 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
 
   return (
     <div>
-      <div className="card">
-        <div className="card-head"><h3>{t('quickActions')}</h3></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-          <button className="btn btn-ghost" onClick={() => setMode('sick')}><PhoneCall size={14} /> {t('sick')}</button>
-          <button className="btn btn-ghost" onClick={() => setMode('dayoff')}><CalendarOff size={14} /> {t('dayOffShort')}</button>
-          <button className="btn btn-ghost" onClick={() => setMode('swap')}><Repeat size={14} /> {t('swap')}</button>
-          <button className="btn btn-ghost" onClick={() => setMode('stock_request')}><Package size={14} /> {t('requestStock')}</button>
+      {(perms.canRequestTimeOff || perms.canSwapShifts || perms.canRequestStock) && (
+        <div className="card">
+          <div className="card-head"><h3>{t('quickActions')}</h3></div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('sick')}><PhoneCall size={14} /> {t('sick')}</button>}
+            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('dayoff')}><CalendarOff size={14} /> {t('dayOffShort')}</button>}
+            {perms.canSwapShifts && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('swap')}><Repeat size={14} /> {t('swap')}</button>}
+            {perms.canRequestStock && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('stock_request')}><Package size={14} /> {t('requestStock')}</button>}
+          </div>
         </div>
-      </div>
+      )}
+
+      {perms.canRequestStock && lowStock.length > 0 && (
+        <div className="card" style={{ borderLeft: '3px solid var(--warn)' }}>
+          <div className="card-head">
+            <h3><Package size={16} style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--warn)' }} />{t('stockAlerts')} ({lowStock.length})</h3>
+          </div>
+          {lowStock.map(i => (
+            <div key={i.id} className="row">
+              <Package size={18} color="var(--warn)" />
+              <div className="grow">
+                <div className="title">{i.name}</div>
+                <div className="meta">{i.stock} {i.unit} {t('leftLabel')} {i.threshold}</div>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setStockItem(i)}>{t('requestStock')}</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card">
         <h3>{t('announcements')}</h3>
@@ -1996,15 +2066,16 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
           }}
         />
       )}
-      {mode === 'stock_request' && (
+      {(mode === 'stock_request' || stockItem) && (
         <StockRequestModal
           staffId={staffId}
           inventory={inventory || []}
-          onClose={() => setMode(null)}
+          initialProductId={stockItem?.id}
+          onClose={() => { setMode(null); setStockItem(null); }}
           onSubmit={async (data) => {
             try {
               await onSubmitRequest(data);
-              setMode(null); toast(t('stockRequestSubmitted'));
+              setMode(null); setStockItem(null); toast(t('stockRequestSubmitted'));
             } catch (e) { toast(e.message || t('couldNotSubmitRequest')); }
           }}
         />
@@ -2048,12 +2119,12 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
   );
 }
 
-function StockRequestModal({ staffId, inventory, onClose, onSubmit }) {
+function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSubmit }) {
   const { t } = useT();
   const [f, setF] = useState({
     type: 'stock_request',
     staffId,
-    productId: inventory[0]?.id || '',
+    productId: initialProductId || inventory[0]?.id || '',
     quantity: 1,
     reason: '',
   });
@@ -2324,7 +2395,13 @@ function AppInner() {
 
   const currentStaffId = user.id;
 
-  const nav = role === 'manager' ? MANAGER_NAV : role === 'staff' ? STAFF_NAV : OWNER_NAV;
+  const currentStaffMember = role === 'staff' ? staff.data.find(s => s.id === currentStaffId) : null;
+  const staffPerms = { ...STAFF_DEFAULT_PERMISSIONS, ...(currentStaffMember?.permissions || {}) };
+  const filteredStaffNav = STAFF_NAV.filter(item => {
+    if (item.id === 'schedule') return staffPerms.canViewSchedule;
+    return true;
+  });
+  const nav = role === 'manager' ? MANAGER_NAV : role === 'staff' ? filteredStaffNav : OWNER_NAV;
   const lowStockCount = inventory.data.filter(i => i.stock <= i.threshold).length;
   const pendingCount  = requests.data.filter(r => r.status === 'pending').length;
   const alertBadge    = lowStockCount + pendingCount;
@@ -2401,7 +2478,7 @@ function AppInner() {
                 <StaffTodayView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} sops={sops.data}
                   onSubmitRequest={submitRequest} toast={toast} />
               )}
-              {tab === 'schedule' && (
+              {tab === 'schedule' && staffPerms.canViewSchedule && (
                 <StaffScheduleView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} />
               )}
               {tab === 'inbox' && (
