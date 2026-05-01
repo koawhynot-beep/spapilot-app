@@ -133,6 +133,21 @@ const TRANSLATIONS = {
     estEarnings: 'Est. earnings', deferred: 'Coming soon',
     friction: 'Notes for your team:', waMsg: "Hi, it's the spa — quick check-in.",
     days: { Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri', Sat: 'Sat', Sun: 'Sun' },
+    forgotPassword: 'Forgot password?', sendResetLink: 'Send Reset Link',
+    resetPassword: 'Reset Password', backToLogin: 'Back to login',
+    resetLinkSent: 'If that email is registered, a reset link has been sent.',
+    newPassword: 'New Password', passwordResetSuccess: 'Password reset. You can now log in.',
+    requestStock: 'Request Stock', stockRequest: 'Stock Request',
+    product: 'Product', quantityLabel: 'Quantity',
+    stockRequestSubmitted: 'Stock request submitted',
+    permissionsLabel: 'Permissions',
+    permCanViewSchedule: 'Can view schedules',
+    permCanRequestTimeOff: 'Can request time off',
+    permCanSwapShifts: 'Can swap shifts',
+    permCanRequestStock: 'Can request product stock',
+    permCanRequestNewProducts: 'Can request new products',
+    permCanMarkViolations: 'Can mark SOP violations',
+    permCanPostAnnouncements: 'Can post announcements',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -252,6 +267,21 @@ const TRANSLATIONS = {
     estEarnings: 'Perkiraan pendapatan', deferred: 'Segera hadir',
     friction: 'Catatan untuk tim Anda:', waMsg: 'Halo, ini dari spa — pemberitahuan singkat.',
     days: { Mon: 'Sen', Tue: 'Sel', Wed: 'Rab', Thu: 'Kam', Fri: 'Jum', Sat: 'Sab', Sun: 'Min' },
+    forgotPassword: 'Lupa kata sandi?', sendResetLink: 'Kirim Link Reset',
+    resetPassword: 'Reset Kata Sandi', backToLogin: 'Kembali ke login',
+    resetLinkSent: 'Jika email terdaftar, link reset telah dikirim.',
+    newPassword: 'Kata Sandi Baru', passwordResetSuccess: 'Kata sandi direset. Silakan masuk.',
+    requestStock: 'Minta Stok', stockRequest: 'Permintaan Stok',
+    product: 'Produk', quantityLabel: 'Jumlah',
+    stockRequestSubmitted: 'Permintaan stok dikirim',
+    permissionsLabel: 'Izin',
+    permCanViewSchedule: 'Boleh lihat jadwal',
+    permCanRequestTimeOff: 'Boleh minta cuti',
+    permCanSwapShifts: 'Boleh tukar shift',
+    permCanRequestStock: 'Boleh minta stok produk',
+    permCanRequestNewProducts: 'Boleh minta produk baru',
+    permCanMarkViolations: 'Boleh catat pelanggaran SOP',
+    permCanPostAnnouncements: 'Boleh kirim pengumuman',
   },
 };
 
@@ -345,6 +375,20 @@ function useCollection(path, enabled = true) {
 // ---------- Constants ----------
 const COLOR_OPTIONS = ['#2d5a4a', '#b8956a', '#8ba888', '#d4b896', '#6b8e7f', '#a17c52', '#c9a97a'];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const STAFF_DEFAULT_PERMISSIONS = {
+  canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true,
+  canRequestStock: true, canRequestNewProducts: false,
+  canMarkViolations: false, canPostAnnouncements: false,
+};
+const PERMISSION_DEFS = [
+  { key: 'canViewSchedule',        labelKey: 'permCanViewSchedule' },
+  { key: 'canRequestTimeOff',      labelKey: 'permCanRequestTimeOff' },
+  { key: 'canSwapShifts',          labelKey: 'permCanSwapShifts' },
+  { key: 'canRequestStock',        labelKey: 'permCanRequestStock' },
+  { key: 'canRequestNewProducts',  labelKey: 'permCanRequestNewProducts' },
+  { key: 'canMarkViolations',      labelKey: 'permCanMarkViolations' },
+  { key: 'canPostAnnouncements',   labelKey: 'permCanPostAnnouncements' },
+];
 const QUOTES = [
   { text: 'The cure for anything is salt water: sweat, tears, or the sea.', src: '— Isak Dinesen' },
   { text: 'Wherever you go, go with all your heart.', src: '— Confucius' },
@@ -459,7 +503,7 @@ function LangToggle({ floating = false }) {
   );
 }
 
-// ---------- Auth screen: login + signup ----------
+// ---------- Auth screen: login + signup + forgot password ----------
 function AuthScreen({ onAuthed }) {
   const { t } = useT();
   const [mode, setMode] = useState('login');
@@ -468,10 +512,23 @@ function AuthScreen({ onAuthed }) {
   const [confirm, setConfirm] = useState('');
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [forgotDone, setForgotDone] = useState(false);
+
+  const switchMode = (m) => { setMode(m); setErr(null); setForgotDone(false); };
 
   const submit = async (e) => {
     e.preventDefault();
     setErr(null);
+    if (mode === 'forgot') {
+      if (!email) { setErr(t('emailRequired')); return; }
+      setBusy(true);
+      try {
+        await api('/api/auth/forgot-password', { method: 'POST', body: { email: email.trim().toLowerCase() } });
+        setForgotDone(true);
+      } catch { setForgotDone(true); }
+      finally { setBusy(false); }
+      return;
+    }
     if (!email || !password) { setErr(t('emailRequired')); return; }
     if (mode === 'signup' && password !== confirm) { setErr(t('passwordsDontMatch')); return; }
     if (mode === 'signup' && password.length < 6) { setErr(t('passwordTooShort')); return; }
@@ -493,71 +550,161 @@ function AuthScreen({ onAuthed }) {
     <div className="role-screen">
       <LangToggle floating />
       <div className="role-card">
-        <BrandMark sub={mode === 'login' ? t('welcomeBack') : t('createWorkspace')} />
-        <div className="auth-tabs">
-          <button className={`auth-tab ${mode === 'login' ? 'active' : ''}`} onClick={() => { setMode('login'); setErr(null); }}>{t('signIn')}</button>
-          <button className={`auth-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => { setMode('signup'); setErr(null); }}>{t('createAccount')}</button>
-        </div>
+        <BrandMark sub={mode === 'forgot' ? t('forgotPassword') : mode === 'login' ? t('welcomeBack') : t('createWorkspace')} />
 
-        <form onSubmit={submit} style={{ marginTop: 18 }}>
-          <div className="field">
-            <label>{t('email')}</label>
-            <div className="input-wrap">
-              <Mail size={14} className="input-icon" />
-              <input
-                className="input input-with-icon"
-                type="email"
-                autoFocus
-                autoCapitalize="none"
-                autoCorrect="off"
-                placeholder={t('emailPlaceholder')}
-                value={email}
-                onChange={e => { setErr(null); setEmail(e.target.value); }}
-              />
-            </div>
+        {mode !== 'forgot' && (
+          <div className="auth-tabs">
+            <button className={`auth-tab ${mode === 'login' ? 'active' : ''}`} onClick={() => switchMode('login')}>{t('signIn')}</button>
+            <button className={`auth-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => switchMode('signup')}>{t('createAccount')}</button>
           </div>
-          <div className="field">
-            <label>{t('password')}</label>
-            <div className="input-wrap">
-              <Lock size={14} className="input-icon" />
-              <input
-                className="input input-with-icon"
-                type="password"
-                placeholder={mode === 'signup' ? t('pwSignup') : t('pwLogin')}
-                value={password}
-                onChange={e => { setErr(null); setPassword(e.target.value); }}
-              />
-            </div>
+        )}
+
+        {mode === 'forgot' && forgotDone ? (
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <CheckCircle size={32} color="var(--emerald)" style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16 }}>{t('resetLinkSent')}</div>
+            <button className="btn btn-ghost" style={{ width: '100%' }} onClick={() => switchMode('login')}>{t('backToLogin')}</button>
           </div>
-          {mode === 'signup' && (
+        ) : (
+          <form onSubmit={submit} style={{ marginTop: 18 }}>
             <div className="field">
-              <label>{t('confirmPassword')}</label>
+              <label>{t('email')}</label>
               <div className="input-wrap">
-                <Lock size={14} className="input-icon" />
+                <Mail size={14} className="input-icon" />
                 <input
                   className="input input-with-icon"
-                  type="password"
-                  placeholder={t('confirmPassword')}
-                  value={confirm}
-                  onChange={e => { setErr(null); setConfirm(e.target.value); }}
+                  type="email"
+                  autoFocus
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  placeholder={t('emailPlaceholder')}
+                  value={email}
+                  onChange={e => { setErr(null); setEmail(e.target.value); }}
                 />
               </div>
             </div>
-          )}
-          {err && (
-            <div className="error-banner" style={{ marginTop: 4 }}>
-              <AlertTriangle size={14} /> {err}
-            </div>
-          )}
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
-            {busy ? t('pleaseWait') : mode === 'login' ? t('signIn') : t('createAccount')}
-          </button>
-        </form>
+            {mode !== 'forgot' && (
+              <div className="field">
+                <label>{t('password')}</label>
+                <div className="input-wrap">
+                  <Lock size={14} className="input-icon" />
+                  <input
+                    className="input input-with-icon"
+                    type="password"
+                    placeholder={mode === 'signup' ? t('pwSignup') : t('pwLogin')}
+                    value={password}
+                    onChange={e => { setErr(null); setPassword(e.target.value); }}
+                  />
+                </div>
+              </div>
+            )}
+            {mode === 'signup' && (
+              <div className="field">
+                <label>{t('confirmPassword')}</label>
+                <div className="input-wrap">
+                  <Lock size={14} className="input-icon" />
+                  <input
+                    className="input input-with-icon"
+                    type="password"
+                    placeholder={t('confirmPassword')}
+                    value={confirm}
+                    onChange={e => { setErr(null); setConfirm(e.target.value); }}
+                  />
+                </div>
+              </div>
+            )}
+            {err && (
+              <div className="error-banner" style={{ marginTop: 4 }}>
+                <AlertTriangle size={14} /> {err}
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
+              {busy ? t('pleaseWait') : mode === 'forgot' ? t('sendResetLink') : mode === 'login' ? t('signIn') : t('createAccount')}
+            </button>
+            {mode === 'login' && (
+              <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 6, fontSize: 12 }}
+                onClick={() => switchMode('forgot')}>
+                {t('forgotPassword')}
+              </button>
+            )}
+            {mode === 'forgot' && (
+              <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 6 }}
+                onClick={() => switchMode('login')}>
+                {t('backToLogin')}
+              </button>
+            )}
+          </form>
+        )}
 
         <div style={{ marginTop: 18, fontSize: 11, color: 'var(--muted)', lineHeight: 1.6 }}>
           <Sparkles size={11} style={{ verticalAlign: 'middle', marginRight: 4, color: 'var(--gold)' }} />
           {t('demoAccount')} <strong>demo@opus.app</strong> / <strong>demo1234</strong>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Reset password screen (via email link) ----------
+function ResetPasswordScreen({ token, onDone }) {
+  const { t } = useT();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    if (password !== confirm) { setErr(t('passwordsDontMatch')); return; }
+    if (password.length < 6) { setErr(t('passwordTooShort')); return; }
+    setBusy(true);
+    try {
+      await api('/api/auth/reset-password', { method: 'POST', body: { token, password } });
+      setDone(true);
+    } catch (e) {
+      setErr(e.message || t('failed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="role-screen">
+      <LangToggle floating />
+      <div className="role-card">
+        <BrandMark sub={t('resetPassword')} />
+        {done ? (
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <CheckCircle size={32} color="var(--emerald)" style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16 }}>{t('passwordResetSuccess')}</div>
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={onDone}>{t('signIn')}</button>
+          </div>
+        ) : (
+          <form onSubmit={submit} style={{ marginTop: 18 }}>
+            <div className="field">
+              <label>{t('newPassword')}</label>
+              <div className="input-wrap">
+                <Lock size={14} className="input-icon" />
+                <input className="input input-with-icon" type="password" autoFocus placeholder={t('pwSignup')}
+                  value={password} onChange={e => { setErr(null); setPassword(e.target.value); }} />
+              </div>
+            </div>
+            <div className="field">
+              <label>{t('confirmPassword')}</label>
+              <div className="input-wrap">
+                <Lock size={14} className="input-icon" />
+                <input className="input input-with-icon" type="password" placeholder={t('confirmPassword')}
+                  value={confirm} onChange={e => { setErr(null); setConfirm(e.target.value); }} />
+              </div>
+            </div>
+            {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
+              {busy ? t('pleaseWait') : t('resetPassword')}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -853,7 +1000,16 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
   const [sortDir, setSortDir] = useState('asc');
-  const dayCounts = useMemo(() => DAYS.map(d => ({ d, c: Math.floor(Math.random() * 8) + 2 })), []);
+  const dayCounts = useMemo(() => {
+    const counts = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+    bookings.forEach(b => {
+      if (!b.date) return;
+      const idx = new Date(b.date + 'T12:00:00').getDay();
+      const key = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][idx];
+      if (key in counts) counts[key]++;
+    });
+    return DAYS.map(d => ({ d, c: counts[d] }));
+  }, [bookings]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -1131,7 +1287,7 @@ function StaffModal({ member, onClose, onSaved }) {
   const [f, setF] = useState(member || {
     name: '', role: 'Therapist', avatar: '', color: COLOR_OPTIONS[0],
     birthday: '', schedule: ['Mon','Tue','Wed','Thu','Fri'], phone: '',
-    commissionRate: 30,
+    commissionRate: 30, permissions: { ...STAFF_DEFAULT_PERMISSIONS },
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -1182,6 +1338,22 @@ function StaffModal({ member, onClose, onSaved }) {
             {DAYS.map(d => (
               <div key={d} className={`chip ${f.schedule.includes(d) ? 'active' : ''}`} onClick={() => toggleDay(d)}>{t('days')[d]}</div>
             ))}
+          </div>
+        </div>
+        <div className="field">
+          <label>{t('permissionsLabel')}</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+            {PERMISSION_DEFS.map(p => {
+              const val = f.permissions ? (p.key in f.permissions ? f.permissions[p.key] : STAFF_DEFAULT_PERMISSIONS[p.key]) : STAFF_DEFAULT_PERMISSIONS[p.key];
+              return (
+                <label key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
+                  <input type="checkbox" checked={!!val}
+                    onChange={e => setF({ ...f, permissions: { ...STAFF_DEFAULT_PERMISSIONS, ...(f.permissions || {}), [p.key]: e.target.checked } })}
+                  />
+                  {t(p.labelKey)}
+                </label>
+              );
+            })}
           </div>
         </div>
         <div className="modal-actions">
@@ -1487,7 +1659,12 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
     } catch (e) { toast(e.message || t('couldNotUpdateRequest')); }
   };
 
-  const formatType = (k) => k === 'sick' ? t('sickCall') : k === 'dayoff' ? t('dayOff') : t('shiftSwap');
+  const formatType = (k) => {
+    if (k === 'sick') return t('sickCall');
+    if (k === 'dayoff') return t('dayOff');
+    if (k === 'stock_request') return t('stockRequest');
+    return t('shiftSwap');
+  };
 
   return (
     <div>
@@ -1522,9 +1699,13 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
                   {s && <Avatar initial={s.avatar} color={s.color} size={32} />}
                   <div className="grow">
                     <div className="title">{formatType(req.type)} · {s ? s.name : `${t('staffPerson')} #${req.staffId}`}</div>
-                    <div className="meta">{req.date} · {req.reason || t('noReason')}</div>
+                    <div className="meta">
+                      {req.type === 'stock_request'
+                        ? `${inventory.find(i => i.id === req.productId)?.name || 'Product'} · qty ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
+                        : `${req.date} · ${req.reason || t('noReason')}`}
+                    </div>
                   </div>
-                  <Badge label={req.type} type="pending" />
+                  <Badge label={formatType(req.type)} type="pending" />
                 </div>
                 {req.type === 'sick' && affected.length > 0 && (
                   <div style={{ background: '#fbecec', padding: '8px 10px', borderRadius: 8, fontSize: 12, color: 'var(--danger)' }}>
@@ -1801,25 +1982,46 @@ function StaffScheduleView({ staff, bookings, staffId }) {
   );
 }
 
-function StaffInboxView({ announcements, staffId, staff, requests, onSubmitRequest, toast }) {
+function StaffInboxView({ announcements, staffId, staff, requests, inventory, onSubmitRequest, toast }) {
   const { t } = useT();
   const [mode, setMode] = useState(null);
+  const [stockItem, setStockItem] = useState(null);
   const mine = requests.filter(r => r.staffId === staffId);
-  const complaints = [
-    { id: 1, text: 'Guest felt rushed during transition — slow handoffs are noticed.' },
-    { id: 2, text: 'Towels warm next time — even a thermos helps.' },
-  ];
+  const me = staff.find(s => s.id === staffId);
+  const perms = { ...STAFF_DEFAULT_PERMISSIONS, ...(me?.permissions || {}) };
+  const lowStock = (inventory || []).filter(i => i.stock <= i.threshold);
 
   return (
     <div>
-      <div className="card">
-        <div className="card-head"><h3>{t('quickActions')}</h3></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          <button className="btn btn-ghost" onClick={() => setMode('sick')}><PhoneCall size={14} /> {t('sick')}</button>
-          <button className="btn btn-ghost" onClick={() => setMode('dayoff')}><CalendarOff size={14} /> {t('dayOffShort')}</button>
-          <button className="btn btn-ghost" onClick={() => setMode('swap')}><Repeat size={14} /> {t('swap')}</button>
+      {(perms.canRequestTimeOff || perms.canSwapShifts || perms.canRequestStock) && (
+        <div className="card">
+          <div className="card-head"><h3>{t('quickActions')}</h3></div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('sick')}><PhoneCall size={14} /> {t('sick')}</button>}
+            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('dayoff')}><CalendarOff size={14} /> {t('dayOffShort')}</button>}
+            {perms.canSwapShifts && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('swap')}><Repeat size={14} /> {t('swap')}</button>}
+            {perms.canRequestStock && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('stock_request')}><Package size={14} /> {t('requestStock')}</button>}
+          </div>
         </div>
-      </div>
+      )}
+
+      {perms.canRequestStock && lowStock.length > 0 && (
+        <div className="card" style={{ borderLeft: '3px solid var(--warn)' }}>
+          <div className="card-head">
+            <h3><Package size={16} style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--warn)' }} />{t('stockAlerts')} ({lowStock.length})</h3>
+          </div>
+          {lowStock.map(i => (
+            <div key={i.id} className="row">
+              <Package size={18} color="var(--warn)" />
+              <div className="grow">
+                <div className="title">{i.name}</div>
+                <div className="meta">{i.stock} {i.unit} {t('leftLabel')} {i.threshold}</div>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setStockItem(i)}>{t('requestStock')}</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card">
         <h3>{t('announcements')}</h3>
@@ -1833,29 +2035,23 @@ function StaffInboxView({ announcements, staffId, staff, requests, onSubmitReque
       </div>
 
       <div className="card">
-        <h3>{t('complaintsToLearn')}</h3>
-        {complaints.map(c => (
-          <div key={c.id} className="row">
-            <Heart size={16} color="var(--gold)" />
-            <div className="grow meta">{c.text}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
         <h3>{t('myRequests')}</h3>
         {mine.length === 0 ? <div className="center-muted">{t('noRequestsSubmitted')}</div> : mine.map(r => (
           <div key={r.id} className="row">
             <div className="grow">
-              <div className="title">{r.type === 'sick' ? t('sickCall') : r.type === 'dayoff' ? t('dayOff') : t('shiftSwap')}</div>
-              <div className="meta">{r.date} · {r.reason || '—'}</div>
+              <div className="title">{r.type === 'sick' ? t('sickCall') : r.type === 'dayoff' ? t('dayOff') : r.type === 'stock_request' ? t('stockRequest') : t('shiftSwap')}</div>
+              <div className="meta">
+                {r.type === 'stock_request'
+                  ? `${(inventory || []).find(i => i.id === r.productId)?.name || 'Product'} · qty ${r.quantity}`
+                  : `${r.date || '—'} · ${r.reason || '—'}`}
+              </div>
             </div>
             <Badge label={r.status} type={r.status === 'approved' ? 'success' : r.status === 'declined' ? 'danger' : 'pending'} />
           </div>
         ))}
       </div>
 
-      {mode && (
+      {mode && mode !== 'stock_request' && (
         <RequestModal
           type={mode}
           staffId={staffId}
@@ -1865,6 +2061,20 @@ function StaffInboxView({ announcements, staffId, staff, requests, onSubmitReque
             try {
               await onSubmitRequest(data);
               setMode(null); toast(t('requestSubmitted'));
+            } catch (e) { toast(e.message || t('couldNotSubmitRequest')); }
+          }}
+        />
+      )}
+      {(mode === 'stock_request' || stockItem) && (
+        <StockRequestModal
+          staffId={staffId}
+          inventory={inventory || []}
+          initialProductId={stockItem?.id}
+          onClose={() => { setMode(null); setStockItem(null); }}
+          onSubmit={async (data) => {
+            try {
+              await onSubmitRequest(data);
+              setMode(null); setStockItem(null); toast(t('stockRequestSubmitted'));
             } catch (e) { toast(e.message || t('couldNotSubmitRequest')); }
           }}
         />
@@ -1902,6 +2112,51 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary"><Send size={14} /> {t('submit')}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSubmit }) {
+  const { t } = useT();
+  const [f, setF] = useState({
+    type: 'stock_request',
+    staffId,
+    productId: initialProductId || inventory[0]?.id || '',
+    quantity: 1,
+    reason: '',
+  });
+
+  return (
+    <Modal title={t('requestStock')} onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...f, productId: Number(f.productId) }); }}>
+        <div className="field">
+          <label>{t('product')}</label>
+          <select className="select" value={f.productId} onChange={e => setF({ ...f, productId: e.target.value })}>
+            {inventory.length === 0
+              ? <option value="">No items</option>
+              : inventory.map(i => (
+                <option key={i.id} value={i.id}>
+                  {i.name} ({i.stock} {i.unit} left)
+                </option>
+              ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>{t('quantityLabel')}</label>
+          <input className="input" type="number" min="1" required value={f.quantity}
+            onChange={e => setF({ ...f, quantity: Number(e.target.value) })} />
+        </div>
+        <div className="field">
+          <label>{t('noteOptional')}</label>
+          <textarea className="textarea" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={inventory.length === 0}>
+            <Send size={14} /> {t('submit')}
+          </button>
         </div>
       </form>
     </Modal>
@@ -2054,6 +2309,7 @@ function AppInner() {
   const [tab, setTab] = useState('dashboard');
   const [toastMsg, setToastMsg] = useState(null);
   const toast = (m) => setToastMsg(m);
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset_token') || null);
 
   const authed = !!user;
   const onboarded = !!(user?.role && user?.businessType);
@@ -2113,6 +2369,15 @@ function AppInner() {
     setRole(null);
   };
 
+  if (resetToken) return (
+    <ResetPasswordScreen token={resetToken} onDone={() => {
+      setResetToken(null);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('reset_token');
+      window.history.replaceState({}, '', url.toString());
+    }} />
+  );
+
   if (authChecking) {
     return (
       <div className="role-screen">
@@ -2127,9 +2392,15 @@ function AppInner() {
   if (!user.businessType) return <BusinessSelector user={user} onSelected={setUser} onLogout={logout} />;
   if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} />;
 
-  const currentStaffId = user.id;
+  const currentStaffId = user.staffId || user.id;
 
-  const nav = role === 'manager' ? MANAGER_NAV : role === 'staff' ? STAFF_NAV : OWNER_NAV;
+  const currentStaffMember = role === 'staff' ? staff.data.find(s => s.id === currentStaffId) : null;
+  const staffPerms = { ...STAFF_DEFAULT_PERMISSIONS, ...(currentStaffMember?.permissions || {}) };
+  const filteredStaffNav = STAFF_NAV.filter(item => {
+    if (item.id === 'schedule') return staffPerms.canViewSchedule;
+    return true;
+  });
+  const nav = role === 'manager' ? MANAGER_NAV : role === 'staff' ? filteredStaffNav : OWNER_NAV;
   const lowStockCount = inventory.data.filter(i => i.stock <= i.threshold).length;
   const pendingCount  = requests.data.filter(r => r.status === 'pending').length;
   const alertBadge    = lowStockCount + pendingCount;
@@ -2187,7 +2458,7 @@ function AppInner() {
               {tab === 'alerts' && (
                 <AlertsTab
                   inventory={inventory.data} requests={requests.data} staff={staff.data} bookings={bookings.data}
-                  onReload={() => { requests.reload(); bookings.reload(); }} toast={toast}
+                  onReload={() => { requests.reload(); bookings.reload(); inventory.reload(); }} toast={toast}
                 />
               )}
               {tab === 'sop' && (
@@ -2206,13 +2477,13 @@ function AppInner() {
                 <StaffTodayView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} sops={sops.data}
                   onSubmitRequest={submitRequest} toast={toast} />
               )}
-              {tab === 'schedule' && (
+              {tab === 'schedule' && staffPerms.canViewSchedule && (
                 <StaffScheduleView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} />
               )}
               {tab === 'inbox' && (
                 <StaffInboxView
                   announcements={announcements.data} staffId={currentStaffId} staff={staff.data}
-                  requests={requests.data} onSubmitRequest={submitRequest} toast={toast}
+                  requests={requests.data} inventory={inventory.data} onSubmitRequest={submitRequest} toast={toast}
                 />
               )}
               {tab === 'profile' && (
