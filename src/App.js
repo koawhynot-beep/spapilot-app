@@ -133,6 +133,13 @@ const TRANSLATIONS = {
     estEarnings: 'Est. earnings', deferred: 'Coming soon',
     friction: 'Notes for your team:', waMsg: "Hi, it's the spa — quick check-in.",
     days: { Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri', Sat: 'Sat', Sun: 'Sun' },
+    forgotPassword: 'Forgot password?', sendResetLink: 'Send Reset Link',
+    resetPassword: 'Reset Password', backToLogin: 'Back to login',
+    resetLinkSent: 'If that email is registered, a reset link has been sent.',
+    newPassword: 'New Password', passwordResetSuccess: 'Password reset. You can now log in.',
+    requestStock: 'Request Stock', stockRequest: 'Stock Request',
+    product: 'Product', quantityLabel: 'Quantity',
+    stockRequestSubmitted: 'Stock request submitted',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -252,6 +259,13 @@ const TRANSLATIONS = {
     estEarnings: 'Perkiraan pendapatan', deferred: 'Segera hadir',
     friction: 'Catatan untuk tim Anda:', waMsg: 'Halo, ini dari spa — pemberitahuan singkat.',
     days: { Mon: 'Sen', Tue: 'Sel', Wed: 'Rab', Thu: 'Kam', Fri: 'Jum', Sat: 'Sab', Sun: 'Min' },
+    forgotPassword: 'Lupa kata sandi?', sendResetLink: 'Kirim Link Reset',
+    resetPassword: 'Reset Kata Sandi', backToLogin: 'Kembali ke login',
+    resetLinkSent: 'Jika email terdaftar, link reset telah dikirim.',
+    newPassword: 'Kata Sandi Baru', passwordResetSuccess: 'Kata sandi direset. Silakan masuk.',
+    requestStock: 'Minta Stok', stockRequest: 'Permintaan Stok',
+    product: 'Produk', quantityLabel: 'Jumlah',
+    stockRequestSubmitted: 'Permintaan stok dikirim',
   },
 };
 
@@ -459,7 +473,7 @@ function LangToggle({ floating = false }) {
   );
 }
 
-// ---------- Auth screen: login + signup ----------
+// ---------- Auth screen: login + signup + forgot password ----------
 function AuthScreen({ onAuthed }) {
   const { t } = useT();
   const [mode, setMode] = useState('login');
@@ -468,10 +482,23 @@ function AuthScreen({ onAuthed }) {
   const [confirm, setConfirm] = useState('');
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [forgotDone, setForgotDone] = useState(false);
+
+  const switchMode = (m) => { setMode(m); setErr(null); setForgotDone(false); };
 
   const submit = async (e) => {
     e.preventDefault();
     setErr(null);
+    if (mode === 'forgot') {
+      if (!email) { setErr(t('emailRequired')); return; }
+      setBusy(true);
+      try {
+        await api('/api/auth/forgot-password', { method: 'POST', body: { email: email.trim().toLowerCase() } });
+        setForgotDone(true);
+      } catch { setForgotDone(true); }
+      finally { setBusy(false); }
+      return;
+    }
     if (!email || !password) { setErr(t('emailRequired')); return; }
     if (mode === 'signup' && password !== confirm) { setErr(t('passwordsDontMatch')); return; }
     if (mode === 'signup' && password.length < 6) { setErr(t('passwordTooShort')); return; }
@@ -493,71 +520,161 @@ function AuthScreen({ onAuthed }) {
     <div className="role-screen">
       <LangToggle floating />
       <div className="role-card">
-        <BrandMark sub={mode === 'login' ? t('welcomeBack') : t('createWorkspace')} />
-        <div className="auth-tabs">
-          <button className={`auth-tab ${mode === 'login' ? 'active' : ''}`} onClick={() => { setMode('login'); setErr(null); }}>{t('signIn')}</button>
-          <button className={`auth-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => { setMode('signup'); setErr(null); }}>{t('createAccount')}</button>
-        </div>
+        <BrandMark sub={mode === 'forgot' ? t('forgotPassword') : mode === 'login' ? t('welcomeBack') : t('createWorkspace')} />
 
-        <form onSubmit={submit} style={{ marginTop: 18 }}>
-          <div className="field">
-            <label>{t('email')}</label>
-            <div className="input-wrap">
-              <Mail size={14} className="input-icon" />
-              <input
-                className="input input-with-icon"
-                type="email"
-                autoFocus
-                autoCapitalize="none"
-                autoCorrect="off"
-                placeholder={t('emailPlaceholder')}
-                value={email}
-                onChange={e => { setErr(null); setEmail(e.target.value); }}
-              />
-            </div>
+        {mode !== 'forgot' && (
+          <div className="auth-tabs">
+            <button className={`auth-tab ${mode === 'login' ? 'active' : ''}`} onClick={() => switchMode('login')}>{t('signIn')}</button>
+            <button className={`auth-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => switchMode('signup')}>{t('createAccount')}</button>
           </div>
-          <div className="field">
-            <label>{t('password')}</label>
-            <div className="input-wrap">
-              <Lock size={14} className="input-icon" />
-              <input
-                className="input input-with-icon"
-                type="password"
-                placeholder={mode === 'signup' ? t('pwSignup') : t('pwLogin')}
-                value={password}
-                onChange={e => { setErr(null); setPassword(e.target.value); }}
-              />
-            </div>
+        )}
+
+        {mode === 'forgot' && forgotDone ? (
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <CheckCircle size={32} color="var(--emerald)" style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16 }}>{t('resetLinkSent')}</div>
+            <button className="btn btn-ghost" style={{ width: '100%' }} onClick={() => switchMode('login')}>{t('backToLogin')}</button>
           </div>
-          {mode === 'signup' && (
+        ) : (
+          <form onSubmit={submit} style={{ marginTop: 18 }}>
             <div className="field">
-              <label>{t('confirmPassword')}</label>
+              <label>{t('email')}</label>
               <div className="input-wrap">
-                <Lock size={14} className="input-icon" />
+                <Mail size={14} className="input-icon" />
                 <input
                   className="input input-with-icon"
-                  type="password"
-                  placeholder={t('confirmPassword')}
-                  value={confirm}
-                  onChange={e => { setErr(null); setConfirm(e.target.value); }}
+                  type="email"
+                  autoFocus
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  placeholder={t('emailPlaceholder')}
+                  value={email}
+                  onChange={e => { setErr(null); setEmail(e.target.value); }}
                 />
               </div>
             </div>
-          )}
-          {err && (
-            <div className="error-banner" style={{ marginTop: 4 }}>
-              <AlertTriangle size={14} /> {err}
-            </div>
-          )}
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
-            {busy ? t('pleaseWait') : mode === 'login' ? t('signIn') : t('createAccount')}
-          </button>
-        </form>
+            {mode !== 'forgot' && (
+              <div className="field">
+                <label>{t('password')}</label>
+                <div className="input-wrap">
+                  <Lock size={14} className="input-icon" />
+                  <input
+                    className="input input-with-icon"
+                    type="password"
+                    placeholder={mode === 'signup' ? t('pwSignup') : t('pwLogin')}
+                    value={password}
+                    onChange={e => { setErr(null); setPassword(e.target.value); }}
+                  />
+                </div>
+              </div>
+            )}
+            {mode === 'signup' && (
+              <div className="field">
+                <label>{t('confirmPassword')}</label>
+                <div className="input-wrap">
+                  <Lock size={14} className="input-icon" />
+                  <input
+                    className="input input-with-icon"
+                    type="password"
+                    placeholder={t('confirmPassword')}
+                    value={confirm}
+                    onChange={e => { setErr(null); setConfirm(e.target.value); }}
+                  />
+                </div>
+              </div>
+            )}
+            {err && (
+              <div className="error-banner" style={{ marginTop: 4 }}>
+                <AlertTriangle size={14} /> {err}
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
+              {busy ? t('pleaseWait') : mode === 'forgot' ? t('sendResetLink') : mode === 'login' ? t('signIn') : t('createAccount')}
+            </button>
+            {mode === 'login' && (
+              <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 6, fontSize: 12 }}
+                onClick={() => switchMode('forgot')}>
+                {t('forgotPassword')}
+              </button>
+            )}
+            {mode === 'forgot' && (
+              <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 6 }}
+                onClick={() => switchMode('login')}>
+                {t('backToLogin')}
+              </button>
+            )}
+          </form>
+        )}
 
         <div style={{ marginTop: 18, fontSize: 11, color: 'var(--muted)', lineHeight: 1.6 }}>
           <Sparkles size={11} style={{ verticalAlign: 'middle', marginRight: 4, color: 'var(--gold)' }} />
           {t('demoAccount')} <strong>demo@opus.app</strong> / <strong>demo1234</strong>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Reset password screen (via email link) ----------
+function ResetPasswordScreen({ token, onDone }) {
+  const { t } = useT();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    if (password !== confirm) { setErr(t('passwordsDontMatch')); return; }
+    if (password.length < 6) { setErr(t('passwordTooShort')); return; }
+    setBusy(true);
+    try {
+      await api('/api/auth/reset-password', { method: 'POST', body: { token, password } });
+      setDone(true);
+    } catch (e) {
+      setErr(e.message || t('failed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="role-screen">
+      <LangToggle floating />
+      <div className="role-card">
+        <BrandMark sub={t('resetPassword')} />
+        {done ? (
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <CheckCircle size={32} color="var(--emerald)" style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16 }}>{t('passwordResetSuccess')}</div>
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={onDone}>{t('signIn')}</button>
+          </div>
+        ) : (
+          <form onSubmit={submit} style={{ marginTop: 18 }}>
+            <div className="field">
+              <label>{t('newPassword')}</label>
+              <div className="input-wrap">
+                <Lock size={14} className="input-icon" />
+                <input className="input input-with-icon" type="password" autoFocus placeholder={t('pwSignup')}
+                  value={password} onChange={e => { setErr(null); setPassword(e.target.value); }} />
+              </div>
+            </div>
+            <div className="field">
+              <label>{t('confirmPassword')}</label>
+              <div className="input-wrap">
+                <Lock size={14} className="input-icon" />
+                <input className="input input-with-icon" type="password" placeholder={t('confirmPassword')}
+                  value={confirm} onChange={e => { setErr(null); setConfirm(e.target.value); }} />
+              </div>
+            </div>
+            {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
+              {busy ? t('pleaseWait') : t('resetPassword')}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -1487,7 +1604,12 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
     } catch (e) { toast(e.message || t('couldNotUpdateRequest')); }
   };
 
-  const formatType = (k) => k === 'sick' ? t('sickCall') : k === 'dayoff' ? t('dayOff') : t('shiftSwap');
+  const formatType = (k) => {
+    if (k === 'sick') return t('sickCall');
+    if (k === 'dayoff') return t('dayOff');
+    if (k === 'stock_request') return t('stockRequest');
+    return t('shiftSwap');
+  };
 
   return (
     <div>
@@ -1522,9 +1644,13 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
                   {s && <Avatar initial={s.avatar} color={s.color} size={32} />}
                   <div className="grow">
                     <div className="title">{formatType(req.type)} · {s ? s.name : `${t('staffPerson')} #${req.staffId}`}</div>
-                    <div className="meta">{req.date} · {req.reason || t('noReason')}</div>
+                    <div className="meta">
+                      {req.type === 'stock_request'
+                        ? `${inventory.find(i => i.id === req.productId)?.name || 'Product'} · qty ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
+                        : `${req.date} · ${req.reason || t('noReason')}`}
+                    </div>
                   </div>
-                  <Badge label={req.type} type="pending" />
+                  <Badge label={formatType(req.type)} type="pending" />
                 </div>
                 {req.type === 'sick' && affected.length > 0 && (
                   <div style={{ background: '#fbecec', padding: '8px 10px', borderRadius: 8, fontSize: 12, color: 'var(--danger)' }}>
@@ -1801,7 +1927,7 @@ function StaffScheduleView({ staff, bookings, staffId }) {
   );
 }
 
-function StaffInboxView({ announcements, staffId, staff, requests, onSubmitRequest, toast }) {
+function StaffInboxView({ announcements, staffId, staff, requests, inventory, onSubmitRequest, toast }) {
   const { t } = useT();
   const [mode, setMode] = useState(null);
   const mine = requests.filter(r => r.staffId === staffId);
@@ -1814,10 +1940,11 @@ function StaffInboxView({ announcements, staffId, staff, requests, onSubmitReque
     <div>
       <div className="card">
         <div className="card-head"><h3>{t('quickActions')}</h3></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
           <button className="btn btn-ghost" onClick={() => setMode('sick')}><PhoneCall size={14} /> {t('sick')}</button>
           <button className="btn btn-ghost" onClick={() => setMode('dayoff')}><CalendarOff size={14} /> {t('dayOffShort')}</button>
           <button className="btn btn-ghost" onClick={() => setMode('swap')}><Repeat size={14} /> {t('swap')}</button>
+          <button className="btn btn-ghost" onClick={() => setMode('stock_request')}><Package size={14} /> {t('requestStock')}</button>
         </div>
       </div>
 
@@ -1847,7 +1974,7 @@ function StaffInboxView({ announcements, staffId, staff, requests, onSubmitReque
         {mine.length === 0 ? <div className="center-muted">{t('noRequestsSubmitted')}</div> : mine.map(r => (
           <div key={r.id} className="row">
             <div className="grow">
-              <div className="title">{r.type === 'sick' ? t('sickCall') : r.type === 'dayoff' ? t('dayOff') : t('shiftSwap')}</div>
+              <div className="title">{r.type === 'sick' ? t('sickCall') : r.type === 'dayoff' ? t('dayOff') : r.type === 'stock_request' ? t('stockRequest') : t('shiftSwap')}</div>
               <div className="meta">{r.date} · {r.reason || '—'}</div>
             </div>
             <Badge label={r.status} type={r.status === 'approved' ? 'success' : r.status === 'declined' ? 'danger' : 'pending'} />
@@ -1855,7 +1982,7 @@ function StaffInboxView({ announcements, staffId, staff, requests, onSubmitReque
         ))}
       </div>
 
-      {mode && (
+      {mode && mode !== 'stock_request' && (
         <RequestModal
           type={mode}
           staffId={staffId}
@@ -1865,6 +1992,19 @@ function StaffInboxView({ announcements, staffId, staff, requests, onSubmitReque
             try {
               await onSubmitRequest(data);
               setMode(null); toast(t('requestSubmitted'));
+            } catch (e) { toast(e.message || t('couldNotSubmitRequest')); }
+          }}
+        />
+      )}
+      {mode === 'stock_request' && (
+        <StockRequestModal
+          staffId={staffId}
+          inventory={inventory || []}
+          onClose={() => setMode(null)}
+          onSubmit={async (data) => {
+            try {
+              await onSubmitRequest(data);
+              setMode(null); toast(t('stockRequestSubmitted'));
             } catch (e) { toast(e.message || t('couldNotSubmitRequest')); }
           }}
         />
@@ -1902,6 +2042,51 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary"><Send size={14} /> {t('submit')}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function StockRequestModal({ staffId, inventory, onClose, onSubmit }) {
+  const { t } = useT();
+  const [f, setF] = useState({
+    type: 'stock_request',
+    staffId,
+    productId: inventory[0]?.id || '',
+    quantity: 1,
+    reason: '',
+  });
+
+  return (
+    <Modal title={t('requestStock')} onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...f, productId: Number(f.productId) }); }}>
+        <div className="field">
+          <label>{t('product')}</label>
+          <select className="select" value={f.productId} onChange={e => setF({ ...f, productId: e.target.value })}>
+            {inventory.length === 0
+              ? <option value="">No items</option>
+              : inventory.map(i => (
+                <option key={i.id} value={i.id}>
+                  {i.name} ({i.stock} {i.unit} left)
+                </option>
+              ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>{t('quantityLabel')}</label>
+          <input className="input" type="number" min="1" required value={f.quantity}
+            onChange={e => setF({ ...f, quantity: Number(e.target.value) })} />
+        </div>
+        <div className="field">
+          <label>{t('noteOptional')}</label>
+          <textarea className="textarea" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={inventory.length === 0}>
+            <Send size={14} /> {t('submit')}
+          </button>
         </div>
       </form>
     </Modal>
@@ -2054,6 +2239,7 @@ function AppInner() {
   const [tab, setTab] = useState('dashboard');
   const [toastMsg, setToastMsg] = useState(null);
   const toast = (m) => setToastMsg(m);
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset_token') || null);
 
   const authed = !!user;
   const onboarded = !!(user?.role && user?.businessType);
@@ -2112,6 +2298,15 @@ function AppInner() {
     setUser(null);
     setRole(null);
   };
+
+  if (resetToken) return (
+    <ResetPasswordScreen token={resetToken} onDone={() => {
+      setResetToken(null);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('reset_token');
+      window.history.replaceState({}, '', url.toString());
+    }} />
+  );
 
   if (authChecking) {
     return (
@@ -2187,7 +2382,7 @@ function AppInner() {
               {tab === 'alerts' && (
                 <AlertsTab
                   inventory={inventory.data} requests={requests.data} staff={staff.data} bookings={bookings.data}
-                  onReload={() => { requests.reload(); bookings.reload(); }} toast={toast}
+                  onReload={() => { requests.reload(); bookings.reload(); inventory.reload(); }} toast={toast}
                 />
               )}
               {tab === 'sop' && (
@@ -2212,7 +2407,7 @@ function AppInner() {
               {tab === 'inbox' && (
                 <StaffInboxView
                   announcements={announcements.data} staffId={currentStaffId} staff={staff.data}
-                  requests={requests.data} onSubmitRequest={submitRequest} toast={toast}
+                  requests={requests.data} inventory={inventory.data} onSubmitRequest={submitRequest} toast={toast}
                 />
               )}
               {tab === 'profile' && (
