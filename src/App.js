@@ -1000,7 +1000,16 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
   const [sortDir, setSortDir] = useState('asc');
-  const dayCounts = useMemo(() => DAYS.map(d => ({ d, c: Math.floor(Math.random() * 8) + 2 })), []);
+  const dayCounts = useMemo(() => {
+    const counts = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+    bookings.forEach(b => {
+      if (!b.date) return;
+      const idx = new Date(b.date + 'T12:00:00').getDay();
+      const key = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][idx];
+      if (key in counts) counts[key]++;
+    });
+    return DAYS.map(d => ({ d, c: counts[d] }));
+  }, [bookings]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -1981,10 +1990,6 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
   const me = staff.find(s => s.id === staffId);
   const perms = { ...STAFF_DEFAULT_PERMISSIONS, ...(me?.permissions || {}) };
   const lowStock = (inventory || []).filter(i => i.stock <= i.threshold);
-  const complaints = [
-    { id: 1, text: 'Guest felt rushed during transition — slow handoffs are noticed.' },
-    { id: 2, text: 'Towels warm next time — even a thermos helps.' },
-  ];
 
   return (
     <div>
@@ -2030,22 +2035,16 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
       </div>
 
       <div className="card">
-        <h3>{t('complaintsToLearn')}</h3>
-        {complaints.map(c => (
-          <div key={c.id} className="row">
-            <Heart size={16} color="var(--gold)" />
-            <div className="grow meta">{c.text}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
         <h3>{t('myRequests')}</h3>
         {mine.length === 0 ? <div className="center-muted">{t('noRequestsSubmitted')}</div> : mine.map(r => (
           <div key={r.id} className="row">
             <div className="grow">
               <div className="title">{r.type === 'sick' ? t('sickCall') : r.type === 'dayoff' ? t('dayOff') : r.type === 'stock_request' ? t('stockRequest') : t('shiftSwap')}</div>
-              <div className="meta">{r.date} · {r.reason || '—'}</div>
+              <div className="meta">
+                {r.type === 'stock_request'
+                  ? `${(inventory || []).find(i => i.id === r.productId)?.name || 'Product'} · qty ${r.quantity}`
+                  : `${r.date || '—'} · ${r.reason || '—'}`}
+              </div>
             </div>
             <Badge label={r.status} type={r.status === 'approved' ? 'success' : r.status === 'declined' ? 'danger' : 'pending'} />
           </div>
@@ -2393,7 +2392,7 @@ function AppInner() {
   if (!user.businessType) return <BusinessSelector user={user} onSelected={setUser} onLogout={logout} />;
   if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} />;
 
-  const currentStaffId = user.id;
+  const currentStaffId = user.staffId || user.id;
 
   const currentStaffMember = role === 'staff' ? staff.data.find(s => s.id === currentStaffId) : null;
   const staffPerms = { ...STAFF_DEFAULT_PERMISSIONS, ...(currentStaffMember?.permissions || {}) };
