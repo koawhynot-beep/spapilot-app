@@ -148,6 +148,54 @@ const TRANSLATIONS = {
     permCanRequestNewProducts: 'Can request new products',
     permCanMarkViolations: 'Can mark SOP violations',
     permCanPostAnnouncements: 'Can post announcements',
+    landingHero: 'Spa & salon management made simple.',
+    landingSub: 'Schedule staff, track inventory, manage SOP compliance, reduce chaos.',
+    featSchedTitle: 'Scheduling',
+    featSchedBody: 'Bookings, shifts, swaps, and reassignments — all in one calendar.',
+    featOpsTitle: 'Operations',
+    featOpsBody: 'Inventory tracking, low-stock alerts, SOP enforcement, daily checklists.',
+    featTeamTitle: 'Team Management',
+    featTeamBody: 'Roles, permissions, time-off requests, commission tracking.',
+    startFreeTrial: 'Start Free Trial',
+    haveAccount: 'Already have an account?',
+    trialFinePrint: '7 days free, then $19/month. Cancel anytime.',
+    trialActiveBanner: 'Trial active — {n} days left',
+    trialEndingSoon: 'Trial ends in {n} days',
+    trialEnded: 'Trial ended',
+    trialActiveUntil: 'Trial active until',
+    chooseYourPath: 'How will you use SpaPilot?',
+    iOwnBusiness: 'I own a spa or salon',
+    iOwnBusinessSub: 'Set up your business and invite your team.',
+    iWorkAsStaff: 'I work as staff',
+    iWorkAsStaffSub: 'Join your business with a team code.',
+    setupBusiness: 'Set up your business',
+    setupBusinessSub: 'A few details so we can build your workspace.',
+    businessName: 'Business name',
+    businessNamePh: 'e.g. Lotus Spa Bali',
+    businessTypeLabel: 'Business type',
+    bizTypeSpa: 'Spa', bizTypeSalon: 'Salon', bizTypeBarbershop: 'Barbershop',
+    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel',
+    numberOfStaff: 'Number of staff',
+    createBusiness: 'Create business',
+    joinBusiness: 'Join your business',
+    joinBusinessSub: 'Enter the code your owner shared with you.',
+    businessCode: 'Business code',
+    businessCodePh: 'e.g. AB12CD',
+    join: 'Join',
+    invalidBusinessCode: 'Invalid business code',
+    noCodeYet: "Don't have a code? Ask the business owner to share it.",
+    paymentRequiredTitle: 'Trial ended',
+    paymentRequiredSub: 'Subscribe to keep using SpaPilot.',
+    subscribeMonthly: 'Subscribe — $19/month',
+    subscribeNote: 'Secure checkout via Stripe. Cancel anytime.',
+    settings: 'Settings',
+    manageSubscription: 'Manage subscription',
+    switchAccountType: 'Switch account type',
+    confirmSwitchAccountType: 'Switching account type will require re-onboarding. Continue?',
+    yourBusinessCode: 'Your business code',
+    shareWithStaff: 'Share this code with your staff so they can join.',
+    copy: 'Copy', copied: 'Copied',
+    activated: 'Subscription activated',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -282,6 +330,54 @@ const TRANSLATIONS = {
     permCanRequestNewProducts: 'Boleh minta produk baru',
     permCanMarkViolations: 'Boleh catat pelanggaran SOP',
     permCanPostAnnouncements: 'Boleh kirim pengumuman',
+    landingHero: 'Manajemen spa & salon dipermudah.',
+    landingSub: 'Atur jadwal staf, lacak inventaris, kelola SOP, kurangi kekacauan.',
+    featSchedTitle: 'Penjadwalan',
+    featSchedBody: 'Pemesanan, shift, tukar, dan pengalihan — semua dalam satu kalender.',
+    featOpsTitle: 'Operasional',
+    featOpsBody: 'Lacak inventaris, peringatan stok rendah, SOP, daftar harian.',
+    featTeamTitle: 'Manajemen Tim',
+    featTeamBody: 'Peran, izin, permintaan cuti, pelacakan komisi.',
+    startFreeTrial: 'Mulai Uji Coba Gratis',
+    haveAccount: 'Sudah punya akun?',
+    trialFinePrint: '7 hari gratis, lalu $19/bulan. Batal kapan saja.',
+    trialActiveBanner: 'Uji coba aktif — sisa {n} hari',
+    trialEndingSoon: 'Uji coba berakhir dalam {n} hari',
+    trialEnded: 'Uji coba berakhir',
+    trialActiveUntil: 'Uji coba aktif hingga',
+    chooseYourPath: 'Bagaimana Anda akan gunakan SpaPilot?',
+    iOwnBusiness: 'Saya pemilik spa atau salon',
+    iOwnBusinessSub: 'Siapkan bisnis Anda dan undang tim.',
+    iWorkAsStaff: 'Saya bekerja sebagai staf',
+    iWorkAsStaffSub: 'Gabung dengan kode tim.',
+    setupBusiness: 'Siapkan bisnis Anda',
+    setupBusinessSub: 'Beberapa detail untuk membangun ruang kerja Anda.',
+    businessName: 'Nama bisnis',
+    businessNamePh: 'misal Lotus Spa Bali',
+    businessTypeLabel: 'Jenis bisnis',
+    bizTypeSpa: 'Spa', bizTypeSalon: 'Salon', bizTypeBarbershop: 'Pangkas Rambut',
+    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel',
+    numberOfStaff: 'Jumlah staf',
+    createBusiness: 'Buat bisnis',
+    joinBusiness: 'Gabung bisnis Anda',
+    joinBusinessSub: 'Masukkan kode dari pemilik.',
+    businessCode: 'Kode bisnis',
+    businessCodePh: 'misal AB12CD',
+    join: 'Gabung',
+    invalidBusinessCode: 'Kode bisnis tidak valid',
+    noCodeYet: 'Belum punya kode? Minta dari pemilik bisnis.',
+    paymentRequiredTitle: 'Uji coba berakhir',
+    paymentRequiredSub: 'Berlangganan untuk terus gunakan SpaPilot.',
+    subscribeMonthly: 'Berlangganan — $19/bulan',
+    subscribeNote: 'Pembayaran aman via Stripe. Batal kapan saja.',
+    settings: 'Pengaturan',
+    manageSubscription: 'Kelola langganan',
+    switchAccountType: 'Ganti jenis akun',
+    confirmSwitchAccountType: 'Mengganti jenis akun memerlukan onboarding ulang. Lanjut?',
+    yourBusinessCode: 'Kode bisnis Anda',
+    shareWithStaff: 'Bagikan kode ini agar staf bisa bergabung.',
+    copy: 'Salin', copied: 'Disalin',
+    activated: 'Langganan diaktifkan',
   },
 };
 
@@ -504,9 +600,9 @@ function LangToggle({ floating = false }) {
 }
 
 // ---------- Auth screen: login + signup + forgot password ----------
-function AuthScreen({ onAuthed }) {
+function AuthScreen({ onAuthed, initialMode, onBack }) {
   const { t } = useT();
-  const [mode, setMode] = useState('login');
+  const [mode, setMode] = useState(initialMode || 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -640,6 +736,11 @@ function AuthScreen({ onAuthed }) {
           <Sparkles size={11} style={{ verticalAlign: 'middle', marginRight: 4, color: 'var(--gold)' }} />
           {t('demoAccount')} <strong>demo@opus.app</strong> / <strong>demo1234</strong>
         </div>
+        {onBack && (
+          <button className="btn btn-ghost" style={{ width: '100%', marginTop: 12, fontSize: 12 }} onClick={onBack}>
+            ← {t('back')}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -706,6 +807,379 @@ function ResetPasswordScreen({ token, onDone }) {
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------- Landing page (pre-auth) ----------
+function LandingPage({ onStartTrial, onSignIn }) {
+  const { t } = useT();
+  const features = [
+    { icon: Calendar,    titleKey: 'featSchedTitle', bodyKey: 'featSchedBody' },
+    { icon: Package,     titleKey: 'featOpsTitle',   bodyKey: 'featOpsBody' },
+    { icon: Users,       titleKey: 'featTeamTitle',  bodyKey: 'featTeamBody' },
+  ];
+  return (
+    <div className="role-screen">
+      <LangToggle floating />
+      <div className="role-card" style={{ maxWidth: 560 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <BrandMark sub="" />
+          <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 26, lineHeight: 1.25, marginTop: 14, color: 'var(--emerald)' }}>
+            {t('landingHero')}
+          </h1>
+          <p style={{ color: 'var(--muted)', marginTop: 10, fontSize: 14, lineHeight: 1.5 }}>
+            {t('landingSub')}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+          {features.map(f => {
+            const Icon = f.icon;
+            return (
+              <div key={f.titleKey} className="card" style={{ marginBottom: 0, padding: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--cream-2, #f3ebde)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={18} color="var(--emerald)" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--emerald)' }}>{t(f.titleKey)}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3, lineHeight: 1.4 }}>{t(f.bodyKey)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <button className="btn btn-primary" style={{ width: '100%', padding: '14px 16px', fontSize: 15 }} onClick={onStartTrial}>
+          <Sparkles size={14} style={{ marginRight: 6 }} /> {t('startFreeTrial')}
+        </button>
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
+          {t('trialFinePrint')}
+        </div>
+
+        <div style={{ marginTop: 18, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
+          {t('haveAccount')}{' '}
+          <button type="button" className="btn-link"
+            style={{ background: 'none', border: 'none', color: 'var(--emerald)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12, padding: 0 }}
+            onClick={onSignIn}>
+            {t('signIn')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- New role selector: owner vs staff ----------
+function OnboardingRoleSelector({ user, onPickOwner, onPickStaff, onLogout }) {
+  const { t } = useT();
+  return (
+    <div className="role-screen">
+      <LangToggle floating />
+      <div className="role-card" style={{ maxWidth: 520 }}>
+        <BrandMark sub={t('chooseYourPath')} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 18 }}>
+          <button className="role-card-btn" onClick={onPickOwner}
+            style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 18, border: '1px solid var(--border)', borderRadius: 14, background: 'var(--cream)', cursor: 'pointer', textAlign: 'left' }}>
+            <Building2 size={28} color="var(--emerald)" />
+            <div>
+              <div style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: 'var(--emerald)' }}>{t('iOwnBusiness')}</div>
+              <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>{t('iOwnBusinessSub')}</div>
+            </div>
+          </button>
+          <button className="role-card-btn" onClick={onPickStaff}
+            style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 18, border: '1px solid var(--border)', borderRadius: 14, background: 'var(--cream)', cursor: 'pointer', textAlign: 'left' }}>
+            <Users size={28} color="var(--gold)" />
+            <div>
+              <div style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: 'var(--emerald)' }}>{t('iWorkAsStaff')}</div>
+              <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>{t('iWorkAsStaffSub')}</div>
+            </div>
+          </button>
+        </div>
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}>
+          <span>{user?.email}</span>
+          <button className="btn-link" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }} onClick={onLogout}>
+            {t('signOut')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Business owner onboarding ----------
+function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
+  const { t } = useT();
+  const [name, setName] = useState('');
+  const [type, setType] = useState('spa');
+  const [staffCount, setStaffCount] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    if (!name.trim()) { setErr(t('emailRequired')); return; }
+    setBusy(true);
+    try {
+      const result = await api('/api/businesses', {
+        method: 'POST',
+        body: { name: name.trim(), type, staffCount: Number(staffCount) || 0 },
+      });
+      if (result.token) setToken(result.token);
+      onCreated(result.user, result.business);
+    } catch (e) { setErr(e.message || t('failed')); setBusy(false); }
+  };
+
+  return (
+    <div className="role-screen">
+      <LangToggle floating />
+      <div className="role-card" style={{ maxWidth: 460 }}>
+        <BrandMark sub={t('setupBusiness')} />
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>{t('setupBusinessSub')}</p>
+        <form onSubmit={submit} style={{ marginTop: 18 }}>
+          <div className="field">
+            <label>{t('businessName')}</label>
+            <input className="input" autoFocus required value={name}
+              placeholder={t('businessNamePh')}
+              onChange={e => { setErr(null); setName(e.target.value); }} />
+          </div>
+          <div className="field">
+            <label>{t('businessTypeLabel')}</label>
+            <select className="select" value={type} onChange={e => setType(e.target.value)}>
+              <option value="spa">{t('bizTypeSpa')}</option>
+              <option value="salon">{t('bizTypeSalon')}</option>
+              <option value="barbershop">{t('bizTypeBarbershop')}</option>
+              <option value="gym">{t('bizTypeGym')}</option>
+              <option value="hotel">{t('bizTypeHotel')}</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>{t('numberOfStaff')}</label>
+            <input className="input" type="number" min="0" max="500" value={staffCount}
+              onChange={e => setStaffCount(e.target.value)} />
+          </div>
+          {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
+            {busy ? t('saving') : t('createBusiness')}
+          </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>← {t('back')}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onLogout}>{t('signOut')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Staff onboarding (join with code) ----------
+function StaffOnboarding({ onJoined, onBack, onSwitchToOwner, onLogout }) {
+  const { t } = useT();
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    if (!code.trim()) { setErr(t('invalidBusinessCode')); return; }
+    setBusy(true);
+    try {
+      const result = await api('/api/businesses/join', {
+        method: 'POST',
+        body: { code: code.trim() },
+      });
+      if (result.token) setToken(result.token);
+      onJoined(result.user, result.business);
+    } catch (e) { setErr(e.message || t('invalidBusinessCode')); setBusy(false); }
+  };
+
+  return (
+    <div className="role-screen">
+      <LangToggle floating />
+      <div className="role-card" style={{ maxWidth: 460 }}>
+        <BrandMark sub={t('joinBusiness')} />
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>{t('joinBusinessSub')}</p>
+        <form onSubmit={submit} style={{ marginTop: 18 }}>
+          <div className="field">
+            <label>{t('businessCode')}</label>
+            <input className="input" autoFocus required value={code}
+              placeholder={t('businessCodePh')}
+              style={{ textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'monospace' }}
+              onChange={e => { setErr(null); setCode(e.target.value.toUpperCase()); }} />
+          </div>
+          {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
+            {busy ? t('saving') : t('join')}
+          </button>
+          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)', textAlign: 'center', lineHeight: 1.5 }}>
+            {t('noCodeYet')}{' '}
+            <button type="button" className="btn-link"
+              style={{ background: 'none', border: 'none', color: 'var(--emerald)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12, padding: 0 }}
+              onClick={onSwitchToOwner}>
+              {t('iOwnBusiness')}
+            </button>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>← {t('back')}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onLogout}>{t('signOut')}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Payment required (trial expired) ----------
+function PaymentRequired({ user, onActivated, onLogout }) {
+  const { t } = useT();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const subscribe = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
+      }
+      // Stripe not configured: mock activate
+      const { user: u } = await api('/api/billing/mock-activate', { method: 'POST', body: {} });
+      onActivated(u);
+    } catch (e) { setErr(e.message || t('failed')); setBusy(false); }
+  };
+
+  return (
+    <div className="role-screen">
+      <LangToggle floating />
+      <div className="role-card" style={{ maxWidth: 440 }}>
+        <BrandMark sub={t('paymentRequiredTitle')} />
+        <div style={{ textAlign: 'center', marginTop: 14 }}>
+          <Lock size={36} color="var(--gold)" />
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 12, lineHeight: 1.5 }}>
+            {t('paymentRequiredSub')}
+          </p>
+        </div>
+        {err && <div className="error-banner" style={{ marginTop: 12 }}><AlertTriangle size={14} /> {err}</div>}
+        <button className="btn btn-primary" style={{ width: '100%', marginTop: 18, padding: '14px 16px', fontSize: 14 }}
+          disabled={busy} onClick={subscribe}>
+          <Gem size={14} style={{ marginRight: 6 }} /> {busy ? t('pleaseWait') : t('subscribeMonthly')}
+        </button>
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
+          {t('subscribeNote')}
+        </div>
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}>
+          <span>{user?.email}</span>
+          <button className="btn-link" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }} onClick={onLogout}>
+            {t('signOut')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Settings drawer (subscription + switch role) ----------
+function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toast }) {
+  const { t } = useT();
+  const [busy, setBusy] = useState(false);
+
+  const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - new Date()) / (24 * 60 * 60 * 1000))) : 0;
+  const status = user?.subscriptionStatus || 'trial';
+
+  const copyCode = async () => {
+    try { await navigator.clipboard.writeText(business?.code || ''); toast(t('copied')); } catch {}
+  };
+
+  const switchType = async () => {
+    if (!window.confirm(t('confirmSwitchAccountType'))) return;
+    setBusy(true);
+    try {
+      const { token, user: u } = await api('/api/auth/switch-onboarding', { method: 'POST', body: {} });
+      if (token) setToken(token);
+      onSwitched(u);
+      onClose();
+    } catch (e) { toast(e.message || t('failed')); setBusy(false); }
+  };
+
+  const activate = async () => {
+    setBusy(true);
+    try {
+      const { user: u } = await api('/api/billing/mock-activate', { method: 'POST', body: {} });
+      onActivated(u);
+      toast(t('activated'));
+    } catch (e) { toast(e.message || t('failed')); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title={t('settings')} onClose={onClose}>
+      <div className="field">
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('email')}</div>
+        <div style={{ fontSize: 14 }}>{user?.email}</div>
+      </div>
+
+      <div className="field">
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('manageSubscription')}</div>
+        <div className="row" style={{ marginTop: 0 }}>
+          <Gem size={16} color={status === 'active' ? 'var(--emerald)' : 'var(--gold)'} />
+          <div className="grow">
+            <div className="title" style={{ fontSize: 13 }}>
+              {status === 'active' ? `${t('active')} — $19/month` : t('trialActiveBanner').replace('{n}', daysLeft)}
+            </div>
+            {status !== 'active' && trialEnd && (
+              <div className="meta" style={{ fontSize: 11 }}>
+                {t('trialActiveUntil')} {trialEnd.toLocaleDateString()}
+              </div>
+            )}
+          </div>
+          {status !== 'active' && (
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={activate}>
+              {t('subscribeMonthly')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {business && user?.onboardingRole === 'owner' && (
+        <div className="field">
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('yourBusinessCode')}</div>
+          <div className="row" style={{ marginTop: 0 }}>
+            <div className="grow">
+              <div className="title" style={{ fontSize: 18, fontFamily: 'monospace', letterSpacing: 2 }}>{business.code}</div>
+              <div className="meta" style={{ fontSize: 11 }}>{t('shareWithStaff')}</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={copyCode}>{t('copy')}</button>
+          </div>
+        </div>
+      )}
+
+      <div className="field">
+        <button className="btn btn-ghost" style={{ width: '100%' }} disabled={busy} onClick={switchType}>
+          {t('switchAccountType')}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ---------- Trial banner ----------
+function TrialBanner({ user, onUpgrade }) {
+  const { t } = useT();
+  if (!user || user.subscriptionStatus === 'active') return null;
+  const trialEnd = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  if (!trialEnd) return null;
+  const daysLeft = Math.max(0, Math.ceil((trialEnd - new Date()) / (24 * 60 * 60 * 1000)));
+  if (daysLeft > 3) return null; // only show when 3 or fewer days left
+  const label = daysLeft <= 0 ? t('trialEnded') : t('trialEndingSoon').replace('{n}', daysLeft);
+  return (
+    <div style={{ background: '#fef3e0', borderBottom: '1px solid #f5d8a4', padding: '8px 14px', fontSize: 12, color: 'var(--emerald)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span><AlertTriangle size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> {label}</span>
+      <button className="btn btn-primary btn-sm" onClick={onUpgrade}>{t('subscribeMonthly')}</button>
     </div>
   );
 }
@@ -2310,9 +2784,13 @@ function AppInner() {
   const [toastMsg, setToastMsg] = useState(null);
   const toast = (m) => setToastMsg(m);
   const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset_token') || null);
+  const [authMode, setAuthMode] = useState(null); // null | 'login' | 'signup'
+  const [onboardingChoice, setOnboardingChoice] = useState(null); // null | 'owner' | 'staff'
+  const [business, setBusiness] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const authed = !!user;
-  const onboarded = !!(user?.role && user?.businessType);
+  const onboarded = !!(user?.role && user?.businessType && user?.businessId);
 
   const staff         = useCollection('/api/staff',         authed);
   const bookings      = useCollection('/api/bookings',      onboarded);
@@ -2367,7 +2845,22 @@ function AppInner() {
     setToken(null);
     setUser(null);
     setRole(null);
+    setBusiness(null);
+    setOnboardingChoice(null);
+    setAuthMode(null);
   };
+
+  // Load business when user has businessId
+  useEffect(() => {
+    if (!user?.businessId) { setBusiness(null); return; }
+    api('/api/businesses/me').then(setBusiness).catch(() => setBusiness(null));
+  }, [user?.businessId]);
+
+  // Trial / payment status
+  const trialEndDate = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const trialExpired = trialEndDate ? new Date() > trialEndDate : false;
+  const isPaid = user?.subscriptionStatus === 'active';
+  const needsPayment = authed && trialExpired && !isPaid;
 
   if (resetToken) return (
     <ResetPasswordScreen token={resetToken} onDone={() => {
@@ -2388,8 +2881,50 @@ function AppInner() {
     );
   }
 
-  if (!user) return <AuthScreen onAuthed={setUser} />;
-  if (!user.businessType) return <BusinessSelector user={user} onSelected={setUser} onLogout={logout} />;
+  if (!user) {
+    if (!authMode) {
+      return <LandingPage
+        onStartTrial={() => setAuthMode('signup')}
+        onSignIn={() => setAuthMode('login')}
+      />;
+    }
+    return <AuthScreen
+      onAuthed={(u) => { setUser(u); setAuthMode(null); }}
+      initialMode={authMode}
+      onBack={() => setAuthMode(null)}
+    />;
+  }
+
+  if (needsPayment) return (
+    <PaymentRequired user={user} onActivated={setUser} onLogout={logout} />
+  );
+
+  if (!user.businessId) {
+    if (!onboardingChoice) {
+      return <OnboardingRoleSelector
+        user={user}
+        onPickOwner={() => setOnboardingChoice('owner')}
+        onPickStaff={() => setOnboardingChoice('staff')}
+        onLogout={logout}
+      />;
+    }
+    if (onboardingChoice === 'owner') {
+      return <BusinessOwnerOnboarding
+        onCreated={(u, b) => { setUser(u); setBusiness(b); setOnboardingChoice(null); setRole(u.role || 'manager'); }}
+        onBack={() => setOnboardingChoice(null)}
+        onLogout={logout}
+      />;
+    }
+    if (onboardingChoice === 'staff') {
+      return <StaffOnboarding
+        onJoined={(u, b) => { setUser(u); setBusiness(b); setOnboardingChoice(null); setRole(u.role || 'staff'); }}
+        onBack={() => setOnboardingChoice(null)}
+        onSwitchToOwner={() => setOnboardingChoice('owner')}
+        onLogout={logout}
+      />;
+    }
+  }
+
   if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} />;
 
   const currentStaffId = user.staffId || user.id;
@@ -2415,6 +2950,7 @@ function AppInner() {
 
   return (
     <div className="shell">
+      <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
         <div>
           <div className="brand">Spa<span className="dot">·</span>Pilot</div>
@@ -2427,11 +2963,24 @@ function AppInner() {
               {t('switch')}
             </button>
           )}
+          <button className="switch" onClick={() => setShowSettings(true)} aria-label="settings">
+            {t('settings')}
+          </button>
           <button className="switch" onClick={logout} aria-label="sign out">
             <LogOut size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> {t('signOut')}
           </button>
         </div>
       </header>
+      {showSettings && (
+        <SettingsDrawer
+          user={user}
+          business={business}
+          onClose={() => setShowSettings(false)}
+          onSwitched={(u) => { setUser(u); setRole(null); setOnboardingChoice(null); }}
+          onActivated={setUser}
+          toast={toast}
+        />
+      )}
 
       <main className="page fade" key={tab}>
         <div className="page-title">{pageTitle}</div>
