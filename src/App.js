@@ -158,7 +158,9 @@ const TRANSLATIONS = {
     featTeamBody: 'Roles, permissions, time-off requests, commission tracking.',
     startFreeTrial: 'Start Free Trial',
     haveAccount: 'Already have an account?',
-    trialFinePrint: '7 days free, then $19/month. No credit card required. Cancel anytime.',
+    trialFinePrint: 'No credit card · 7-day free trial',
+    trialFinePrintSub: 'Then $19/month. Cancel anytime.',
+    whatYouCanDo: 'What you can do',
     trialActiveBanner: 'Trial active — {n} days left',
     trialEndingSoon: 'Trial ends in {n} days',
     trialEnded: 'Trial ended',
@@ -340,7 +342,9 @@ const TRANSLATIONS = {
     featTeamBody: 'Peran, izin, permintaan cuti, pelacakan komisi.',
     startFreeTrial: 'Mulai Uji Coba Gratis',
     haveAccount: 'Sudah punya akun?',
-    trialFinePrint: '7 hari gratis, lalu $19/bulan. Tanpa kartu kredit. Batal kapan saja.',
+    trialFinePrint: 'Tanpa kartu kredit · uji coba 7 hari gratis',
+    trialFinePrintSub: 'Lalu $19/bulan. Batal kapan saja.',
+    whatYouCanDo: 'Apa yang bisa Anda lakukan',
     trialActiveBanner: 'Uji coba aktif — sisa {n} hari',
     trialEndingSoon: 'Uji coba berakhir dalam {n} hari',
     trialEnded: 'Uji coba berakhir',
@@ -583,8 +587,41 @@ function BrandMark({ sub }) {
 }
 
 // ---------- Language toggle ----------
-function LangToggle({ floating = false }) {
-  const { lang, setLang } = useT();
+function LangToggle({ floating = false, large = false }) {
+  const { lang, setLang, t } = useT();
+  const langName = lang === 'en' ? 'English' : 'Bahasa';
+
+  if (large) {
+    return (
+      <button
+        onClick={() => setLang(lang === 'en' ? 'id' : 'en')}
+        aria-label="toggle language"
+        title={lang === 'en' ? 'Bahasa Indonesia' : 'English'}
+        style={{
+          position: 'fixed',
+          top: 16,
+          right: 16,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 16px',
+          fontSize: 14,
+          fontWeight: 600,
+          background: 'var(--cream, #faf6ed)',
+          color: 'var(--emerald)',
+          border: '1.5px solid var(--emerald)',
+          borderRadius: 999,
+          cursor: 'pointer',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        }}
+      >
+        <Globe size={16} />
+        {t('language')}: {langName}
+      </button>
+    );
+  }
+
   const className = floating ? 'lang-toggle-float' : 'switch';
   return (
     <button
@@ -815,15 +852,15 @@ function ResetPasswordScreen({ token, onDone }) {
 function LandingPage({ onStartTrial, onSignIn }) {
   const { t } = useT();
   const features = [
-    { icon: Calendar,    titleKey: 'featSchedTitle', bodyKey: 'featSchedBody' },
-    { icon: Package,     titleKey: 'featOpsTitle',   bodyKey: 'featOpsBody' },
-    { icon: Users,       titleKey: 'featTeamTitle',  bodyKey: 'featTeamBody' },
+    { icon: Calendar, titleKey: 'featSchedTitle', bodyKey: 'featSchedBody' },
+    { icon: Package,  titleKey: 'featOpsTitle',   bodyKey: 'featOpsBody' },
+    { icon: Users,    titleKey: 'featTeamTitle',  bodyKey: 'featTeamBody' },
   ];
   return (
     <div className="role-screen">
-      <LangToggle floating />
+      <LangToggle large />
       <div className="role-card" style={{ maxWidth: 560 }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ textAlign: 'center', marginBottom: 26 }}>
           <BrandMark sub="" />
           <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 26, lineHeight: 1.25, marginTop: 14, color: 'var(--emerald)' }}>
             {t('landingHero')}
@@ -833,33 +870,42 @@ function LandingPage({ onStartTrial, onSignIn }) {
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
-          {features.map(f => {
-            const Icon = f.icon;
-            return (
-              <div key={f.titleKey} className="card" style={{ marginBottom: 0, padding: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--cream-2, #f3ebde)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={18} color="var(--emerald)" />
+        {/* Features as text list — not buttons. Read-only header section. */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>
+            {t('whatYouCanDo')}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {features.map(f => {
+              const Icon = f.icon;
+              return (
+                <div key={f.titleKey} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <Icon size={18} color="var(--emerald)" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--emerald)' }}>{t(f.titleKey)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, lineHeight: 1.5 }}>{t(f.bodyKey)}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--emerald)' }}>{t(f.titleKey)}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3, lineHeight: 1.4 }}>{t(f.bodyKey)}</div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
-        <button className="btn btn-primary" style={{ width: '100%', padding: '14px 16px', fontSize: 15 }} onClick={onStartTrial}>
-          <Sparkles size={14} style={{ marginRight: 6 }} /> {t('startFreeTrial')}
+        <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
+          <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
         </button>
-        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
-          {t('trialFinePrint')}
+        <div style={{ marginTop: 12, textAlign: 'center' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--emerald)' }}>
+            {t('trialFinePrint')}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            {t('trialFinePrintSub')}
+          </div>
         </div>
 
-        <div style={{ marginTop: 18, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
+        <div style={{ marginTop: 22, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
           {t('haveAccount')}{' '}
-          <button type="button" className="btn-link"
+          <button type="button"
             style={{ background: 'none', border: 'none', color: 'var(--emerald)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12, padding: 0 }}
             onClick={onSignIn}>
             {t('signIn')}
