@@ -158,16 +158,16 @@ const TRANSLATIONS = {
     featTeamBody: 'Roles, permissions, time-off requests, commission tracking.',
     startFreeTrial: 'Start Free Trial',
     haveAccount: 'Already have an account?',
-    trialFinePrint: '7 days free, then $19/month. Cancel anytime.',
+    trialFinePrint: '7 days free, then $19/month. No credit card required. Cancel anytime.',
     trialActiveBanner: 'Trial active — {n} days left',
     trialEndingSoon: 'Trial ends in {n} days',
     trialEnded: 'Trial ended',
     trialActiveUntil: 'Trial active until',
     chooseYourPath: 'How will you use SpaPilot?',
-    iOwnBusiness: 'I own a spa or salon',
-    iOwnBusinessSub: 'Set up your business and invite your team.',
-    iWorkAsStaff: 'I work as staff',
-    iWorkAsStaffSub: 'Join your business with a team code.',
+    iOwnBusiness: 'Set up my business',
+    iOwnBusinessSub: 'Create your workspace and invite your team.',
+    iWorkAsStaff: 'Join my team',
+    iWorkAsStaffSub: 'Use a code to join your business.',
     setupBusiness: 'Set up your business',
     setupBusinessSub: 'A few details so we can build your workspace.',
     businessName: 'Business name',
@@ -340,16 +340,16 @@ const TRANSLATIONS = {
     featTeamBody: 'Peran, izin, permintaan cuti, pelacakan komisi.',
     startFreeTrial: 'Mulai Uji Coba Gratis',
     haveAccount: 'Sudah punya akun?',
-    trialFinePrint: '7 hari gratis, lalu $19/bulan. Batal kapan saja.',
+    trialFinePrint: '7 hari gratis, lalu $19/bulan. Tanpa kartu kredit. Batal kapan saja.',
     trialActiveBanner: 'Uji coba aktif — sisa {n} hari',
     trialEndingSoon: 'Uji coba berakhir dalam {n} hari',
     trialEnded: 'Uji coba berakhir',
     trialActiveUntil: 'Uji coba aktif hingga',
     chooseYourPath: 'Bagaimana Anda akan gunakan SpaPilot?',
-    iOwnBusiness: 'Saya pemilik spa atau salon',
-    iOwnBusinessSub: 'Siapkan bisnis Anda dan undang tim.',
-    iWorkAsStaff: 'Saya bekerja sebagai staf',
-    iWorkAsStaffSub: 'Gabung dengan kode tim.',
+    iOwnBusiness: 'Siapkan bisnis saya',
+    iOwnBusinessSub: 'Buat ruang kerja Anda dan undang tim.',
+    iWorkAsStaff: 'Gabung tim saya',
+    iWorkAsStaffSub: 'Gunakan kode untuk bergabung.',
     setupBusiness: 'Siapkan bisnis Anda',
     setupBusinessSub: 'Beberapa detail untuk membangun ruang kerja Anda.',
     businessName: 'Nama bisnis',
@@ -912,7 +912,6 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
   const { t } = useT();
   const [name, setName] = useState('');
   const [type, setType] = useState('spa');
-  const [staffCount, setStaffCount] = useState(1);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -924,7 +923,7 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
     try {
       const result = await api('/api/businesses', {
         method: 'POST',
-        body: { name: name.trim(), type, staffCount: Number(staffCount) || 0 },
+        body: { name: name.trim(), type },
       });
       if (result.token) setToken(result.token);
       onCreated(result.user, result.business);
@@ -953,11 +952,6 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
               <option value="gym">{t('bizTypeGym')}</option>
               <option value="hotel">{t('bizTypeHotel')}</option>
             </select>
-          </div>
-          <div className="field">
-            <label>{t('numberOfStaff')}</label>
-            <input className="input" type="number" min="0" max="500" value={staffCount}
-              onChange={e => setStaffCount(e.target.value)} />
           </div>
           {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
