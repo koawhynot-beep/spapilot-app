@@ -47,8 +47,8 @@ const TRANSLATIONS = {
     bookingAdded: 'Booking added', bookingUpdated: 'Booking updated',
     couldNotDeleteBooking: 'Could not delete booking',
     newBooking: 'New Booking', editBooking: 'Edit Booking',
-    client: 'Client', treatment: 'Treatment', time: 'Time', durationMin: 'Duration (min)',
-    therapist: 'Therapist', notes: 'Notes',
+    client: 'Client', treatment: 'Service', time: 'Time', durationMin: 'Duration (min)',
+    therapist: 'Provider', notes: 'Notes', rolePlaceholder: 'e.g. Manager, Stylist, Trainer',
     teamMembers: 'Team Members', noTeamYet: 'No team members yet.',
     removeStaff: 'Remove this staff member?', staffRemoved: 'Staff removed',
     staffAdded: 'Staff added', staffUpdated: 'Staff updated',
@@ -148,6 +148,18 @@ const TRANSLATIONS = {
     permCanRequestNewProducts: 'Can request new products',
     permCanMarkViolations: 'Can mark SOP violations',
     permCanPostAnnouncements: 'Can post announcements',
+    emptyBookingsTitle: 'No bookings yet',
+    emptyBookingsBody: 'Add your first appointment to see it on the schedule.',
+    emptyInventoryTitle: 'No products yet',
+    emptyInventoryBody: 'Track supplies, ingredients, or anything that runs out.',
+    emptyStaffTitle: 'No team members yet',
+    emptyStaffBody: 'Add the people who work with you so you can assign bookings.',
+    emptySopTitle: 'No procedures yet',
+    emptySopBody: 'Document the rules and routines your team should follow.',
+    addFirstBooking: 'Add your first booking',
+    addFirstProduct: 'Add your first product',
+    addFirstTeamMember: 'Add your first team member',
+    addFirstSop: 'Add your first procedure',
     landingHero: 'Spa & salon management made simple.',
     landingSub: 'Schedule staff, track inventory, manage SOP compliance, reduce chaos.',
     featSchedTitle: 'Scheduling',
@@ -231,8 +243,8 @@ const TRANSLATIONS = {
     bookingAdded: 'Pemesanan ditambahkan', bookingUpdated: 'Pemesanan diperbarui',
     couldNotDeleteBooking: 'Tidak dapat menghapus pemesanan',
     newBooking: 'Pemesanan Baru', editBooking: 'Ubah Pemesanan',
-    client: 'Klien', treatment: 'Perawatan', time: 'Waktu', durationMin: 'Durasi (menit)',
-    therapist: 'Terapis', notes: 'Catatan',
+    client: 'Klien', treatment: 'Layanan', time: 'Waktu', durationMin: 'Durasi (menit)',
+    therapist: 'Penyedia', notes: 'Catatan', rolePlaceholder: 'misal Manajer, Penata, Pelatih',
     teamMembers: 'Anggota Tim', noTeamYet: 'Belum ada anggota tim.',
     removeStaff: 'Hapus anggota staf ini?', staffRemoved: 'Staf dihapus',
     staffAdded: 'Staf ditambahkan', staffUpdated: 'Staf diperbarui',
@@ -332,6 +344,18 @@ const TRANSLATIONS = {
     permCanRequestNewProducts: 'Boleh minta produk baru',
     permCanMarkViolations: 'Boleh catat pelanggaran SOP',
     permCanPostAnnouncements: 'Boleh kirim pengumuman',
+    emptyBookingsTitle: 'Belum ada pemesanan',
+    emptyBookingsBody: 'Tambahkan janji pertama Anda untuk melihatnya di jadwal.',
+    emptyInventoryTitle: 'Belum ada produk',
+    emptyInventoryBody: 'Lacak persediaan, bahan, atau apa pun yang sering habis.',
+    emptyStaffTitle: 'Belum ada anggota tim',
+    emptyStaffBody: 'Tambahkan orang yang bekerja dengan Anda agar bisa diberi pemesanan.',
+    emptySopTitle: 'Belum ada prosedur',
+    emptySopBody: 'Dokumentasikan aturan dan rutinitas yang harus diikuti tim.',
+    addFirstBooking: 'Tambah pemesanan pertama',
+    addFirstProduct: 'Tambah produk pertama',
+    addFirstTeamMember: 'Tambah anggota tim pertama',
+    addFirstSop: 'Tambah prosedur pertama',
     landingHero: 'Manajemen spa & salon dipermudah.',
     landingSub: 'Atur jadwal staf, lacak inventaris, kelola SOP, kurangi kekacauan.',
     featSchedTitle: 'Penjadwalan',
@@ -571,6 +595,38 @@ function Toast({ payload, onDone }) {
           onClick={() => { action.undo(); onDone(); }}
           aria-label="undo"
         >{action.undoLabel || 'Undo'}</button>
+      )}
+    </div>
+  );
+}
+
+// ---------- Empty state ----------
+function EmptyState({ icon: Icon, title, body, ctaLabel, onCta }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--muted)' }}>
+      {Icon && (
+        <div style={{
+          width: 56, height: 56, borderRadius: 14, margin: '0 auto 14px',
+          background: 'var(--cream-2, #f3ebde)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Icon size={24} color="var(--emerald)" />
+        </div>
+      )}
+      {title && (
+        <div style={{ fontFamily: 'Fraunces, serif', fontSize: 17, color: 'var(--emerald)', marginBottom: 6 }}>
+          {title}
+        </div>
+      )}
+      {body && (
+        <div style={{ fontSize: 13, lineHeight: 1.5, maxWidth: 320, margin: '0 auto 14px' }}>
+          {body}
+        </div>
+      )}
+      {ctaLabel && onCta && (
+        <button className="btn btn-primary btn-sm" onClick={onCta}>
+          <Plus size={12} style={{ marginRight: 4 }} /> {ctaLabel}
+        </button>
       )}
     </div>
   );
@@ -1589,7 +1645,15 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="center-muted">{query ? t('noResults') : t('noBookings')}</div>
+          query
+            ? <div className="center-muted">{t('noResults')}</div>
+            : <EmptyState
+                icon={Calendar}
+                title={t('emptyBookingsTitle')}
+                body={t('emptyBookingsBody')}
+                ctaLabel={t('addFirstBooking')}
+                onCta={() => setModal('new')}
+              />
         ) : filtered.map(b => {
           const m = staff.find(s => s.id === b.staffId);
           return (
@@ -1759,7 +1823,17 @@ function StaffTab({ staff, violations, onReload, toast }) {
             <Download size={12} /> {t('exportCsv')}
           </button>
         </div>
-        {filtered.length === 0 ? <div className="center-muted">{query ? t('noResults') : t('noTeamYet')}</div> : filtered.map(s => {
+        {filtered.length === 0 ? (
+          query
+            ? <div className="center-muted">{t('noResults')}</div>
+            : <EmptyState
+                icon={Users}
+                title={t('emptyStaffTitle')}
+                body={t('emptyStaffBody')}
+                ctaLabel={t('addFirstTeamMember')}
+                onCta={() => setModal('new')}
+              />
+        ) : filtered.map(s => {
           const vCount = violations.filter(v => v.staffId === s.id).length;
           return (
             <div key={s.id} className="row">
@@ -1799,7 +1873,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
 function StaffModal({ member, onClose, onSaved }) {
   const { t } = useT();
   const [f, setF] = useState(member || {
-    name: '', role: 'Therapist', avatar: '', color: COLOR_OPTIONS[0],
+    name: '', role: '', avatar: '', color: COLOR_OPTIONS[0],
     birthday: '', schedule: ['Mon','Tue','Wed','Thu','Fri'], phone: '',
     commissionRate: 30, permissions: { ...STAFF_DEFAULT_PERMISSIONS },
   });
@@ -1828,9 +1902,8 @@ function StaffModal({ member, onClose, onSaved }) {
         <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
         <div className="field"><label>{t('role')}</label>
-          <select className="select" value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>
-            <option>Therapist</option><option>Receptionist</option><option>Manager</option><option>Housekeeping</option>
-          </select></div>
+          <input className="input" required value={f.role} placeholder={t('rolePlaceholder')}
+            onChange={e => setF({ ...f, role: e.target.value })} /></div>
         <div className="field"><label>{t('birthday')}</label>
           <input className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -1959,7 +2032,17 @@ function InventoryTab({ inventory, onReload, toast }) {
             <Download size={12} /> {t('exportCsv')}
           </button>
         </div>
-        {filtered.length === 0 ? <div className="center-muted">{(query || cat) ? t('noResults') : t('noItemsYet')}</div> : filtered.map(i => {
+        {filtered.length === 0 ? (
+          (query || cat)
+            ? <div className="center-muted">{t('noResults')}</div>
+            : <EmptyState
+                icon={Package}
+                title={t('emptyInventoryTitle')}
+                body={t('emptyInventoryBody')}
+                ctaLabel={t('addFirstProduct')}
+                onCta={() => setModal('new')}
+              />
+        ) : filtered.map(i => {
           const low = i.stock <= i.threshold;
           return (
             <div key={i.id} className="row">
@@ -2062,6 +2145,13 @@ function SOPTab({ sops, staff, violations, onReload, toast }) {
     <div>
       <div className="card">
         <div className="card-head"><h3>{t('sopTitle')}</h3></div>
+        {sops.length === 0 && (
+          <EmptyState
+            icon={ShieldCheck}
+            title={t('emptySopTitle')}
+            body={t('emptySopBody')}
+          />
+        )}
         {sops.map(s => (
           <div key={s.id} className="row">
             <ShieldCheck size={20} color="var(--gold)" />
