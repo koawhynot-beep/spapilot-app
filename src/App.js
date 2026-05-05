@@ -48,7 +48,7 @@ const TRANSLATIONS = {
     couldNotDeleteBooking: 'Could not delete booking',
     newBooking: 'New Booking', editBooking: 'Edit Booking',
     client: 'Client', treatment: 'Service', time: 'Time', durationMin: 'Duration (min)',
-    therapist: 'Provider', notes: 'Notes',
+    therapist: 'Provider', notes: 'Notes', rolePlaceholder: 'e.g. Manager, Stylist, Trainer',
     teamMembers: 'Team Members', noTeamYet: 'No team members yet.',
     removeStaff: 'Remove this staff member?', staffRemoved: 'Staff removed',
     staffAdded: 'Staff added', staffUpdated: 'Staff updated',
@@ -232,7 +232,7 @@ const TRANSLATIONS = {
     couldNotDeleteBooking: 'Tidak dapat menghapus pemesanan',
     newBooking: 'Pemesanan Baru', editBooking: 'Ubah Pemesanan',
     client: 'Klien', treatment: 'Layanan', time: 'Waktu', durationMin: 'Durasi (menit)',
-    therapist: 'Penyedia', notes: 'Catatan',
+    therapist: 'Penyedia', notes: 'Catatan', rolePlaceholder: 'misal Manajer, Penata, Pelatih',
     teamMembers: 'Anggota Tim', noTeamYet: 'Belum ada anggota tim.',
     removeStaff: 'Hapus anggota staf ini?', staffRemoved: 'Staf dihapus',
     staffAdded: 'Staf ditambahkan', staffUpdated: 'Staf diperbarui',
@@ -1799,7 +1799,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
 function StaffModal({ member, onClose, onSaved }) {
   const { t } = useT();
   const [f, setF] = useState(member || {
-    name: '', role: 'Therapist', avatar: '', color: COLOR_OPTIONS[0],
+    name: '', role: '', avatar: '', color: COLOR_OPTIONS[0],
     birthday: '', schedule: ['Mon','Tue','Wed','Thu','Fri'], phone: '',
     commissionRate: 30, permissions: { ...STAFF_DEFAULT_PERMISSIONS },
   });
@@ -1828,9 +1828,8 @@ function StaffModal({ member, onClose, onSaved }) {
         <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
         <div className="field"><label>{t('role')}</label>
-          <select className="select" value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>
-            <option>Therapist</option><option>Receptionist</option><option>Manager</option><option>Housekeeping</option>
-          </select></div>
+          <input className="input" required value={f.role} placeholder={t('rolePlaceholder')}
+            onChange={e => setF({ ...f, role: e.target.value })} /></div>
         <div className="field"><label>{t('birthday')}</label>
           <input className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
