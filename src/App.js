@@ -168,9 +168,9 @@ const TRANSLATIONS = {
     featOpsBody: 'Inventory tracking, low-stock alerts, SOP enforcement, daily checklists.',
     featTeamTitle: 'Team Management',
     featTeamBody: 'Roles, permissions, time-off requests, commission tracking.',
-    startFreeTrial: 'Start Free Trial',
+    startFreeTrial: 'No credit card, start free trial',
     haveAccount: 'Already have an account?',
-    trialFinePrint: 'No credit card · 7-day free trial',
+    trialFinePrint: '7-day free trial',
     trialFinePrintSub: 'Then $19/month. Cancel anytime.',
     whatYouCanDo: 'What you can do',
     trialActiveBanner: 'Trial active — {n} days left',
@@ -364,9 +364,9 @@ const TRANSLATIONS = {
     featOpsBody: 'Lacak inventaris, peringatan stok rendah, SOP, daftar harian.',
     featTeamTitle: 'Manajemen Tim',
     featTeamBody: 'Peran, izin, permintaan cuti, pelacakan komisi.',
-    startFreeTrial: 'Mulai Uji Coba Gratis',
+    startFreeTrial: 'Tanpa kartu kredit, mulai uji coba gratis',
     haveAccount: 'Sudah punya akun?',
-    trialFinePrint: 'Tanpa kartu kredit · uji coba 7 hari gratis',
+    trialFinePrint: 'Uji coba 7 hari gratis',
     trialFinePrintSub: 'Lalu $19/bulan. Batal kapan saja.',
     whatYouCanDo: 'Apa yang bisa Anda lakukan',
     trialActiveBanner: 'Uji coba aktif — sisa {n} hari',
@@ -950,11 +950,11 @@ function LandingPage({ onStartTrial, onSignIn }) {
         <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
           <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
         </button>
-        <div style={{ marginTop: 12, textAlign: 'center' }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--emerald)' }}>
+        <div style={{ marginTop: 10, textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
             {t('trialFinePrint')}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
             {t('trialFinePrintSub')}
           </div>
         </div>
