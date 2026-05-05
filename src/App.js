@@ -210,6 +210,19 @@ const TRANSLATIONS = {
     shareWithStaff: 'Share this code with your staff so they can join.',
     copy: 'Copy', copied: 'Copied',
     activated: 'Subscription activated',
+    tutorialStep1Title: 'Welcome to your workspace',
+    tutorialStep1Body: "Everything's set up. Let's show you where things live.",
+    tutorialStep2Title: 'Schedule',
+    tutorialStep2Body: 'Add appointments, bookings, and sessions here. This is the main calendar for your business.',
+    tutorialStep3Title: 'Team',
+    tutorialStep3Body: 'Add the people who work with you. Assign them to bookings and manage their shifts.',
+    tutorialStep4Title: 'Stock',
+    tutorialStep4Body: 'Track your supplies, products, and anything that runs low. Get alerts before you run out.',
+    tutorialStep5Title: "You're all set",
+    tutorialStep5Body: 'Start by adding your first team member or booking. Your dashboard will fill up from there.',
+    tutorialNext: 'Next',
+    tutorialGetStarted: 'Get started',
+    tutorialSkip: 'Skip tour',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -406,6 +419,19 @@ const TRANSLATIONS = {
     shareWithStaff: 'Bagikan kode ini agar staf bisa bergabung.',
     copy: 'Salin', copied: 'Disalin',
     activated: 'Langganan diaktifkan',
+    tutorialStep1Title: 'Selamat datang di ruang kerja Anda',
+    tutorialStep1Body: 'Semuanya sudah siap. Kami akan tunjukkan di mana setiap fitur berada.',
+    tutorialStep2Title: 'Jadwal',
+    tutorialStep2Body: 'Tambahkan janji, pemesanan, dan sesi di sini. Ini kalender utama bisnis Anda.',
+    tutorialStep3Title: 'Tim',
+    tutorialStep3Body: 'Tambahkan orang yang bekerja dengan Anda. Atur shift dan tugaskan pemesanan.',
+    tutorialStep4Title: 'Stok',
+    tutorialStep4Body: 'Lacak persediaan dan produk Anda. Dapatkan peringatan sebelum kehabisan.',
+    tutorialStep5Title: 'Semuanya siap',
+    tutorialStep5Body: 'Mulai dengan menambahkan anggota tim atau pemesanan pertama Anda.',
+    tutorialNext: 'Lanjut',
+    tutorialGetStarted: 'Mulai',
+    tutorialSkip: 'Lewati',
   },
 };
 
@@ -2904,6 +2930,136 @@ const OWNER_NAV = [
   { id: 'overview', labelKey: 'home', icon: Gem },
 ];
 
+// ================= TUTORIAL OVERLAY =================
+function TutorialOverlay({ onComplete }) {
+  const { t } = useT();
+  const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const steps = [
+    {
+      icon: Sparkles,
+      titleKey: 'tutorialStep1Title',
+      bodyKey:  'tutorialStep1Body',
+      color:    '#a78bfa',
+    },
+    {
+      icon: Calendar,
+      titleKey: 'tutorialStep2Title',
+      bodyKey:  'tutorialStep2Body',
+      color:    '#60a5fa',
+    },
+    {
+      icon: Users,
+      titleKey: 'tutorialStep3Title',
+      bodyKey:  'tutorialStep3Body',
+      color:    '#34d399',
+    },
+    {
+      icon: Package,
+      titleKey: 'tutorialStep4Title',
+      bodyKey:  'tutorialStep4Body',
+      color:    '#fbbf24',
+    },
+    {
+      icon: CheckCircle,
+      titleKey: 'tutorialStep5Title',
+      bodyKey:  'tutorialStep5Body',
+      color:    '#a78bfa',
+    },
+  ];
+
+  const current = steps[step];
+  const isLast = step === steps.length - 1;
+
+  const finish = async () => {
+    setLoading(true);
+    try { await onComplete(); } catch {}
+    setLoading(false);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.72)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '24px',
+    }}>
+      <div style={{
+        background: 'var(--card)', borderRadius: '20px',
+        maxWidth: 420, width: '100%',
+        padding: '40px 32px 32px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        gap: 16, textAlign: 'center',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+        position: 'relative',
+      }}>
+        {/* Skip */}
+        <button
+          onClick={finish}
+          style={{
+            position: 'absolute', top: 16, right: 16,
+            background: 'none', border: 'none',
+            color: 'var(--muted)', fontSize: 13, cursor: 'pointer',
+            padding: '4px 8px',
+          }}
+        >{t('tutorialSkip')}</button>
+
+        {/* Icon */}
+        <div style={{
+          width: 72, height: 72, borderRadius: '50%',
+          background: current.color + '22',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <current.icon size={32} style={{ color: current.color }} />
+        </div>
+
+        {/* Text */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)' }}>
+            {t(current.titleKey)}
+          </div>
+          <div style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.6 }}>
+            {t(current.bodyKey)}
+          </div>
+        </div>
+
+        {/* Dots */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+          {steps.map((_, i) => (
+            <div key={i} style={{
+              width: i === step ? 20 : 8, height: 8,
+              borderRadius: 4,
+              background: i === step ? current.color : 'var(--border)',
+              transition: 'all 0.25s',
+            }} />
+          ))}
+        </div>
+
+        {/* Button */}
+        {isLast ? (
+          <button
+            className="btn-primary"
+            onClick={finish}
+            disabled={loading}
+            style={{ marginTop: 8, width: '100%', padding: '14px' }}
+          >
+            {loading ? '…' : t('tutorialGetStarted')}
+          </button>
+        ) : (
+          <button
+            className="btn-primary"
+            onClick={() => setStep(s => s + 1)}
+            style={{ marginTop: 8, width: '100%', padding: '14px' }}
+          >
+            {t('tutorialNext')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ================= APP =================
 function AppInner() {
   const { t } = useT();
@@ -3056,6 +3212,15 @@ function AppInner() {
   }
 
   if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} />;
+
+  if (!user.tutorialCompleted) return (
+    <TutorialOverlay onComplete={async () => {
+      try {
+        const data = await api('/api/auth/complete-tutorial', { method: 'POST', body: {} });
+        setUser(data.user);
+      } catch {}
+    }} />
+  );
 
   const currentStaffId = user.staffId || user.id;
 
