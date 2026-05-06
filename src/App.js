@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext, useMemo } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext, useMemo, useRef } from 'react';
 import {
   Calendar, Users, Package, LayoutDashboard, AlertTriangle,
   CheckCircle, RefreshCw, Bell, User, ShieldCheck, Send, Home, Inbox,
@@ -12,6 +12,15 @@ const API = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 const TOKEN_KEY = 'opus_token';
 const LANG_KEY = 'opus_lang';
 const BRAND = 'Opus';
+const TOUR_DONE_KEY = 'spapilot-tutorial-done';
+
+const TOUR_STEPS = [
+  { targetId: 'role-manager',     message: 'Tap here to log in as manager',                position: 'top' },
+  { targetId: 'tab-alerts',       message: 'Check pending staff requests here',             position: 'top' },
+  { targetId: 'tab-inventory',    message: 'Track your inventory and stock here',           position: 'top' },
+  { targetId: 'btn-mark-ordered', message: 'Tap Ordered to mark stock restocked',          position: 'top' },
+  { targetId: 'action-sop',       message: 'Log SOP violations from this button',          position: 'top' },
+];
 
 // ---------- i18n ----------
 const TRANSLATIONS = {
@@ -1293,6 +1302,16 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
           {t('switchAccountType')}
         </button>
       </div>
+
+      <div className="field">
+        <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13 }} onClick={() => {
+          localStorage.removeItem(TOUR_DONE_KEY);
+          onClose();
+          window.location.reload();
+        }}>
+          Restart tutorial
+        </button>
+      </div>
     </Modal>
   );
 }
@@ -1426,7 +1445,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
         ) : (
           <div style={{ marginTop: 18 }}>
             {roles.map(r => (
-              <button key={r.id} className="role-btn" onClick={() => pick(r.id)} disabled={busy}>
+              <button key={r.id} className="role-btn" onClick={() => pick(r.id)} disabled={busy} data-tour={`role-${r.id}`}>
                 <div className="icon-wrap">{r.icon}</div>
                 <div>
                   <div className="label">{r.label}</div>
@@ -2105,7 +2124,7 @@ function InventoryTab({ inventory, onReload, toast }) {
                 ctaLabel={t('addFirstProduct')}
                 onCta={() => setModal('new')}
               />
-        ) : filtered.map(i => {
+        ) : filtered.map((i, idx) => {
           const low = i.stock <= i.threshold;
           return (
             <div key={i.id} className="row">
@@ -2123,7 +2142,7 @@ function InventoryTab({ inventory, onReload, toast }) {
                   <button className="btn-icon" onClick={() => adjust(i.id, +1)} aria-label={t('increase')}>+</button>
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => markOrdered(i.id)}>{t('ordered')}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => markOrdered(i.id)} {...(idx === 0 ? { 'data-tour': 'btn-mark-ordered' } : {})}>{t('ordered')}</button>
                   <button className="btn-icon" onClick={() => setModal(i)} aria-label={t('edit')}><Edit2 size={14} /></button>
                   <button className="btn-icon" onClick={() => del(i.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
                 </div>
@@ -2230,7 +2249,7 @@ function SOPTab({ sops, staff, violations, onReload, toast }) {
       <div className="card">
         <div className="card-head">
           <h3>{t('logSopViolation')}</h3>
-          <button className="btn btn-gold btn-sm" onClick={() => setModal(true)}><Plus size={14} /> {t('log')}</button>
+          <button className="btn btn-gold btn-sm" onClick={() => setModal(true)} data-tour="action-sop"><Plus size={14} /> {t('log')}</button>
         </div>
         {violations.length === 0 ? (
           <div className="center-muted">{t('noViolations')}</div>
@@ -2967,130 +2986,170 @@ const OWNER_NAV = [
   { id: 'overview', labelKey: 'home', icon: Gem },
 ];
 
-// ================= TUTORIAL OVERLAY =================
-function TutorialOverlay({ onComplete, onHighlight }) {
-  const { t } = useT();
+// ================= TOUR OVERLAY (data-tour DOM targeting) =================
+function TourOverlay({ onDone }) {
   const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [rect, setRect] = useState(null);
+  const stepRef = useRef(step);
+  stepRef.current = step;
 
-  const steps = [
-    { icon: Sparkles,     titleKey: 'tutorialStep1Title', bodyKey: 'tutorialStep1Body', color: '#a78bfa', navId: null,        navIcon: null,         navLabelKey: null },
-    { icon: Calendar,     titleKey: 'tutorialStep2Title', bodyKey: 'tutorialStep2Body', color: '#60a5fa', navId: 'schedule',  navIcon: Calendar,     navLabelKey: 'schedule' },
-    { icon: Users,        titleKey: 'tutorialStep3Title', bodyKey: 'tutorialStep3Body', color: '#34d399', navId: 'staff',     navIcon: Users,        navLabelKey: 'staff' },
-    { icon: Package,      titleKey: 'tutorialStep4Title', bodyKey: 'tutorialStep4Body', color: '#fbbf24', navId: 'inventory', navIcon: Package,      navLabelKey: 'stock' },
-    { icon: CheckCircle,  titleKey: 'tutorialStep5Title', bodyKey: 'tutorialStep5Body', color: '#a78bfa', navId: null,        navIcon: null,         navLabelKey: null },
-  ];
+  // Measure target element position live
+  const measure = useCallback(() => {
+    const el = document.querySelector(`[data-tour="${TOUR_STEPS[stepRef.current].targetId}"]`);
+    setRect(el ? el.getBoundingClientRect() : null);
+  }, []);
 
+  // Recompute on step change, resize, scroll
   useEffect(() => {
-    onHighlight && onHighlight(steps[step].navId);
-  }, [step]); // eslint-disable-line
+    const tid = setTimeout(measure, 120); // wait for DOM after tab switch
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      clearTimeout(tid);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, [step, measure]);
 
-  const current = steps[step];
-  const isLast = step === steps.length - 1;
-  const hasNav = !!current.navId;
+  // Listen for clicks on the current target to advance
+  useEffect(() => {
+    const { targetId } = TOUR_STEPS[stepRef.current];
+    const handler = (e) => {
+      if (e.target.closest(`[data-tour="${targetId}"]`)) {
+        setTimeout(() => {
+          const next = stepRef.current + 1;
+          if (next < TOUR_STEPS.length) setStep(next);
+          else onDone();
+        }, 150);
+      }
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, [step, onDone]);
 
-  const finish = async () => {
-    setLoading(true);
-    onHighlight && onHighlight(null);
-    try { await onComplete(); } catch {}
-    setLoading(false);
-  };
+  const currentStep = TOUR_STEPS[step];
+  const PAD = 10;
+  const GOLD = '#b8956a';
+
+  // Compute arrow + tooltip positions from rect
+  let arrowLeft = 0, arrowTop = 0, arrowRotate = 0;
+  let tipLeft = 0, tipTop = 0;
+
+  if (rect) {
+    const cx = rect.left + rect.width / 2;
+    // Always position above the element (pointing down at it)
+    arrowLeft = cx - 20;
+    arrowTop  = rect.top - 58;
+    arrowRotate = 0; // SVG arrow points down by default
+    // Tooltip above the arrow
+    tipLeft = Math.min(Math.max(cx - 120, 8), window.innerWidth - 248);
+    tipTop  = rect.top - 58 - 68;
+  }
 
   return (
-    /* Overlay covers everything EXCEPT the bottom nav (bottom: 68px) so nav stays visible */
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 68,
-      zIndex: 999,
-      background: 'rgba(0,0,0,0.82)',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      padding: 24,
-    }}>
-      <div style={{
-        background: 'var(--card)', borderRadius: 20,
-        maxWidth: 380, width: '100%',
-        padding: '36px 28px 28px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 14, textAlign: 'center',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
-        position: 'relative',
-      }}>
-        {/* Skip */}
-        <button onClick={finish} style={{
-          position: 'absolute', top: 12, right: 12,
-          background: 'none', border: 'none',
-          color: 'var(--muted)', fontSize: 13, cursor: 'pointer', padding: '4px 8px',
-        }}>{t('tutorialSkip')}</button>
-
-        {/* Step icon */}
+    <>
+      {/* Spotlight cutout: box-shadow creates dark vignette, transparent hole reveals target */}
+      {rect ? (
         <div style={{
-          width: 64, height: 64, borderRadius: '50%',
-          background: current.color + '22',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <current.icon size={28} style={{ color: current.color }} />
-        </div>
-
-        {/* Title + body */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--fg)' }}>{t(current.titleKey)}</div>
-          <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>{t(current.bodyKey)}</div>
-        </div>
-
-        {/* Tab replica — shows which nav tab to tap */}
-        {hasNav && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {t('tapThisTab')}
-            </div>
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              background: current.color + '18', borderRadius: 12, padding: '10px 24px',
-              border: `2px solid ${current.color}55`,
-            }}>
-              <current.navIcon size={24} style={{ color: current.color }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: current.color, letterSpacing: '0.06em' }}>
-                {t(current.navLabelKey).toUpperCase()}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Progress dots */}
-        <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
-          {steps.map((_, i) => (
-            <div key={i} style={{
-              width: i === step ? 20 : 7, height: 7,
-              borderRadius: 4,
-              background: i === step ? current.color : 'var(--border)',
-              transition: 'all 0.25s',
-            }} />
-          ))}
-        </div>
-
-        {/* CTA */}
-        {isLast ? (
-          <button className="btn-primary" onClick={finish} disabled={loading}
-            style={{ marginTop: 4, width: '100%', padding: 13 }}>
-            {loading ? '…' : t('tutorialGetStarted')}
-          </button>
-        ) : (
-          <button className="btn-primary" onClick={() => setStep(s => s + 1)}
-            style={{ marginTop: 4, width: '100%', padding: 13 }}>
-            {t('tutorialNext')}
-          </button>
-        )}
-      </div>
-
-      {/* Bouncing arrow pointing down at the visible nav below */}
-      {hasNav && (
-        <div style={{
-          marginTop: 20, fontSize: 32, color: 'rgba(255,255,255,0.85)',
-          animation: 'bounce-down 0.85s ease-in-out infinite',
-          lineHeight: 1,
-        }}>↓</div>
+          position: 'fixed',
+          left: rect.left - PAD, top: rect.top - PAD,
+          width: rect.width + PAD * 2, height: rect.height + PAD * 2,
+          borderRadius: 14,
+          background: 'transparent',
+          boxShadow: '0 0 0 9999px rgba(0,0,0,0.72)',
+          zIndex: 9990,
+          pointerEvents: 'none',
+          transition: 'all 0.2s ease',
+        }} />
+      ) : (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9990, pointerEvents: 'none' }} />
       )}
-    </div>
+
+      {/* Bouncing SVG arrow pointing at target */}
+      {rect && (
+        <div style={{
+          position: 'fixed', zIndex: 9995, pointerEvents: 'none',
+          left: arrowLeft, top: arrowTop,
+          animation: 'tour-bounce 0.85s ease-in-out infinite',
+          transform: `rotate(${arrowRotate}deg)`,
+        }}>
+          <svg width="40" height="52" viewBox="0 0 40 52">
+            <line x1="20" y1="2" x2="20" y2="38" stroke={GOLD} strokeWidth="3.5" strokeLinecap="round" />
+            <polyline points="8,28 20,44 32,28" fill="none" stroke={GOLD} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      )}
+
+      {/* Tooltip */}
+      {rect && (
+        <div style={{
+          position: 'fixed', zIndex: 9996, pointerEvents: 'none',
+          left: tipLeft, top: Math.max(tipTop, 8),
+          background: '#1c1c1e',
+          color: '#f5f0e8',
+          fontFamily: 'Fraunces, Georgia, serif',
+          fontSize: 15, lineHeight: 1.55,
+          padding: '12px 16px',
+          borderRadius: 14,
+          maxWidth: 240,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          {currentStep.message}
+        </div>
+      )}
+
+      {/* No target found — fallback card */}
+      {!rect && (
+        <div style={{
+          position: 'fixed', top: '40%', left: '50%', transform: 'translate(-50%,-50%)',
+          zIndex: 9996, background: '#1c1c1e', color: '#f5f0e8',
+          fontFamily: 'Fraunces, Georgia, serif',
+          padding: '20px 28px', borderRadius: 18,
+          maxWidth: 300, fontSize: 15, textAlign: 'center',
+          boxShadow: '0 12px 48px rgba(0,0,0,0.5)',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <div style={{ marginBottom: 16, lineHeight: 1.6 }}>
+            Navigate to find: <strong style={{ color: GOLD }}>{currentStep.message.toLowerCase()}</strong>
+          </div>
+          <button
+            onClick={() => { const n = step + 1; if (n < TOUR_STEPS.length) setStep(n); else onDone(); }}
+            style={{
+              background: GOLD, color: '#fff', border: 'none', borderRadius: 10,
+              padding: '9px 20px', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+            }}
+          >Skip this step →</button>
+        </div>
+      )}
+
+      {/* Skip tour button */}
+      <button
+        onClick={onDone}
+        style={{
+          position: 'fixed', top: 14, right: 14, zIndex: 9999,
+          background: 'rgba(28,28,30,0.9)', color: 'rgba(255,255,255,0.8)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: 20, padding: '6px 14px', fontSize: 13,
+          cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em',
+        }}
+      >Skip tour</button>
+
+      {/* Step progress dots */}
+      <div style={{
+        position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 9999, display: 'flex', gap: 7, pointerEvents: 'none',
+      }}>
+        {TOUR_STEPS.map((_, i) => (
+          <div key={i} style={{
+            width: i === step ? 22 : 7, height: 7, borderRadius: 4,
+            background: i === step ? GOLD : 'rgba(255,255,255,0.3)',
+            transition: 'all 0.25s',
+          }} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -3108,7 +3167,7 @@ function AppInner() {
   const [onboardingChoice, setOnboardingChoice] = useState(null); // null | 'owner' | 'staff'
   const [business, setBusiness] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [tutorialHighlight, setTutorialHighlight] = useState(null);
+  const [tourDone, setTourDone] = useState(() => localStorage.getItem(TOUR_DONE_KEY) === 'true');
 
   const authed = !!user;
   const onboarded = !!(user?.role && user?.businessType && user?.businessId);
@@ -3378,9 +3437,8 @@ function AppInner() {
           const Icon = item.icon;
           const active = tab === item.id;
           const badge = item.id === 'alerts' ? alertBadge : 0;
-          const isSpot = tutorialHighlight === item.id;
           return (
-            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${active ? 'active' : ''} ${isSpot ? 'tutorial-spot' : ''}`}>
+            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${active ? 'active' : ''}`} data-tour={`tab-${item.id}`}>
               <Icon size={22} />
               <span>{t(item.labelKey)}</span>
               {active && <span className="dot" />}
@@ -3390,17 +3448,12 @@ function AppInner() {
         })}
       </nav>
 
-      {!user.tutorialCompleted && (
-        <TutorialOverlay
-          onHighlight={setTutorialHighlight}
-          onComplete={async () => {
-            try {
-              const data = await api('/api/auth/complete-tutorial', { method: 'POST', body: {} });
-              setUser(data.user);
-              setTutorialHighlight(null);
-            } catch {}
-          }}
-        />
+      {!tourDone && (
+        <TourOverlay onDone={async () => {
+          setTourDone(true);
+          localStorage.setItem(TOUR_DONE_KEY, 'true');
+          try { await api('/api/auth/complete-tutorial', { method: 'POST', body: {} }); } catch {}
+        }} />
       )}
 
       <Toast payload={toastMsg} onDone={() => setToastMsg(null)} />
