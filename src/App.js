@@ -210,6 +210,10 @@ const TRANSLATIONS = {
     shareWithStaff: 'Share this code with your staff so they can join.',
     copy: 'Copy', copied: 'Copied',
     activated: 'Subscription activated',
+    checklist: 'Checklist',
+    checklistAdd: 'Add a task…',
+    checklistEmpty: 'No tasks yet. Add one below.',
+    tapThisTab: 'Tap this tab ↓',
     tutorialStep1Title: 'Welcome to your workspace',
     tutorialStep1Body: "Everything's set up. Let's show you where things live.",
     tutorialStep2Title: 'Schedule',
@@ -419,6 +423,10 @@ const TRANSLATIONS = {
     shareWithStaff: 'Bagikan kode ini agar staf bisa bergabung.',
     copy: 'Salin', copied: 'Disalin',
     activated: 'Langganan diaktifkan',
+    checklist: 'Daftar Tugas',
+    checklistAdd: 'Tambah tugas…',
+    checklistEmpty: 'Belum ada tugas. Tambahkan di bawah.',
+    tapThisTab: 'Ketuk tab ini ↓',
     tutorialStep1Title: 'Selamat datang di ruang kerja Anda',
     tutorialStep1Body: 'Semuanya sudah siap. Kami akan tunjukkan di mana setiap fitur berada.',
     tutorialStep2Title: 'Jadwal',
@@ -1462,13 +1470,25 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
     { v: lowStock.length, l: t('lowStock'),       i: <Package size={16} /> },
   ];
 
-  const checklist = [
-    { id: 'open',      label: t('checklistOpen') },
-    { id: 'brief',     label: t('checklistBrief') },
-    { id: 'inventory', label: t('checklistInventory') },
-    { id: 'wrapup',    label: t('checklistWrapup') },
-  ];
-  const [done, setDone] = useState({});
+  const CHECKLIST_KEY = 'spa_checklist';
+  const [checkItems, setCheckItems] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(CHECKLIST_KEY)) || []; }
+    catch { return []; }
+  });
+  const [newTask, setNewTask] = useState('');
+
+  const saveItems = (items) => {
+    setCheckItems(items);
+    localStorage.setItem(CHECKLIST_KEY, JSON.stringify(items));
+  };
+  const toggleItem = (id) => saveItems(checkItems.map(i => i.id === id ? { ...i, done: !i.done } : i));
+  const addItem = () => {
+    const text = newTask.trim();
+    if (!text) return;
+    saveItems([...checkItems, { id: Date.now(), text, done: false }]);
+    setNewTask('');
+  };
+  const removeItem = (id) => saveItems(checkItems.filter(i => i.id !== id));
 
   return (
     <div>
@@ -1532,29 +1552,46 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
       </div>
 
       <div className="card">
-        <h3>{t('todaysChecklist')}</h3>
-        {checklist.map(c => (
-          <label key={c.id} className="row" style={{ cursor: 'pointer' }}>
+        <div className="card-head"><h3>{t('checklist')}</h3></div>
+        {checkItems.length === 0 && (
+          <div className="center-muted" style={{ padding: '12px 0', fontSize: 14 }}>{t('checklistEmpty')}</div>
+        )}
+        {checkItems.map(item => (
+          <div key={item.id} className="row" style={{ cursor: 'pointer' }} onClick={() => toggleItem(item.id)}>
             <div style={{
-              width: 24, height: 24, borderRadius: 6,
-              border: '2px solid ' + (done[c.id] ? 'var(--emerald)' : 'var(--line)'),
-              background: done[c.id] ? 'var(--emerald)' : '#fff',
+              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+              border: '2px solid ' + (item.done ? 'var(--emerald)' : 'var(--line)'),
+              background: item.done ? 'var(--emerald)' : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
             }}>
-              {done[c.id] && <Check size={14} color="#fff" />}
+              {item.done && <Check size={12} color="#fff" />}
             </div>
-            <div className="grow" style={{ textDecoration: done[c.id] ? 'line-through' : 'none', color: done[c.id] ? 'var(--muted)' : 'var(--ink)' }}>
-              {c.label}
-            </div>
-            <input
-              type="checkbox"
-              checked={!!done[c.id]}
-              onChange={() => setDone({ ...done, [c.id]: !done[c.id] })}
-              style={{ display: 'none' }}
-            />
-          </label>
+            <div className="grow" style={{
+              textDecoration: item.done ? 'line-through' : 'none',
+              color: item.done ? 'var(--muted)' : 'var(--ink)',
+              fontSize: 15,
+            }}>{item.text}</div>
+            <button
+              onClick={e => { e.stopPropagation(); removeItem(item.id); }}
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4 }}
+              aria-label="remove"
+            ><X size={14} /></button>
+          </div>
         ))}
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <input
+            className="inp"
+            value={newTask}
+            onChange={e => setNewTask(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addItem()}
+            placeholder={t('checklistAdd')}
+            style={{ flex: 1 }}
+          />
+          <button className="btn btn-sm" onClick={addItem} disabled={!newTask.trim()}
+            style={{ padding: '0 14px', background: 'var(--emerald)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <Plus size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="card">
@@ -2931,104 +2968,99 @@ const OWNER_NAV = [
 ];
 
 // ================= TUTORIAL OVERLAY =================
-function TutorialOverlay({ onComplete }) {
+function TutorialOverlay({ onComplete, onHighlight }) {
   const { t } = useT();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const steps = [
-    {
-      icon: Sparkles,
-      titleKey: 'tutorialStep1Title',
-      bodyKey:  'tutorialStep1Body',
-      color:    '#a78bfa',
-    },
-    {
-      icon: Calendar,
-      titleKey: 'tutorialStep2Title',
-      bodyKey:  'tutorialStep2Body',
-      color:    '#60a5fa',
-    },
-    {
-      icon: Users,
-      titleKey: 'tutorialStep3Title',
-      bodyKey:  'tutorialStep3Body',
-      color:    '#34d399',
-    },
-    {
-      icon: Package,
-      titleKey: 'tutorialStep4Title',
-      bodyKey:  'tutorialStep4Body',
-      color:    '#fbbf24',
-    },
-    {
-      icon: CheckCircle,
-      titleKey: 'tutorialStep5Title',
-      bodyKey:  'tutorialStep5Body',
-      color:    '#a78bfa',
-    },
+    { icon: Sparkles,     titleKey: 'tutorialStep1Title', bodyKey: 'tutorialStep1Body', color: '#a78bfa', navId: null,        navIcon: null,         navLabelKey: null },
+    { icon: Calendar,     titleKey: 'tutorialStep2Title', bodyKey: 'tutorialStep2Body', color: '#60a5fa', navId: 'schedule',  navIcon: Calendar,     navLabelKey: 'schedule' },
+    { icon: Users,        titleKey: 'tutorialStep3Title', bodyKey: 'tutorialStep3Body', color: '#34d399', navId: 'staff',     navIcon: Users,        navLabelKey: 'staff' },
+    { icon: Package,      titleKey: 'tutorialStep4Title', bodyKey: 'tutorialStep4Body', color: '#fbbf24', navId: 'inventory', navIcon: Package,      navLabelKey: 'stock' },
+    { icon: CheckCircle,  titleKey: 'tutorialStep5Title', bodyKey: 'tutorialStep5Body', color: '#a78bfa', navId: null,        navIcon: null,         navLabelKey: null },
   ];
+
+  useEffect(() => {
+    onHighlight && onHighlight(steps[step].navId);
+  }, [step]); // eslint-disable-line
 
   const current = steps[step];
   const isLast = step === steps.length - 1;
+  const hasNav = !!current.navId;
 
   const finish = async () => {
     setLoading(true);
+    onHighlight && onHighlight(null);
     try { await onComplete(); } catch {}
     setLoading(false);
   };
 
   return (
+    /* Overlay covers everything EXCEPT the bottom nav (bottom: 68px) so nav stays visible */
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.72)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px',
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 68,
+      zIndex: 999,
+      background: 'rgba(0,0,0,0.82)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: 24,
     }}>
       <div style={{
-        background: 'var(--card)', borderRadius: '20px',
-        maxWidth: 420, width: '100%',
-        padding: '40px 32px 32px',
+        background: 'var(--card)', borderRadius: 20,
+        maxWidth: 380, width: '100%',
+        padding: '36px 28px 28px',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 16, textAlign: 'center',
+        gap: 14, textAlign: 'center',
         boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
         position: 'relative',
       }}>
         {/* Skip */}
-        <button
-          onClick={finish}
-          style={{
-            position: 'absolute', top: 16, right: 16,
-            background: 'none', border: 'none',
-            color: 'var(--muted)', fontSize: 13, cursor: 'pointer',
-            padding: '4px 8px',
-          }}
-        >{t('tutorialSkip')}</button>
+        <button onClick={finish} style={{
+          position: 'absolute', top: 12, right: 12,
+          background: 'none', border: 'none',
+          color: 'var(--muted)', fontSize: 13, cursor: 'pointer', padding: '4px 8px',
+        }}>{t('tutorialSkip')}</button>
 
-        {/* Icon */}
+        {/* Step icon */}
         <div style={{
-          width: 72, height: 72, borderRadius: '50%',
+          width: 64, height: 64, borderRadius: '50%',
           background: current.color + '22',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <current.icon size={32} style={{ color: current.color }} />
+          <current.icon size={28} style={{ color: current.color }} />
         </div>
 
-        {/* Text */}
+        {/* Title + body */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)' }}>
-            {t(current.titleKey)}
-          </div>
-          <div style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.6 }}>
-            {t(current.bodyKey)}
-          </div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--fg)' }}>{t(current.titleKey)}</div>
+          <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>{t(current.bodyKey)}</div>
         </div>
 
-        {/* Dots */}
-        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+        {/* Tab replica — shows which nav tab to tap */}
+        {hasNav && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              {t('tapThisTab')}
+            </div>
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+              background: current.color + '18', borderRadius: 12, padding: '10px 24px',
+              border: `2px solid ${current.color}55`,
+            }}>
+              <current.navIcon size={24} style={{ color: current.color }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: current.color, letterSpacing: '0.06em' }}>
+                {t(current.navLabelKey).toUpperCase()}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Progress dots */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
           {steps.map((_, i) => (
             <div key={i} style={{
-              width: i === step ? 20 : 8, height: 8,
+              width: i === step ? 20 : 7, height: 7,
               borderRadius: 4,
               background: i === step ? current.color : 'var(--border)',
               transition: 'all 0.25s',
@@ -3036,26 +3068,28 @@ function TutorialOverlay({ onComplete }) {
           ))}
         </div>
 
-        {/* Button */}
+        {/* CTA */}
         {isLast ? (
-          <button
-            className="btn-primary"
-            onClick={finish}
-            disabled={loading}
-            style={{ marginTop: 8, width: '100%', padding: '14px' }}
-          >
+          <button className="btn-primary" onClick={finish} disabled={loading}
+            style={{ marginTop: 4, width: '100%', padding: 13 }}>
             {loading ? '…' : t('tutorialGetStarted')}
           </button>
         ) : (
-          <button
-            className="btn-primary"
-            onClick={() => setStep(s => s + 1)}
-            style={{ marginTop: 8, width: '100%', padding: '14px' }}
-          >
+          <button className="btn-primary" onClick={() => setStep(s => s + 1)}
+            style={{ marginTop: 4, width: '100%', padding: 13 }}>
             {t('tutorialNext')}
           </button>
         )}
       </div>
+
+      {/* Bouncing arrow pointing down at the visible nav below */}
+      {hasNav && (
+        <div style={{
+          marginTop: 20, fontSize: 32, color: 'rgba(255,255,255,0.85)',
+          animation: 'bounce-down 0.85s ease-in-out infinite',
+          lineHeight: 1,
+        }}>↓</div>
+      )}
     </div>
   );
 }
@@ -3074,6 +3108,7 @@ function AppInner() {
   const [onboardingChoice, setOnboardingChoice] = useState(null); // null | 'owner' | 'staff'
   const [business, setBusiness] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [tutorialHighlight, setTutorialHighlight] = useState(null);
 
   const authed = !!user;
   const onboarded = !!(user?.role && user?.businessType && user?.businessId);
@@ -3213,15 +3248,6 @@ function AppInner() {
 
   if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} />;
 
-  if (!user.tutorialCompleted) return (
-    <TutorialOverlay onComplete={async () => {
-      try {
-        const data = await api('/api/auth/complete-tutorial', { method: 'POST', body: {} });
-        setUser(data.user);
-      } catch {}
-    }} />
-  );
-
   const currentStaffId = user.staffId || user.id;
 
   const currentStaffMember = role === 'staff' ? staff.data.find(s => s.id === currentStaffId) : null;
@@ -3352,9 +3378,10 @@ function AppInner() {
           const Icon = item.icon;
           const active = tab === item.id;
           const badge = item.id === 'alerts' ? alertBadge : 0;
+          const isSpot = tutorialHighlight === item.id;
           return (
-            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${active ? 'active' : ''}`}>
-              <Icon size={18} />
+            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${active ? 'active' : ''} ${isSpot ? 'tutorial-spot' : ''}`}>
+              <Icon size={22} />
               <span>{t(item.labelKey)}</span>
               {active && <span className="dot" />}
               {badge > 0 && <span className="badge-dot">{badge}</span>}
@@ -3362,6 +3389,19 @@ function AppInner() {
           );
         })}
       </nav>
+
+      {!user.tutorialCompleted && (
+        <TutorialOverlay
+          onHighlight={setTutorialHighlight}
+          onComplete={async () => {
+            try {
+              const data = await api('/api/auth/complete-tutorial', { method: 'POST', body: {} });
+              setUser(data.user);
+              setTutorialHighlight(null);
+            } catch {}
+          }}
+        />
+      )}
 
       <Toast payload={toastMsg} onDone={() => setToastMsg(null)} />
     </div>
