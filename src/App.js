@@ -796,8 +796,20 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
 
         {mode !== 'forgot' && (
           <div className="auth-tabs">
-            <button className={`auth-tab ${mode === 'login' ? 'active' : ''}`} onClick={() => switchMode('login')}>{t('signIn')}</button>
-            <button className={`auth-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => switchMode('signup')}>{t('createAccount')}</button>
+            <button
+              className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
+              onClick={() => switchMode('login')}
+            >
+              {mode === 'login' && <span style={{ marginRight: 6, fontSize: 11 }}>●</span>}
+              {t('signIn')}
+            </button>
+            <button
+              className={`auth-tab ${mode === 'signup' ? 'active' : ''}`}
+              onClick={() => switchMode('signup')}
+            >
+              {mode === 'signup' && <span style={{ marginRight: 6, fontSize: 11 }}>●</span>}
+              {t('createAccount')}
+            </button>
           </div>
         )}
 
