@@ -73,7 +73,7 @@ const TRANSLATIONS = {
     couldNotMarkOrdered: 'Could not mark ordered', couldNotRemoveItem: 'Could not remove item',
     decrease: 'decrease', increase: 'increase', ordered: 'Ordered',
     low: 'Low', addItem: 'Add Item', editItem: 'Edit Item',
-    category: 'Category', stockLevel: 'Stock', threshold: 'Full Quota', unit: 'Unit', supplier: 'Supplier',
+    category: 'Category', stockLevel: 'Stock', threshold: 'Low Stock Alert', unit: 'Unit', supplier: 'Supplier',
     sopTitle: 'Standard Operating Procedures',
     logSopViolation: 'Log SOP Violation', log: 'Log',
     noViolations: 'No violations logged.', repeatOffenders: 'Repeat Offenders',
@@ -115,7 +115,7 @@ const TRANSLATIONS = {
     daysWeek: 'Days / week', mySopNotes: 'My SOP Notes', cleanRecord: 'Clean record — well done.',
     selectStaff: 'Select team member',
     search: 'Search', sortBy: 'Sort by', filterCategory: 'Filter category', allCategories: 'All',
-    timeAsc: 'Time ↑', timeDesc: 'Time ↓', exportCsv: 'Export CSV',
+    timeAsc: 'Time ↑', timeDesc: 'Time ↓', exportCsv: '⬇ Download Spreadsheet',
     language: 'Language', english: 'English', indonesian: 'Bahasa',
     failed: 'Failed', noResults: 'No results.',
     active: 'Active', leftLabel: 'left · quota',
@@ -291,7 +291,7 @@ const TRANSLATIONS = {
     couldNotMarkOrdered: 'Tidak dapat menandai dipesan', couldNotRemoveItem: 'Tidak dapat menghapus item',
     decrease: 'kurangi', increase: 'tambah', ordered: 'Dipesan',
     low: 'Rendah', addItem: 'Tambah Item', editItem: 'Ubah Item',
-    category: 'Kategori', stockLevel: 'Stok', threshold: 'Kuota Penuh', unit: 'Unit', supplier: 'Pemasok',
+    category: 'Kategori', stockLevel: 'Stok', threshold: 'Peringatan Stok Rendah', unit: 'Unit', supplier: 'Pemasok',
     sopTitle: 'Prosedur Operasi Standar',
     logSopViolation: 'Catat Pelanggaran SOP', log: 'Catat',
     noViolations: 'Tidak ada pelanggaran tercatat.', repeatOffenders: 'Pelanggar Berulang',
@@ -333,7 +333,7 @@ const TRANSLATIONS = {
     daysWeek: 'Hari / minggu', mySopNotes: 'Catatan SOP Saya', cleanRecord: 'Catatan bersih — kerja bagus.',
     selectStaff: 'Pilih anggota tim',
     search: 'Cari', sortBy: 'Urutkan', filterCategory: 'Filter kategori', allCategories: 'Semua',
-    timeAsc: 'Waktu ↑', timeDesc: 'Waktu ↓', exportCsv: 'Ekspor CSV',
+    timeAsc: 'Waktu ↑', timeDesc: 'Waktu ↓', exportCsv: '⬇ Unduh Spreadsheet',
     language: 'Bahasa', english: 'English', indonesian: 'Bahasa',
     failed: 'Gagal', noResults: 'Tidak ada hasil.',
     active: 'Aktif', leftLabel: 'tersisa · kuota',
@@ -1806,10 +1806,11 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
 
 function BookingModal({ booking, staff, onClose, onSaved }) {
   const { t } = useT();
-  const [f, setF] = useState(booking || {
-    time: '10:00', client: '', treatment: '', duration: 60,
-    staffId: staff[0]?.id || 1, notes: '', allergies: '',
-    clientPhone: '', price: 0,
+  const [f, setF] = useState(() => {
+    if (!booking) return { time: '10:00', client: '', treatment: '', duration: 60,
+      therapist: '', notes: '', allergies: '', clientPhone: '', price: 0 };
+    const staffName = staff.find(s => s.id === booking.staffId)?.name || booking.therapist || '';
+    return { ...booking, therapist: staffName };
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -1838,14 +1839,12 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
             <input className="input" type="number" value={f.duration} onChange={e => setF({ ...f, duration: Number(e.target.value) })} /></div>
         </div>
         <div className="field"><label>{t('therapist')}</label>
-          <select className="select" value={f.staffId} onChange={e => setF({ ...f, staffId: Number(e.target.value) })}>
-            {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select></div>
+          <input className="input" placeholder="Provider name" value={f.therapist || ''} onChange={e => setF({ ...f, therapist: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{t('clientPhone')}</label>
             <input className="input" type="tel" placeholder="+62…" value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
-            <input className="input" type="number" min="0" value={f.price || 0} onChange={e => setF({ ...f, price: Number(e.target.value) })} /></div>
+            <input className="input" type="number" min="0" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         </div>
         <div className="field"><label>{t('allergies')}</label>
           <input className="input" placeholder="e.g. lavender, nuts" value={f.allergies || ''} onChange={e => setF({ ...f, allergies: e.target.value })} /></div>
@@ -2010,12 +2009,8 @@ function StaffModal({ member, onClose, onSaved }) {
             onChange={e => setF({ ...f, role: e.target.value })} /></div>
         <div className="field"><label>{t('birthday')}</label>
           <input className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('staffPhone')}</label>
-            <input className="input" type="tel" placeholder="+62…" value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('commissionRate')}</label>
-            <input className="input" type="number" min="0" max="100" value={f.commissionRate ?? 30} onChange={e => setF({ ...f, commissionRate: Number(e.target.value) })} /></div>
-        </div>
+        <div className="field"><label>{t('staffPhone')}</label>
+          <input className="input" type="tel" placeholder="+62…" value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
         <div className="field"><label>{t('avatarColor')}</label>
           <div className="color-swatches">
             {COLOR_OPTIONS.map(c => (
@@ -2216,7 +2211,8 @@ function InventoryModal({ item, onClose, onSaved }) {
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{t('stockLevel')}</label>
             <input className="input" type="number" value={f.stock} onChange={e => setF({ ...f, stock: Number(e.target.value) })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('threshold')}</label>
+          <div className="field" style={{ flex: 1 }}>
+            <label>{t('threshold')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>— alert when below</span></label>
             <input className="input" type="number" value={f.threshold} onChange={e => setF({ ...f, threshold: Number(e.target.value) })} /></div>
         </div>
         <div className="field"><label>{t('supplier')}</label>
