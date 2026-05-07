@@ -169,6 +169,9 @@ const TRANSLATIONS = {
     addFirstProduct: 'Add your first product',
     addFirstTeamMember: 'Add your first team member',
     addFirstSop: 'Add your first procedure',
+    addSopRule: 'Add Rule', sopRuleAdded: 'Rule added', sopRuleRemoved: 'Rule removed',
+    removeSopRule: 'Remove this rule?', sopRuleTitle: 'Rule title', sopRuleDesc: 'Description (optional)',
+    noSopsYetViolation: 'Add SOP rules first before logging a violation.',
     landingHero: 'Spa & salon management made simple.',
     landingSub: 'Schedule staff, track inventory, manage SOP compliance, reduce chaos.',
     featSchedTitle: 'Scheduling',
@@ -382,6 +385,9 @@ const TRANSLATIONS = {
     addFirstProduct: 'Tambah produk pertama',
     addFirstTeamMember: 'Tambah anggota tim pertama',
     addFirstSop: 'Tambah prosedur pertama',
+    addSopRule: 'Tambah Aturan', sopRuleAdded: 'Aturan ditambahkan', sopRuleRemoved: 'Aturan dihapus',
+    removeSopRule: 'Hapus aturan ini?', sopRuleTitle: 'Judul aturan', sopRuleDesc: 'Deskripsi (opsional)',
+    noSopsYetViolation: 'Tambahkan aturan SOP terlebih dahulu sebelum mencatat pelanggaran.',
     landingHero: 'Manajemen spa & salon dipermudah.',
     landingSub: 'Atur jadwal staf, lacak inventaris, kelola SOP, kurangi kekacauan.',
     featSchedTitle: 'Penjadwalan',
@@ -2208,14 +2214,14 @@ function InventoryModal({ item, onClose, onSaved }) {
   );
 }
 
-function SOPTab({ sops, staff, violations, onReload, toast }) {
+function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
   const { t } = useT();
-  const [modal, setModal] = useState(false);
+  const [modal, setModal] = useState(false);     // 'violation' | 'sop' | null
   const counts = staff.map(s => ({
     ...s, count: violations.filter(v => v.staffId === s.id).length,
   })).filter(s => s.count > 0).sort((a, b) => b.count - a.count);
 
-  const del = async (id) => {
+  const delViolation = async (id) => {
     if (!window.confirm(t('removeViolation'))) return;
     try {
       await api(`/api/violations/${id}`, { method: 'DELETE' });
@@ -2223,33 +2229,55 @@ function SOPTab({ sops, staff, violations, onReload, toast }) {
     } catch (e) { toast(e.message || t('couldNotRemoveNote')); }
   };
 
+  const delSop = async (id) => {
+    if (!window.confirm(t('removeSopRule'))) return;
+    try {
+      await api(`/api/sop/${id}`, { method: 'DELETE' });
+      toast(t('sopRuleRemoved')); onReloadSops && onReloadSops();
+    } catch (e) { toast(e.message || t('failed')); }
+  };
+
   return (
     <div>
+      {/* SOP Rules list */}
       <div className="card">
-        <div className="card-head"><h3>{t('sopTitle')}</h3></div>
-        {sops.length === 0 && (
+        <div className="card-head">
+          <h3>{t('sopTitle')}</h3>
+          <button className="btn btn-primary btn-sm" onClick={() => setModal('sop')}>
+            <Plus size={14} /> {t('addSopRule')}
+          </button>
+        </div>
+        {sops.length === 0 ? (
           <EmptyState
             icon={ShieldCheck}
             title={t('emptySopTitle')}
             body={t('emptySopBody')}
+            ctaLabel={t('addSopRule')}
+            onCta={() => setModal('sop')}
           />
-        )}
-        {sops.map(s => (
+        ) : sops.map(s => (
           <div key={s.id} className="row">
             <ShieldCheck size={20} color="var(--gold)" />
             <div className="grow">
               <div className="title">{s.title}</div>
-              <div className="meta">{s.category} · {s.description}</div>
+              {(s.category || s.description) && (
+                <div className="meta">{[s.category, s.description].filter(Boolean).join(' · ')}</div>
+              )}
             </div>
-            <Badge label={t('active')} type="success" />
+            <button className="btn-icon" onClick={() => delSop(s.id)} aria-label={t('delete')}>
+              <Trash2 size={14} />
+            </button>
           </div>
         ))}
       </div>
 
+      {/* Log violation */}
       <div className="card">
         <div className="card-head">
           <h3>{t('logSopViolation')}</h3>
-          <button className="btn btn-gold btn-sm" onClick={() => setModal(true)} data-tour="action-sop"><Plus size={14} /> {t('log')}</button>
+          <button className="btn btn-gold btn-sm" onClick={() => setModal('violation')} data-tour="action-sop">
+            <Plus size={14} /> {t('log')}
+          </button>
         </div>
         {violations.length === 0 ? (
           <div className="center-muted">{t('noViolations')}</div>
@@ -2261,10 +2289,10 @@ function SOPTab({ sops, staff, violations, onReload, toast }) {
               {s && <Avatar initial={s.avatar} color={s.color} size={32} />}
               <div className="grow">
                 <div className="title">{s ? s.name : '—'}</div>
-                <div className="meta">{sop ? sop.title : `SOP #${v.sopId}`}{v.note ? ` · ${v.note}` : ''}</div>
+                <div className="meta">{sop ? sop.title : (v.note || '—')}{v.note && sop ? ` · ${v.note}` : ''}</div>
                 <div className="meta" style={{ fontSize: 11 }}>{new Date(v.createdAt).toLocaleString()}</div>
               </div>
-              <button className="btn-icon" onClick={() => del(v.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
+              <button className="btn-icon" onClick={() => delViolation(v.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
             </div>
           );
         })}
@@ -2283,20 +2311,72 @@ function SOPTab({ sops, staff, violations, onReload, toast }) {
         </div>
       )}
 
-      {modal && (
+      {modal === 'sop' && (
+        <SOPRuleModal
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); onReloadSops && onReloadSops(); toast(t('sopRuleAdded')); }}
+        />
+      )}
+      {modal === 'violation' && (
         <ViolationModal
           staff={staff} sops={sops}
-          onClose={() => setModal(false)}
-          onSaved={() => { setModal(false); onReload(); toast(t('violationLogged')); }}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); onReload(); toast(t('violationLogged')); }}
         />
       )}
     </div>
   );
 }
 
+function SOPRuleModal({ onClose, onSaved }) {
+  const { t } = useT();
+  const [f, setF] = useState({ title: '', category: '', body: '' });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const save = async (e) => {
+    e.preventDefault();
+    if (!f.title.trim()) { setErr('Rule title required'); return; }
+    setSaving(true); setErr(null);
+    try {
+      await api('/api/sop', { method: 'POST', body: f });
+      onSaved();
+    } catch (e) { setErr(e.message); setSaving(false); }
+  };
+
+  return (
+    <Modal title={t('addSopRule')} onClose={onClose}>
+      <form onSubmit={save}>
+        {err && <div className="error-banner"><AlertTriangle size={14} /> {err}</div>}
+        <div className="field">
+          <label>{t('sopRuleTitle')}</label>
+          <input className="inp" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
+            placeholder="e.g. Arrive on time, Wear uniform…" autoFocus />
+        </div>
+        <div className="field">
+          <label>{t('category')}</label>
+          <input className="inp" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
+            placeholder="e.g. Punctuality, Appearance…" />
+        </div>
+        <div className="field">
+          <label>{t('sopRuleDesc')}</label>
+          <textarea className="textarea" value={f.body} onChange={e => setF({ ...f, body: e.target.value })}
+            placeholder="Extra detail…" rows={3} />
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? t('saving') : t('save')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function ViolationModal({ staff, sops, onClose, onSaved }) {
   const { t } = useT();
-  const [f, setF] = useState({ staffId: staff[0]?.id || 1, sopId: sops[0]?.id || 1, note: '' });
+  const [f, setF] = useState({ staffId: staff[0]?.id || '', sopId: sops[0]?.id || '', note: '' });
   const [saving, setSaving] = useState(false); const [err, setErr] = useState(null);
 
   const save = async (e) => {
@@ -2306,6 +2386,18 @@ function ViolationModal({ staff, sops, onClose, onSaved }) {
       onSaved();
     } catch (e) { setErr(e.message); setSaving(false); }
   };
+
+  // No SOP rules yet — prompt to add them first
+  if (!sops.length) return (
+    <Modal title={t('logSopViolation')} onClose={onClose}>
+      <div style={{ padding: '12px 0', color: 'var(--muted)', lineHeight: 1.6 }}>
+        {t('noSopsYetViolation')}
+      </div>
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
+      </div>
+    </Modal>
+  );
 
   return (
     <Modal title={t('logSopViolation')} onClose={onClose}>
@@ -3392,7 +3484,7 @@ function AppInner() {
               )}
               {tab === 'sop' && (
                 <SOPTab sops={sops.data} staff={staff.data} violations={violations.data}
-                  onReload={violations.reload} toast={toast} />
+                  onReload={violations.reload} onReloadSops={sops.reload} toast={toast} />
               )}
               {tab === 'announcements' && (
                 <AnnouncementsTab announcements={announcements.data} onReload={announcements.reload} toast={toast} user={user} />
