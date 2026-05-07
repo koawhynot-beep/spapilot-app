@@ -110,6 +110,8 @@ const TRANSLATIONS = {
     callInSick: 'Call in Sick', requestDayOff: 'Request Day Off', requestSwap: 'Request Shift Swap',
     date: 'Date', swapWith: 'Swap with', selectColleague: 'Select colleague',
     theirDay: 'Their day', reason: 'Reason', noteOptional: 'Note (optional)', submit: 'Submit',
+    sickReasonRequired: 'Please explain why you are calling in sick.',
+    sickCallNotice: 'Policy: call in sick at least 3 hours before your shift starts.',
     daysWeek: 'Days / week', mySopNotes: 'My SOP Notes', cleanRecord: 'Clean record — well done.',
     selectStaff: 'Select team member',
     search: 'Search', sortBy: 'Sort by', filterCategory: 'Filter category', allCategories: 'All',
@@ -326,6 +328,8 @@ const TRANSLATIONS = {
     callInSick: 'Lapor Sakit', requestDayOff: 'Minta Libur', requestSwap: 'Minta Tukar Shift',
     date: 'Tanggal', swapWith: 'Tukar dengan', selectColleague: 'Pilih rekan',
     theirDay: 'Hari mereka', reason: 'Alasan', noteOptional: 'Catatan (opsional)', submit: 'Kirim',
+    sickReasonRequired: 'Jelaskan mengapa Anda tidak bisa masuk.',
+    sickCallNotice: 'Kebijakan: lapor sakit minimal 3 jam sebelum shift dimulai.',
     daysWeek: 'Hari / minggu', mySopNotes: 'Catatan SOP Saya', cleanRecord: 'Catatan bersih — kerja bagus.',
     selectStaff: 'Pilih anggota tim',
     search: 'Cari', sortBy: 'Urutkan', filterCategory: 'Filter kategori', allCategories: 'Semua',
@@ -2631,20 +2635,9 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
   const myBookings = bookings.filter(b => b.staffId === staffId);
   const [quote] = useState(() => QUOTES[Math.floor(Math.random() * QUOTES.length)]);
   const [sop] = useState(() => sops[Math.floor(Math.random() * sops.length)] || null);
-  const [sickBusy, setSickBusy] = useState(false);
+  const [sickModal, setSickModal] = useState(false);
 
   if (!me) return <div className="center-muted">{t('loadingProfile')}</div>;
-
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const callSick = async () => {
-    if (!window.confirm(t('callOutSick') + ' ?')) return;
-    setSickBusy(true);
-    try {
-      await onSubmitRequest({ type: 'sick', staffId, date: todayISO, reason: '' });
-      toast && toast(t('sickCallToday'));
-    } catch (e) { toast && toast(e.message || t('couldNotSubmitRequest')); }
-    finally { setSickBusy(false); }
-  };
 
   return (
     <div>
@@ -2659,14 +2652,31 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
       </div>
 
       {onSubmitRequest && (
-        <button
-          className="btn btn-ghost"
-          style={{ width: '100%', justifyContent: 'center', borderColor: 'var(--danger)', color: 'var(--danger)' }}
-          onClick={callSick} disabled={sickBusy}
-          aria-label={t('callOutSick')}
-        >
-          <PhoneCall size={14} /> {sickBusy ? t('saving') : t('callOutSick')}
-        </button>
+        <>
+          <button
+            className="btn btn-ghost"
+            style={{ width: '100%', justifyContent: 'center', borderColor: 'var(--danger)', color: 'var(--danger)' }}
+            onClick={() => setSickModal(true)}
+            aria-label={t('callOutSick')}
+          >
+            <PhoneCall size={14} /> {t('callOutSick')}
+          </button>
+          {sickModal && (
+            <RequestModal
+              type="sick"
+              staffId={staffId}
+              staff={staff}
+              onClose={() => setSickModal(false)}
+              onSubmit={async (data) => {
+                try {
+                  await onSubmitRequest(data);
+                  setSickModal(false);
+                  toast && toast(t('sickCallToday'));
+                } catch (e) { toast && toast(e.message || t('couldNotSubmitRequest')); }
+              }}
+            />
+          )}
+        </>
       )}
 
       <div className="quote">
@@ -2863,15 +2873,38 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
 
 function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
   const { t } = useT();
+  const todayISO = new Date().toISOString().slice(0, 10);
   const [f, setF] = useState({
-    type, staffId, date: '', reason: '', swapWith: '', swapDay: '',
+    type, staffId, date: type === 'sick' ? todayISO : '', reason: '', swapWith: '', swapDay: '',
   });
+  const [err, setErr] = useState(null);
   const titleMap = { sick: t('callInSick'), dayoff: t('requestDayOff'), swap: t('requestSwap') };
   const others = staff.filter(s => s.id !== staffId);
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (type === 'sick' && !f.reason.trim()) {
+      setErr(t('sickReasonRequired'));
+      return;
+    }
+    setErr(null);
+    onSubmit(f);
+  };
+
   return (
     <Modal title={titleMap[type]} onClose={onClose}>
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit(f); }}>
+      <form onSubmit={handleSubmit}>
+        {/* Policy notice for sick calls */}
+        {type === 'sick' && (
+          <div style={{
+            background: '#fff8ec', border: '1px solid var(--gold)',
+            borderRadius: 10, padding: '10px 14px', marginBottom: 14,
+            fontSize: 13, color: 'var(--ink)', lineHeight: 1.5,
+          }}>
+            ⏰ {t('sickCallNotice')}
+          </div>
+        )}
+        {err && <div className="error-banner"><AlertTriangle size={14} /> {err}</div>}
         <div className="field"><label>{t('date')}</label>
           <input className="input" type="date" required value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
         {type === 'swap' && (
@@ -2885,8 +2918,19 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
               <input className="input" type="date" value={f.swapDay} onChange={e => setF({ ...f, swapDay: e.target.value })} /></div>
           </>
         )}
-        <div className="field"><label>{type === 'sick' ? t('reason') : t('noteOptional')}</label>
-          <textarea className="textarea" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} /></div>
+        <div className="field">
+          <label>{type === 'sick' ? t('reason') : t('noteOptional')}</label>
+          <textarea
+            className="textarea"
+            value={f.reason}
+            onChange={e => { setErr(null); setF({ ...f, reason: e.target.value }); }}
+            placeholder={type === 'sick' ? 'e.g. Fever, food poisoning, injury…' : ''}
+            rows={type === 'sick' ? 3 : 2}
+          />
+          {type === 'sick' && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Required</div>
+          )}
+        </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary"><Send size={14} /> {t('submit')}</button>
