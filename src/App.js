@@ -12,14 +12,15 @@ const API = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 const TOKEN_KEY = 'opus_token';
 const LANG_KEY = 'opus_lang';
 const BRAND = 'Opus';
-const TOUR_DONE_KEY = 'spapilot-tutorial-done';
+const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
 
 const TOUR_STEPS = [
-  { targetId: 'role-manager',     message: 'Tap here to log in as manager',                position: 'top' },
-  { targetId: 'tab-alerts',       message: 'Check pending staff requests here',             position: 'top' },
-  { targetId: 'tab-inventory',    message: 'Track your inventory and stock here',           position: 'top' },
-  { targetId: 'btn-mark-ordered', message: 'Tap Ordered to mark stock restocked',          position: 'top' },
-  { targetId: 'action-sop',       message: 'Log SOP violations from this button',          position: 'top' },
+  { targetId: 'tab-dashboard',  message: "Your dashboard — today's overview is here",     position: 'top' },
+  { targetId: 'tab-schedule',   message: 'Tap Schedule to manage all your bookings',      position: 'top' },
+  { targetId: 'tab-staff',      message: 'Manage your team and their schedules here',     position: 'top' },
+  { targetId: 'tab-inventory',  message: 'Track products and get low-stock alerts here',  position: 'top' },
+  { targetId: 'tab-alerts',     message: 'Staff requests and notifications land here',    position: 'top' },
+  { targetId: 'tab-sop',        message: 'View SOPs and log any violations here',        position: 'top' },
 ];
 
 // ---------- i18n ----------
@@ -566,13 +567,7 @@ const PERMISSION_DEFS = [
   { key: 'canMarkViolations',      labelKey: 'permCanMarkViolations' },
   { key: 'canPostAnnouncements',   labelKey: 'permCanPostAnnouncements' },
 ];
-const QUOTES = [
-  { text: 'The cure for anything is salt water: sweat, tears, or the sea.', src: '— Isak Dinesen' },
-  { text: 'Wherever you go, go with all your heart.', src: '— Confucius' },
-  { text: 'Peace begins with a smile.', src: '— Mother Teresa' },
-  { text: 'Rest when you are weary. Refresh and renew yourself.', src: '— Ralph Marston' },
-  { text: 'Take care of your body. It is the only place you have to live.', src: '— Jim Rohn' },
-];
+
 
 // ---------- Shared UI ----------
 function Avatar({ initial, color, size = 36 }) {
@@ -2641,7 +2636,6 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
   const { t } = useT();
   const me = staff.find(s => s.id === staffId);
   const myBookings = bookings.filter(b => b.staffId === staffId);
-  const [quote] = useState(() => QUOTES[Math.floor(Math.random() * QUOTES.length)]);
   const [sop] = useState(() => sops[Math.floor(Math.random() * sops.length)] || null);
   const [sickModal, setSickModal] = useState(false);
 
@@ -2686,11 +2680,6 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
           )}
         </>
       )}
-
-      <div className="quote">
-        "{quote.text}"
-        <span className="src">{quote.src}</span>
-      </div>
 
       {sop && (
         <div className="card" style={{ borderLeft: '3px solid var(--gold)' }}>
