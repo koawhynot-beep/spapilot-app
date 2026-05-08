@@ -137,7 +137,7 @@ const TRANSLATIONS = {
     noLowStock: 'Nothing to reorder',
     callOutSick: 'Call out sick today', sickCallToday: 'Sick call submitted for today',
     allergies: 'Allergies', clientPhone: 'Client phone',
-    price: 'Price (IDR)', staffPhone: 'Staff phone', whatsapp: 'WhatsApp',
+    price: 'Price', staffPhone: 'Staff phone', whatsapp: 'WhatsApp',
     undo: 'Undo', restored: 'Restored',
     thisWeek: 'This Week', revenue: 'Revenue', completed: 'Completed',
     avgPerDay: 'Avg / day', topTherapist: 'Top Performer',
@@ -355,7 +355,7 @@ const TRANSLATIONS = {
     noLowStock: 'Tidak ada yang perlu dipesan',
     callOutSick: 'Lapor sakit hari ini', sickCallToday: 'Laporan sakit hari ini dikirim',
     allergies: 'Alergi', clientPhone: 'Telp klien',
-    price: 'Harga (IDR)', staffPhone: 'Telp staf', whatsapp: 'WhatsApp',
+    price: 'Harga', staffPhone: 'Telp staf', whatsapp: 'WhatsApp',
     undo: 'Batalkan', restored: 'Dipulihkan',
     thisWeek: 'Minggu Ini', revenue: 'Pendapatan', completed: 'Selesai',
     avgPerDay: 'Rata-rata / hari', topTherapist: 'Staf Terbaik',
@@ -1526,17 +1526,25 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
 
         {picking === 'staff' ? (
           <div style={{ marginTop: 18 }}>
-            <div className="field">
-              <label>{t('whichMember')}</label>
-              <select className="select" value={staffId || ''} onChange={e => setStaffId(Number(e.target.value))}>
-                {staff.map(s => <option key={s.id} value={s.id}>{s.name} · {s.role}</option>)}
-              </select>
-            </div>
+            {staff.length === 0 ? (
+              <div className="center-muted" style={{ padding: '20px 12px', fontSize: 14, lineHeight: 1.5 }}>
+                No team members exist yet. Ask the manager to add you to the team first.
+              </div>
+            ) : (
+              <div className="field">
+                <label>{t('whichMember')}</label>
+                <select className="select" value={staffId || ''} onChange={e => setStaffId(Number(e.target.value))}>
+                  {staff.map(s => <option key={s.id} value={s.id}>{s.name} · {s.role}</option>)}
+                </select>
+              </div>
+            )}
             <div className="modal-actions">
               <button className="btn btn-ghost" onClick={() => setPicking(null)} disabled={busy}>{t('back')}</button>
-              <button className="btn btn-primary" onClick={() => pick('staff')} disabled={busy || !staffId}>
-                {busy ? t('saving') : t('continue')}
-              </button>
+              {staff.length > 0 && (
+                <button className="btn btn-primary" onClick={() => pick('staff')} disabled={busy || !staffId}>
+                  {busy ? t('saving') : t('continue')}
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -1652,7 +1660,14 @@ function ManagerDashboard({ business, staff, bookings, inventory, requests, anno
         <div className="card-head"><h3>Upcoming {labels.bookingPlural}</h3>
           <button className="btn btn-ghost btn-sm" onClick={() => onGoto('schedule')}>{t('viewAll')}</button>
         </div>
-        {bookings.slice(0, 5).map(b => {
+        {bookings.length === 0 ? (
+          <div className="center-muted" style={{ padding: '20px 0', fontSize: 14 }}>
+            No {labels.bookingPlural.toLowerCase()} yet. <button
+              onClick={() => onGoto('schedule')}
+              style={{ background: 'none', border: 'none', color: 'var(--emerald)', cursor: 'pointer', textDecoration: 'underline', fontSize: 14, padding: 0 }}
+            >Add your first one →</button>
+          </div>
+        ) : bookings.slice(0, 5).map(b => {
           const m = staff.find(s => s.id === b.staffId);
           return (
             <div key={b.id} className="row">
@@ -3122,12 +3137,14 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
 // ================= OWNER VIEW =================
 function OwnerView({ staff, bookings, inventory, requests, violations, announcements }) {
   const { t, lang } = useT();
+  const { labels } = useBiz();
   const lowStock = inventory.filter(i => i.stock <= i.threshold);
   const totalRevenue = bookings.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
   const avgPerDay = Math.round(totalRevenue / 7);
   const fmt = (n) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US').format(n);
+  const currency = lang === 'id' ? 'IDR ' : '$';
 
-  // Per-therapist totals + commission.
+  // Per-staff totals + commission.
   const perStaff = staff.map(s => {
     const mine = bookings.filter(b => b.staffId === s.id);
     const rev = mine.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
@@ -3139,20 +3156,20 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
   return (
     <div>
       <div className="stats">
-        <div className="stat"><div className="v">{bookings.length}</div><div className="l">{t('todaysBookings')}</div></div>
-        <div className="stat"><div className="v">{staff.length}</div><div className="l">{t('teamSize')}</div></div>
+        <div className="stat"><div className="v">{bookings.length}</div><div className="l">{labels.todayCount}</div></div>
+        <div className="stat"><div className="v">{staff.length}</div><div className="l">{labels.staffPlural}</div></div>
         <div className="stat"><div className="v">{violations.length}</div><div className="l">{t('sopNotesStat')}</div></div>
       </div>
 
       <div className="card">
         <div className="card-head"><h3>{t('thisWeek')}</h3></div>
-        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">IDR {fmt(totalRevenue)}</div></div></div>
-        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">IDR {fmt(avgPerDay)}</div></div></div>
-        <div className="row"><CheckCircle size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{bookings.length} {t('sessionsToday').toLowerCase()}</div></div></div>
+        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">{currency}{fmt(totalRevenue)}</div></div></div>
+        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">{currency}{fmt(avgPerDay)}</div></div></div>
+        <div className="row"><CheckCircle size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{bookings.length} {labels.bookingPlural.toLowerCase()}</div></div></div>
         {top && top.revenue > 0 && (
           <div className="row">
             <Avatar initial={top.avatar} color={top.color} size={32} />
-            <div className="grow"><div className="title">{t('topTherapist')}</div><div className="meta">{top.name} · IDR {fmt(top.revenue)}</div></div>
+            <div className="grow"><div className="title">{t('topTherapist')}</div><div className="meta">{top.name} · {currency}{fmt(top.revenue)}</div></div>
           </div>
         )}
       </div>
@@ -3171,10 +3188,10 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
             <Avatar initial={s.avatar} color={s.color} size={32} />
             <div className="grow">
               <div className="title">{s.name}</div>
-              <div className="meta">{s.sessions} {t('sessionsToday').toLowerCase()} · IDR {fmt(s.revenue)}</div>
+              <div className="meta">{s.sessions} {labels.bookingPlural.toLowerCase()} · {currency}{fmt(s.revenue)}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--emerald)' }}>IDR {fmt(s.commission)}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--emerald)' }}>{currency}{fmt(s.commission)}</div>
               <div className="meta" style={{ fontSize: 11 }}>{t('estEarnings')}</div>
             </div>
           </div>
