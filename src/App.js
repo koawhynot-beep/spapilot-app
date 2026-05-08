@@ -541,11 +541,21 @@ async function api(path, opts = {}) {
   };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API}${path}`, {
-    ...opts,
-    headers,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, {
+      ...opts,
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch (e) {
+    // Network failures (server down, DNS, offline) produce TypeError "Failed to fetch".
+    // Translate to a human-readable message so users know what to do.
+    if (!navigator.onLine) {
+      throw new Error("You're offline. Check your internet connection and try again.");
+    }
+    throw new Error("Can't reach the server. It may be starting up — please try again in a moment.");
+  }
   if (res.status === 401) {
     setToken(null);
     window.dispatchEvent(new Event('opus:unauth'));
@@ -553,6 +563,7 @@ async function api(path, opts = {}) {
   if (!res.ok) {
     let msg = `${res.status}`;
     try { const d = await res.json(); msg = d.error || msg; } catch {}
+    if (res.status >= 500) msg = `Server error (${res.status}). Please try again.`;
     throw new Error(msg);
   }
   if (res.status === 204) return null;
@@ -1375,6 +1386,30 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
         </button>
       </div>
     </Modal>
+  );
+}
+
+// ---------- Offline banner ----------
+function OfflineBanner() {
+  const [offline, setOffline] = useState(typeof navigator !== 'undefined' && !navigator.onLine);
+  useEffect(() => {
+    const goOnline = () => setOffline(false);
+    const goOffline = () => setOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+  if (!offline) return null;
+  return (
+    <div style={{
+      background: '#fee', borderBottom: '1px solid #fbb', color: '#a00',
+      padding: '8px 14px', fontSize: 12, textAlign: 'center', fontWeight: 600,
+    }}>
+      ⚠ You're offline — changes won't save until you reconnect
+    </div>
   );
 }
 
@@ -3518,6 +3553,7 @@ function AppInner() {
   return (
     <BizProvider business={business}>
     <div className="shell">
+      <OfflineBanner />
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
         <div>
