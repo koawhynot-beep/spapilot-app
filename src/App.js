@@ -3245,6 +3245,13 @@ const OWNER_NAV = [
 
 // ================= TOUR OVERLAY (data-tour DOM targeting) =================
 function TourOverlay({ onDone }) {
+  // Filter tour steps to only include tabs visible for this business type.
+  // (gym hides SOP, etc — pointing at hidden tabs would hang the tour.)
+  const { hiddenTabs } = useBiz();
+  const visibleSteps = useMemo(
+    () => TOUR_STEPS.filter(s => !hiddenTabs.includes(s.targetId.replace(/^tab-/, ''))),
+    [hiddenTabs]
+  );
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState(null);
   const stepRef = useRef(step);
@@ -3252,7 +3259,7 @@ function TourOverlay({ onDone }) {
 
   // Measure target element position live
   const measure = useCallback(() => {
-    const el = document.querySelector(`[data-tour="${TOUR_STEPS[stepRef.current].targetId}"]`);
+    const el = document.querySelector(`[data-tour="${visibleSteps[stepRef.current].targetId}"]`);
     setRect(el ? el.getBoundingClientRect() : null);
   }, []);
 
@@ -3270,12 +3277,12 @@ function TourOverlay({ onDone }) {
 
   // Listen for clicks on the current target to advance
   useEffect(() => {
-    const { targetId } = TOUR_STEPS[stepRef.current];
+    const { targetId } = visibleSteps[stepRef.current];
     const handler = (e) => {
       if (e.target.closest(`[data-tour="${targetId}"]`)) {
         setTimeout(() => {
           const next = stepRef.current + 1;
-          if (next < TOUR_STEPS.length) setStep(next);
+          if (next < visibleSteps.length) setStep(next);
           else onDone();
         }, 150);
       }
@@ -3284,7 +3291,7 @@ function TourOverlay({ onDone }) {
     return () => document.removeEventListener('click', handler, true);
   }, [step, onDone]);
 
-  const currentStep = TOUR_STEPS[step];
+  const currentStep = visibleSteps[step];
   const PAD = 10;
   const GOLD = '#b8956a';
 
@@ -3371,7 +3378,7 @@ function TourOverlay({ onDone }) {
             Navigate to find: <strong style={{ color: GOLD }}>{currentStep.message.toLowerCase()}</strong>
           </div>
           <button
-            onClick={() => { const n = step + 1; if (n < TOUR_STEPS.length) setStep(n); else onDone(); }}
+            onClick={() => { const n = step + 1; if (n < visibleSteps.length) setStep(n); else onDone(); }}
             style={{
               background: GOLD, color: '#fff', border: 'none', borderRadius: 10,
               padding: '9px 20px', cursor: 'pointer',
@@ -3398,7 +3405,7 @@ function TourOverlay({ onDone }) {
         position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
         zIndex: 9999, display: 'flex', gap: 7, pointerEvents: 'none',
       }}>
-        {TOUR_STEPS.map((_, i) => (
+        {visibleSteps.map((_, i) => (
           <div key={i} style={{
             width: i === step ? 22 : 7, height: 7, borderRadius: 4,
             background: i === step ? GOLD : 'rgba(255,255,255,0.3)',
