@@ -1154,15 +1154,33 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
           </div>
           <div className="field">
             <label>{t('businessTypeLabel')}</label>
-            <select className="select" value={type} onChange={e => setType(e.target.value)}>
-              <option value="spa">{t('bizTypeSpa')}</option>
-              <option value="salon">{t('bizTypeSalon')}</option>
-              <option value="barbershop">{t('bizTypeBarbershop')}</option>
-              <option value="gym">{t('bizTypeGym')}</option>
-              <option value="hotel">{t('bizTypeHotel')}</option>
-              <option value="clinic">{t('bizTypeClinic')}</option>
-              <option value="other">{t('bizTypeOther')}</option>
-            </select>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginTop: 4 }}>
+              {[
+                { id: 'spa',        icon: '🌿', label: t('bizTypeSpa') },
+                { id: 'salon',      icon: '💇', label: t('bizTypeSalon') },
+                { id: 'barbershop', icon: '💈', label: t('bizTypeBarbershop') },
+                { id: 'gym',        icon: '🏋', label: t('bizTypeGym') },
+                { id: 'hotel',      icon: '🏨', label: t('bizTypeHotel') },
+                { id: 'clinic',     icon: '⚕', label: t('bizTypeClinic') },
+                { id: 'other',      icon: '✦',  label: t('bizTypeOther') },
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setType(opt.id)}
+                  style={{
+                    padding: '14px 8px', borderRadius: 12,
+                    border: type === opt.id ? '2px solid var(--emerald)' : '1px solid var(--border)',
+                    background: type === opt.id ? 'var(--emerald-soft, #e8f3ee)' : 'var(--cream)',
+                    cursor: 'pointer', textAlign: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ fontSize: 22, marginBottom: 4 }}>{opt.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: type === opt.id ? 'var(--emerald)' : 'var(--text)' }}>{opt.label}</div>
+                </button>
+              ))}
+            </div>
           </div>
           {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
@@ -1879,7 +1897,7 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
             <div className="week-cell" key={x.d}>
               <div className="d">{t('days')[x.d]}</div>
               <div className="c">{x.c}</div>
-              <div>{t('todaysBookings').toLowerCase()}</div>
+              <div>{labels.bookingPlural.toLowerCase()}</div>
             </div>
           ))}
         </div>
@@ -1899,7 +1917,8 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
 
 function BookingModal({ booking, staff, onClose, onSaved }) {
   const { t } = useT();
-  const { labels } = useBiz();
+  const { labels, business } = useBiz();
+  const showAllergies = ['spa', 'salon', 'clinic'].includes(business?.type || 'spa');
   const [f, setF] = useState(() => {
     if (!booking) return { time: '10:00', client: '', treatment: '', duration: 60,
       therapist: '', notes: '', allergies: '', clientPhone: '', price: 0 };
@@ -1935,13 +1954,16 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
         <div className="field"><label>{labels.staffMember}</label>
           <input className="input" placeholder={`${labels.staffMember} name`} value={f.therapist || ''} onChange={e => setF({ ...f, therapist: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('clientPhone')}</label>
+          <div className="field" style={{ flex: 1 }}><label>{labels.client} phone</label>
             <input className="input" type="tel" placeholder="Phone number" value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
             <input className="input" type="number" min="0" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         </div>
-        <div className="field"><label>{t('allergies')}</label>
-          <input className="input" placeholder="e.g. lavender, nuts" value={f.allergies || ''} onChange={e => setF({ ...f, allergies: e.target.value })} /></div>
+        {/* Allergies field only relevant for spa/salon/clinic. Hide for gym/hotel/barbershop/other. */}
+        {showAllergies && (
+          <div className="field"><label>{t('allergies')}</label>
+            <input className="input" placeholder="e.g. lavender, nuts" value={f.allergies || ''} onChange={e => setF({ ...f, allergies: e.target.value })} /></div>
+        )}
         <div className="field"><label>{t('notes')}</label>
           <textarea className="textarea" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
         <div className="modal-actions">
