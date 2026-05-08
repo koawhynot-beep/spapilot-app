@@ -1571,7 +1571,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
 
 // ================= MANAGER VIEWS =================
 
-function ManagerDashboard({ business, staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
+function ManagerDashboard({ staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
   const { t } = useT();
   const { labels } = useBiz();
   const lowStock = inventory.filter(i => i.stock <= i.threshold);
@@ -3611,7 +3611,6 @@ function AppInner() {
             <>
               {tab === 'dashboard' && (
                 <ManagerDashboard
-                  business={business}
                   staff={staff.data} bookings={bookings.data} inventory={inventory.data}
                   requests={requests.data} announcements={announcements.data} violations={violations.data}
                   onGoto={setTab} onReload={inventory.reload} toast={toast}
