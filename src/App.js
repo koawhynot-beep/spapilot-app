@@ -13,6 +13,146 @@ const TOKEN_KEY = 'opus_token';
 const LANG_KEY = 'opus_lang';
 const BRAND = 'Opus';
 const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
+const DEMO_KEY = 'spapilot-demo-mode';
+
+// ---------- Demo mode ----------
+// Lets visitors try the full app without signing up. All "API calls" are
+// intercepted client-side and read/write to localStorage. Refresh keeps data.
+// Sign-up is the only path that hits the real backend.
+const isDemo = () => typeof window !== 'undefined' && localStorage.getItem(DEMO_KEY) === 'true';
+const setDemo = (v) => v ? localStorage.setItem(DEMO_KEY, 'true') : localStorage.removeItem(DEMO_KEY);
+const DEMO_COLL_KEY = (path) => `spapilot-demo${path}`;
+const getDemoColl = (path) => {
+  try { return JSON.parse(localStorage.getItem(DEMO_COLL_KEY(path))) ?? null; }
+  catch { return null; }
+};
+const setDemoColl = (path, data) => localStorage.setItem(DEMO_COLL_KEY(path), JSON.stringify(data));
+
+const DEMO_USER = {
+  id: 999, email: 'demo@example.com', role: 'manager', onboardingRole: 'owner',
+  businessType: 'spa', businessId: 999,
+  subscriptionStatus: 'trial', trialEndsAt: '2099-12-31T00:00:00Z',
+};
+const DEMO_BUSINESS = { id: 999, name: 'Sunset Wellness Spa', type: 'spa', code: 'DEMO00' };
+
+const DEMO_SEED = {
+  '/api/staff': [
+    { id: 1, name: 'Sarah Kim',    role: 'Senior Therapist',  avatar: 'S', color: '#5b8a72', schedule: ['Mon','Tue','Wed','Thu','Fri'], commissionRate: 35, phone: '+15551234567', birthday: '1990-04-12', permissions: { canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true, canRequestStock: true, canRequestNewProducts: false, canMarkViolations: false, canPostAnnouncements: false } },
+    { id: 2, name: 'Mike Chen',    role: 'Massage Therapist', avatar: 'M', color: '#b8956a', schedule: ['Tue','Wed','Thu','Fri','Sat'], commissionRate: 30, phone: '+15552345678', birthday: '1988-09-03', permissions: { canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true, canRequestStock: false, canRequestNewProducts: false, canMarkViolations: false, canPostAnnouncements: false } },
+    { id: 3, name: 'Aisha Patel',  role: 'Esthetician',       avatar: 'A', color: '#c66956', schedule: ['Mon','Wed','Thu','Fri','Sat'], commissionRate: 30, phone: '+15553456789', birthday: '1992-11-22', permissions: { canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: false, canRequestStock: true, canRequestNewProducts: true, canMarkViolations: false, canPostAnnouncements: false } },
+  ],
+  '/api/bookings': [
+    { id: 1, time: '09:00', client: 'Emma Wilson',    clientPhone: '+15558881111', treatment: '60min Swedish Massage', duration: 60, staffId: 1, price: 80,  notes: 'Returning client', allergies: '' },
+    { id: 2, time: '10:30', client: 'James Lee',      clientPhone: '+15558882222', treatment: 'Hot Stone Therapy',     duration: 90, staffId: 2, price: 120, notes: '', allergies: '' },
+    { id: 3, time: '13:00', client: 'Maria Garcia',   clientPhone: '+15558883333', treatment: 'Deep Cleansing Facial', duration: 60, staffId: 3, price: 75,  notes: '', allergies: 'lavender' },
+    { id: 4, time: '15:00', client: 'David Brown',    clientPhone: '+15558884444', treatment: 'Aromatherapy',         duration: 75, staffId: 1, price: 95,  notes: '', allergies: '' },
+    { id: 5, time: '16:30', client: 'Priya Singh',    clientPhone: '+15558885555', treatment: 'Express Manicure',     duration: 30, staffId: 3, price: 35,  notes: '', allergies: '' },
+  ],
+  '/api/inventory': [
+    { id: 1, name: 'Lavender Massage Oil', category: 'Oils',     stock: 3,  threshold: 5,  unit: 'bottles', supplier: 'Aroma Co' },
+    { id: 2, name: 'Bath Towels',          category: 'Linens',   stock: 25, threshold: 10, unit: 'pcs',     supplier: 'Linen Co' },
+    { id: 3, name: 'Eucalyptus Oil',       category: 'Oils',     stock: 8,  threshold: 5,  unit: 'bottles', supplier: 'Aroma Co' },
+    { id: 4, name: 'Face Masks',           category: 'Skincare', stock: 12, threshold: 8,  unit: 'boxes',   supplier: 'Glow Lab' },
+    { id: 5, name: 'Cotton Pads',          category: 'Skincare', stock: 2,  threshold: 10, unit: 'packs',   supplier: 'Glow Lab' },
+  ],
+  '/api/requests': [
+    { id: 1, staffId: 2, type: 'sick',   date: new Date().toISOString().slice(0,10), status: 'pending', reason: 'Flu symptoms — fever started this morning' },
+    { id: 2, staffId: 3, type: 'dayoff', date: '2026-05-15', status: 'pending', reason: 'Family wedding' },
+  ],
+  '/api/violations': [],
+  '/api/announcements': [
+    { id: 1, title: 'Welcome to your demo!', body: 'Click around — try the schedule, add a booking, check inventory. Everything you do is saved locally. Ready to use this for your business? Sign up free.', from: 'SpaPilot', createdAt: new Date().toISOString() },
+  ],
+  '/api/sop': [
+    { id: 1, title: 'Sanitize work surfaces', category: 'Hygiene', description: 'Clean all tables and equipment between clients with disinfectant.', body: 'Clean all tables and equipment between clients with disinfectant.' },
+    { id: 2, title: 'Wash hands before sessions', category: 'Hygiene', description: 'Always wash hands with soap for 20+ seconds.', body: 'Always wash hands with soap for 20+ seconds.' },
+    { id: 3, title: 'Greet clients within 30 seconds', category: 'Service', description: 'Acknowledge every client when they enter the lobby.', body: 'Acknowledge every client when they enter the lobby.' },
+  ],
+};
+
+function initDemoData() {
+  // Only seed if data not already present (preserve user changes across refresh).
+  Object.entries(DEMO_SEED).forEach(([path, data]) => {
+    if (getDemoColl(path) === null) setDemoColl(path, data);
+  });
+}
+function clearDemoData() {
+  setDemo(false);
+  Object.keys(DEMO_SEED).forEach((path) => localStorage.removeItem(DEMO_COLL_KEY(path)));
+}
+
+// Mock API for demo mode. Returns same shapes as real backend.
+async function demoApi(path, opts = {}) {
+  const method = opts.method || 'GET';
+  // Simulate small network delay so loading states actually render briefly.
+  await new Promise(r => setTimeout(r, 80));
+
+  // Auth endpoints
+  if (path === '/api/auth/me') return DEMO_USER;
+  if (path === '/api/auth/logout') { clearDemoData(); return {}; }
+  if (path === '/api/auth/role') return { token: 'demo-token', user: DEMO_USER };
+  if (path === '/api/auth/complete-tutorial') return {};
+  if (path === '/api/auth/switch-onboarding') return { token: 'demo-token', user: DEMO_USER };
+  if (path === '/api/businesses/me') return DEMO_BUSINESS;
+
+  // Billing
+  if (path === '/api/billing/subscribe' || path === '/api/billing/mock-activate') {
+    return { user: DEMO_USER };
+  }
+
+  // Collection list / create
+  const collMatch = path.match(/^\/api\/(staff|bookings|inventory|requests|announcements|violations|sop)$/);
+  if (collMatch) {
+    const collPath = path;
+    if (method === 'GET') return getDemoColl(collPath) || [];
+    if (method === 'POST') {
+      const coll = getDemoColl(collPath) || [];
+      const item = { ...opts.body, id: Date.now(), createdAt: new Date().toISOString() };
+      coll.push(item); setDemoColl(collPath, coll);
+      return item;
+    }
+  }
+
+  // Item update / delete
+  const itemMatch = path.match(/^\/api\/(staff|bookings|inventory|requests|sop|violations|announcements)\/(\d+)$/);
+  if (itemMatch) {
+    const collPath = `/api/${itemMatch[1]}`;
+    const id = Number(itemMatch[2]);
+    const coll = getDemoColl(collPath) || [];
+    if (method === 'PUT') {
+      const idx = coll.findIndex(x => x.id === id);
+      if (idx >= 0) { coll[idx] = { ...coll[idx], ...opts.body }; setDemoColl(collPath, coll); return coll[idx]; }
+      return {};
+    }
+    if (method === 'DELETE') {
+      setDemoColl(collPath, coll.filter(x => x.id !== id));
+      return null;
+    }
+  }
+
+  // Stock adjust
+  const stockMatch = path.match(/^\/api\/inventory\/(\d+)\/stock$/);
+  if (stockMatch && method === 'PATCH') {
+    const id = Number(stockMatch[1]);
+    const coll = getDemoColl('/api/inventory') || [];
+    const item = coll.find(x => x.id === id);
+    if (item) { item.stock = Math.max(0, item.stock + (opts.body?.delta || 0)); setDemoColl('/api/inventory', coll); }
+    return item || {};
+  }
+
+  // Stock reorder mark
+  const orderMatch = path.match(/^\/api\/inventory\/(\d+)\/order$/);
+  if (orderMatch && method === 'POST') {
+    const id = Number(orderMatch[1]);
+    const coll = getDemoColl('/api/inventory') || [];
+    const item = coll.find(x => x.id === id);
+    if (item) { item.lastOrder = new Date().toISOString(); item.stock = item.threshold * 2; setDemoColl('/api/inventory', coll); }
+    return item || {};
+  }
+
+  // Default: silently succeed
+  return {};
+}
 
 const TOUR_STEPS = [
   { targetId: 'tab-dashboard',  message: "Your dashboard — today's overview is here",     position: 'top' },
@@ -535,6 +675,9 @@ function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function setToken(t) { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }
 
 async function api(path, opts = {}) {
+  // Demo mode: short-circuit the network and serve from localStorage.
+  if (isDemo()) return demoApi(path, opts);
+
   const headers = {
     'Content-Type': 'application/json',
     ...(opts.headers || {}),
@@ -1012,7 +1155,7 @@ function ResetPasswordScreen({ token, onDone }) {
 }
 
 // ---------- Landing page (pre-auth) ----------
-function LandingPage({ onStartTrial, onSignIn }) {
+function LandingPage({ onStartTrial, onSignIn, onTryDemo }) {
   const { t } = useT();
   const features = [
     { icon: Calendar, titleKey: 'featSchedTitle', bodyKey: 'featSchedBody' },
@@ -1057,6 +1200,16 @@ function LandingPage({ onStartTrial, onSignIn }) {
         <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
           <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
         </button>
+
+        {/* Try Demo button — fully populated app, no signup required, lives in localStorage */}
+        <button
+          className="btn btn-ghost"
+          style={{ width: '100%', marginTop: 10, padding: '14px 16px', fontSize: 14, border: '1px solid var(--border)' }}
+          onClick={onTryDemo}
+        >
+          ▶ Try the demo (no sign-up)
+        </button>
+
         <div style={{ marginTop: 10, textAlign: 'center' }}>
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>
             {t('trialFinePrint')}
@@ -1404,6 +1557,25 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
         </button>
       </div>
     </Modal>
+  );
+}
+
+// ---------- Demo banner ----------
+function DemoBanner({ onExit }) {
+  if (!isDemo()) return null;
+  return (
+    <div style={{
+      background: '#fff8ec', borderBottom: '1px solid var(--gold)', color: 'var(--emerald)',
+      padding: '8px 14px', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+    }}>
+      <span>
+        <strong>Demo mode</strong> — exploring with sample data. Sign up to save your work.
+      </span>
+      <button
+        onClick={onExit}
+        style={{ background: 'var(--emerald)', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+      >Sign up free</button>
+    </div>
   );
 }
 
@@ -3456,8 +3628,16 @@ function AppInner() {
     requests.reload();
   };
 
-  // On mount: restore session if token present.
+  // On mount: restore session if token present, or restore demo if active.
   useEffect(() => {
+    if (isDemo()) {
+      initDemoData();
+      setUser(DEMO_USER);
+      setBusiness(DEMO_BUSINESS);
+      setRole('manager');
+      setAuthChecking(false);
+      return;
+    }
     const token = getToken();
     if (!token) { setAuthChecking(false); return; }
     api('/api/auth/me')
@@ -3532,6 +3712,14 @@ function AppInner() {
       return <LandingPage
         onStartTrial={() => setAuthMode('signup')}
         onSignIn={() => setAuthMode('login')}
+        onTryDemo={() => {
+          setDemo(true);
+          initDemoData();
+          setUser(DEMO_USER);
+          setBusiness(DEMO_BUSINESS);
+          setRole('manager');
+          setTab('dashboard');
+        }}
       />;
     }
     return <AuthScreen
@@ -3602,6 +3790,11 @@ function AppInner() {
     <BizProvider business={business}>
     <div className="shell">
       <OfflineBanner />
+      <DemoBanner onExit={() => {
+        clearDemoData();
+        setUser(null); setBusiness(null); setRole(null);
+        setAuthMode('signup');
+      }} />
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
         <div>
