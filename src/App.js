@@ -1864,9 +1864,9 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
             ? <div className="center-muted">{t('noResults')}</div>
             : <EmptyState
                 icon={Calendar}
-                title={t('emptyBookingsTitle')}
-                body={t('emptyBookingsBody')}
-                ctaLabel={t('addFirstBooking')}
+                title={`No ${labels.bookingPlural.toLowerCase()} yet`}
+                body={`Add your first ${labels.booking.toLowerCase()} so your team knows what's coming up today.`}
+                ctaLabel={`Add ${labels.booking}`}
                 onCta={() => setModal('new')}
               />
         ) : filtered.map(b => {
@@ -2048,9 +2048,9 @@ function StaffTab({ staff, violations, onReload, toast }) {
             ? <div className="center-muted">{t('noResults')}</div>
             : <EmptyState
                 icon={Users}
-                title={t('emptyStaffTitle')}
-                body={t('emptyStaffBody')}
-                ctaLabel={t('addFirstTeamMember')}
+                title={`No ${labels.staffPlural.toLowerCase()} yet`}
+                body={`Add the ${labels.staffPlural.toLowerCase()} who work with you so you can assign ${labels.bookingPlural.toLowerCase()}.`}
+                ctaLabel={`Add your first ${labels.staffMember.toLowerCase()}`}
                 onCta={() => setModal('new')}
               />
         ) : filtered.map(s => {
