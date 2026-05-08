@@ -466,6 +466,42 @@ const TRANSLATIONS = {
 const LangContext = createContext({ lang: 'en', t: (k) => k, setLang: () => {} });
 const useT = () => useContext(LangContext);
 
+// ---------- Business-type-aware terminology ----------
+// Each business type uses different words for the same concepts.
+// gym calls clients "Members", clinic calls them "Patients", hotel calls them "Guests".
+const BIZ_LABELS = {
+  spa:        { client: 'Client',   clientPlural: 'Clients',   staffMember: 'Therapist', staffPlural: 'Therapists', service: 'Treatment',   servicePlural: 'Treatments',   booking: 'Booking',     bookingPlural: 'Bookings',     todayCount: "Today's Bookings" },
+  salon:      { client: 'Client',   clientPlural: 'Clients',   staffMember: 'Stylist',   staffPlural: 'Stylists',   service: 'Service',     servicePlural: 'Services',     booking: 'Appointment', bookingPlural: 'Appointments', todayCount: "Today's Appointments" },
+  barbershop: { client: 'Client',   clientPlural: 'Clients',   staffMember: 'Barber',    staffPlural: 'Barbers',    service: 'Cut',         servicePlural: 'Services',     booking: 'Appointment', bookingPlural: 'Appointments', todayCount: "Today's Appointments" },
+  gym:        { client: 'Member',   clientPlural: 'Members',   staffMember: 'Trainer',   staffPlural: 'Trainers',   service: 'Class',       servicePlural: 'Classes',      booking: 'Class',       bookingPlural: 'Classes',      todayCount: "Today's Classes" },
+  hotel:      { client: 'Guest',    clientPlural: 'Guests',    staffMember: 'Staff',     staffPlural: 'Staff',      service: 'Stay',        servicePlural: 'Stays',        booking: 'Check-In',    bookingPlural: 'Check-Ins',    todayCount: "Today's Check-Ins" },
+  clinic:     { client: 'Patient',  clientPlural: 'Patients',  staffMember: 'Provider',  staffPlural: 'Providers',  service: 'Appointment', servicePlural: 'Appointments', booking: 'Appointment', bookingPlural: 'Appointments', todayCount: "Today's Appointments" },
+  other:      { client: 'Customer', clientPlural: 'Customers', staffMember: 'Staff',     staffPlural: 'Staff',      service: 'Service',     servicePlural: 'Services',     booking: 'Booking',     bookingPlural: 'Bookings',     todayCount: "Today's Bookings" },
+};
+// Tabs hidden by default per business type (user-overridable later via settings).
+const BIZ_HIDDEN_TABS = {
+  spa:        [],
+  salon:      [],
+  barbershop: ['sop'],
+  gym:        ['sop'],            // gyms rarely run formal SOP compliance
+  hotel:      [],
+  clinic:     [],
+  other:      ['sop'],
+};
+const BizContext = createContext({ business: null, labels: BIZ_LABELS.spa, hiddenTabs: [] });
+const useBiz = () => useContext(BizContext);
+function BizProvider({ business, children }) {
+  const value = useMemo(() => {
+    const type = business?.type || 'spa';
+    return {
+      business,
+      labels: BIZ_LABELS[type] || BIZ_LABELS.spa,
+      hiddenTabs: BIZ_HIDDEN_TABS[type] || [],
+    };
+  }, [business]);
+  return <BizContext.Provider value={value}>{children}</BizContext.Provider>;
+}
+
 function LangProvider({ children }) {
   const [lang, setLangState] = useState(() => localStorage.getItem(LANG_KEY) || 'en');
   const setLang = useCallback((l) => { localStorage.setItem(LANG_KEY, l); setLangState(l); }, []);
@@ -1494,15 +1530,11 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
 
 function ManagerDashboard({ business, staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
   const { t } = useT();
+  const { labels } = useBiz();
   const lowStock = inventory.filter(i => i.stock <= i.threshold);
   const pending  = requests.filter(r => r.status === 'pending');
   const [busy, setBusy] = useState(false);
-  // Business-type aware label for booking section
-  const bizType = business?.type || 'spa';
-  const bookingLabel = bizType === 'gym' ? "Today's Classes"
-    : bizType === 'hotel' ? "Today's Check-Ins"
-    : bizType === 'clinic' ? "Today's Appointments"
-    : t('todaysBookings');
+  const bookingLabel = labels.todayCount;
 
   const reorderAll = async () => {
     if (!lowStock.length) { toast && toast(t('noLowStock')); return; }
@@ -1582,7 +1614,7 @@ function ManagerDashboard({ business, staff, bookings, inventory, requests, anno
       )}
 
       <div className="card">
-        <div className="card-head"><h3>{t('upcomingBookings')}</h3>
+        <div className="card-head"><h3>Upcoming {labels.bookingPlural}</h3>
           <button className="btn btn-ghost btn-sm" onClick={() => onGoto('schedule')}>{t('viewAll')}</button>
         </div>
         {bookings.slice(0, 5).map(b => {
@@ -1680,6 +1712,7 @@ function ManagerDashboard({ business, staff, bookings, inventory, requests, anno
 }
 
 function ScheduleTab({ bookings, staff, onReload, toast }) {
+  const { labels } = useBiz();
   const { t, lang } = useT();
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
@@ -1738,7 +1771,7 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>{t('todaysSchedule')}</h3>
+          <h3>Today's {labels.bookingPlural}</h3>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}>
             <Plus size={14} /> {t('add')}
           </button>
@@ -1816,6 +1849,7 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
 
 function BookingModal({ booking, staff, onClose, onSaved }) {
   const { t } = useT();
+  const { labels } = useBiz();
   const [f, setF] = useState(() => {
     if (!booking) return { time: '10:00', client: '', treatment: '', duration: 60,
       therapist: '', notes: '', allergies: '', clientPhone: '', price: 0 };
@@ -1835,12 +1869,12 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={booking ? t('editBooking') : t('newBooking')} onClose={onClose}>
+    <Modal title={booking ? `Edit ${labels.booking}` : `New ${labels.booking}`} onClose={onClose}>
       <form onSubmit={save}>
         {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('client')}</label>
+        <div className="field"><label>{labels.client}</label>
           <input className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} /></div>
-        <div className="field"><label>{t('treatment')}</label>
+        <div className="field"><label>{labels.service}</label>
           <input className="input" required value={f.treatment} onChange={e => setF({ ...f, treatment: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{t('time')}</label>
@@ -1848,8 +1882,8 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
           <div className="field" style={{ flex: 1 }}><label>{t('durationMin')}</label>
             <input className="input" type="number" value={f.duration} onChange={e => setF({ ...f, duration: Number(e.target.value) })} /></div>
         </div>
-        <div className="field"><label>{t('therapist')}</label>
-          <input className="input" placeholder="Provider name" value={f.therapist || ''} onChange={e => setF({ ...f, therapist: e.target.value })} /></div>
+        <div className="field"><label>{labels.staffMember}</label>
+          <input className="input" placeholder={`${labels.staffMember} name`} value={f.therapist || ''} onChange={e => setF({ ...f, therapist: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{t('clientPhone')}</label>
             <input className="input" type="tel" placeholder="Phone number" value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
@@ -1873,6 +1907,7 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
 
 function StaffTab({ staff, violations, onReload, toast }) {
   const { t } = useT();
+  const { labels } = useBiz();
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
 
@@ -1924,7 +1959,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>{t('teamMembers')}</h3>
+          <h3>{labels.staffPlural}</h3>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} /> {t('add')}</button>
         </div>
         <div className="search-wrap">
@@ -3463,7 +3498,11 @@ function AppInner() {
     if (item.id === 'schedule') return staffPerms.canViewSchedule;
     return true;
   });
-  const nav = role === 'manager' ? MANAGER_NAV : role === 'staff' ? filteredStaffNav : OWNER_NAV;
+  // Filter manager nav by business-type-hidden tabs (gym hides SOP, etc.)
+  const bizType = business?.type || 'spa';
+  const hiddenTabs = BIZ_HIDDEN_TABS[bizType] || [];
+  const filteredManagerNav = MANAGER_NAV.filter(item => !hiddenTabs.includes(item.id));
+  const nav = role === 'manager' ? filteredManagerNav : role === 'staff' ? filteredStaffNav : OWNER_NAV;
   const lowStockCount = inventory.data.filter(i => i.stock <= i.threshold).length;
   const pendingCount  = requests.data.filter(r => r.status === 'pending').length;
   const alertBadge    = lowStockCount + pendingCount;
@@ -3477,6 +3516,7 @@ function AppInner() {
   const pageTitle = navItem ? t(navItem.labelKey) : tab;
 
   return (
+    <BizProvider business={business}>
     <div className="shell">
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
@@ -3607,6 +3647,7 @@ function AppInner() {
 
       <Toast payload={toastMsg} onDone={() => setToastMsg(null)} />
     </div>
+    </BizProvider>
   );
 }
 
