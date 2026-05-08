@@ -140,10 +140,10 @@ const TRANSLATIONS = {
     price: 'Price (IDR)', staffPhone: 'Staff phone', whatsapp: 'WhatsApp',
     undo: 'Undo', restored: 'Restored',
     thisWeek: 'This Week', revenue: 'Revenue', completed: 'Completed',
-    avgPerDay: 'Avg / day', topTherapist: 'Top Therapist',
+    avgPerDay: 'Avg / day', topTherapist: 'Top Performer',
     commission: 'Commission', commissionRate: 'Commission rate (%)',
     estEarnings: 'Est. earnings', deferred: 'Coming soon',
-    friction: 'Notes for your team:', waMsg: "Hi, it's the spa — quick check-in.",
+    friction: 'Notes for your team:', waMsg: 'Hi, quick check-in from the team.',
     days: { Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri', Sat: 'Sat', Sun: 'Sun' },
     forgotPassword: 'Forgot password?', sendResetLink: 'Send Reset Link',
     resetPassword: 'Reset Password', backToLogin: 'Back to login',
@@ -175,14 +175,14 @@ const TRANSLATIONS = {
     addSopRule: 'Add Rule', sopRuleAdded: 'Rule added', sopRuleRemoved: 'Rule removed',
     removeSopRule: 'Remove this rule?', sopRuleTitle: 'Rule title', sopRuleDesc: 'Description (optional)',
     noSopsYetViolation: 'Add SOP rules first before logging a violation.',
-    landingHero: 'Spa & salon management made simple.',
-    landingSub: 'Schedule staff, track inventory, manage SOP compliance, reduce chaos.',
+    landingHero: 'Service business management made simple.',
+    landingSub: 'Schedule staff, track inventory, manage operations, reduce chaos.',
     featSchedTitle: 'Scheduling',
     featSchedBody: 'Bookings, shifts, swaps, and reassignments — all in one calendar.',
     featOpsTitle: 'Operations',
-    featOpsBody: 'Inventory tracking, low-stock alerts, SOP enforcement, daily checklists.',
+    featOpsBody: 'Inventory tracking, low-stock alerts, daily checklists, SOPs.',
     featTeamTitle: 'Team Management',
-    featTeamBody: 'Roles, permissions, time-off requests, commission tracking.',
+    featTeamBody: 'Roles, permissions, time-off requests, sick calls, swap shifts.',
     startFreeTrial: 'No credit card, start free trial',
     haveAccount: 'Already have an account?',
     trialFinePrint: '7-day free trial',
@@ -192,7 +192,7 @@ const TRANSLATIONS = {
     trialEndingSoon: 'Trial ends in {n} days',
     trialEnded: 'Trial ended',
     trialActiveUntil: 'Trial active until',
-    chooseYourPath: 'How will you use SpaPilot?',
+    chooseYourPath: 'How will you use this app?',
     iOwnBusiness: 'Set up my business',
     iOwnBusinessSub: 'Create your workspace and invite your team.',
     iWorkAsStaff: 'Join my team',
@@ -200,10 +200,10 @@ const TRANSLATIONS = {
     setupBusiness: 'Set up your business',
     setupBusinessSub: 'A few details so we can build your workspace.',
     businessName: 'Business name',
-    businessNamePh: 'e.g. Lotus Spa Bali',
+    businessNamePh: 'e.g. Your Business Name',
     businessTypeLabel: 'Business type',
     bizTypeSpa: 'Spa', bizTypeSalon: 'Salon', bizTypeBarbershop: 'Barbershop',
-    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel',
+    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Clinic', bizTypeOther: 'Other',
     numberOfStaff: 'Number of staff',
     createBusiness: 'Create business',
     joinBusiness: 'Join your business',
@@ -214,7 +214,7 @@ const TRANSLATIONS = {
     invalidBusinessCode: 'Invalid business code',
     noCodeYet: "Don't have a code? Ask the business owner to share it.",
     paymentRequiredTitle: 'Trial ended',
-    paymentRequiredSub: 'Subscribe to keep using SpaPilot.',
+    paymentRequiredSub: 'Subscribe to keep using your workspace.',
     subscribeMonthly: 'Subscribe — $19/month',
     subscribeNote: 'Secure checkout via Stripe. Cancel anytime.',
     settings: 'Settings',
@@ -358,10 +358,10 @@ const TRANSLATIONS = {
     price: 'Harga (IDR)', staffPhone: 'Telp staf', whatsapp: 'WhatsApp',
     undo: 'Batalkan', restored: 'Dipulihkan',
     thisWeek: 'Minggu Ini', revenue: 'Pendapatan', completed: 'Selesai',
-    avgPerDay: 'Rata-rata / hari', topTherapist: 'Terapis Terbaik',
+    avgPerDay: 'Rata-rata / hari', topTherapist: 'Staf Terbaik',
     commission: 'Komisi', commissionRate: 'Tingkat komisi (%)',
     estEarnings: 'Perkiraan pendapatan', deferred: 'Segera hadir',
-    friction: 'Catatan untuk tim Anda:', waMsg: 'Halo, ini dari spa — pemberitahuan singkat.',
+    friction: 'Catatan untuk tim Anda:', waMsg: 'Halo, pemberitahuan singkat dari tim.',
     days: { Mon: 'Sen', Tue: 'Sel', Wed: 'Rab', Thu: 'Kam', Fri: 'Jum', Sat: 'Sab', Sun: 'Min' },
     forgotPassword: 'Lupa kata sandi?', sendResetLink: 'Kirim Link Reset',
     resetPassword: 'Reset Kata Sandi', backToLogin: 'Kembali ke login',
@@ -393,14 +393,14 @@ const TRANSLATIONS = {
     addSopRule: 'Tambah Aturan', sopRuleAdded: 'Aturan ditambahkan', sopRuleRemoved: 'Aturan dihapus',
     removeSopRule: 'Hapus aturan ini?', sopRuleTitle: 'Judul aturan', sopRuleDesc: 'Deskripsi (opsional)',
     noSopsYetViolation: 'Tambahkan aturan SOP terlebih dahulu sebelum mencatat pelanggaran.',
-    landingHero: 'Manajemen spa & salon dipermudah.',
-    landingSub: 'Atur jadwal staf, lacak inventaris, kelola SOP, kurangi kekacauan.',
+    landingHero: 'Manajemen bisnis jasa dipermudah.',
+    landingSub: 'Atur jadwal staf, lacak inventaris, kelola operasional, kurangi kekacauan.',
     featSchedTitle: 'Penjadwalan',
     featSchedBody: 'Pemesanan, shift, tukar, dan pengalihan — semua dalam satu kalender.',
     featOpsTitle: 'Operasional',
-    featOpsBody: 'Lacak inventaris, peringatan stok rendah, SOP, daftar harian.',
+    featOpsBody: 'Lacak inventaris, peringatan stok rendah, daftar harian, SOP.',
     featTeamTitle: 'Manajemen Tim',
-    featTeamBody: 'Peran, izin, permintaan cuti, pelacakan komisi.',
+    featTeamBody: 'Peran, izin, permintaan cuti, lapor sakit, tukar shift.',
     startFreeTrial: 'Tanpa kartu kredit, mulai uji coba gratis',
     haveAccount: 'Sudah punya akun?',
     trialFinePrint: 'Uji coba 7 hari gratis',
@@ -410,7 +410,7 @@ const TRANSLATIONS = {
     trialEndingSoon: 'Uji coba berakhir dalam {n} hari',
     trialEnded: 'Uji coba berakhir',
     trialActiveUntil: 'Uji coba aktif hingga',
-    chooseYourPath: 'Bagaimana Anda akan gunakan SpaPilot?',
+    chooseYourPath: 'Bagaimana Anda akan menggunakan aplikasi ini?',
     iOwnBusiness: 'Siapkan bisnis saya',
     iOwnBusinessSub: 'Buat ruang kerja Anda dan undang tim.',
     iWorkAsStaff: 'Gabung tim saya',
@@ -418,10 +418,10 @@ const TRANSLATIONS = {
     setupBusiness: 'Siapkan bisnis Anda',
     setupBusinessSub: 'Beberapa detail untuk membangun ruang kerja Anda.',
     businessName: 'Nama bisnis',
-    businessNamePh: 'misal Lotus Spa Bali',
+    businessNamePh: 'misal Nama Bisnis Anda',
     businessTypeLabel: 'Jenis bisnis',
     bizTypeSpa: 'Spa', bizTypeSalon: 'Salon', bizTypeBarbershop: 'Pangkas Rambut',
-    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel',
+    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Klinik', bizTypeOther: 'Lainnya',
     numberOfStaff: 'Jumlah staf',
     createBusiness: 'Buat bisnis',
     joinBusiness: 'Gabung bisnis Anda',
@@ -432,7 +432,7 @@ const TRANSLATIONS = {
     invalidBusinessCode: 'Kode bisnis tidak valid',
     noCodeYet: 'Belum punya kode? Minta dari pemilik bisnis.',
     paymentRequiredTitle: 'Uji coba berakhir',
-    paymentRequiredSub: 'Berlangganan untuk terus gunakan SpaPilot.',
+    paymentRequiredSub: 'Berlangganan untuk terus menggunakan ruang kerja Anda.',
     subscribeMonthly: 'Berlangganan — $19/bulan',
     subscribeNote: 'Pembayaran aman via Stripe. Batal kapan saja.',
     settings: 'Pengaturan',
@@ -1113,6 +1113,8 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
               <option value="barbershop">{t('bizTypeBarbershop')}</option>
               <option value="gym">{t('bizTypeGym')}</option>
               <option value="hotel">{t('bizTypeHotel')}</option>
+              <option value="clinic">{t('bizTypeClinic')}</option>
+              <option value="other">{t('bizTypeOther')}</option>
             </select>
           </div>
           {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
@@ -1278,6 +1280,13 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('email')}</div>
         <div style={{ fontSize: 14 }}>{user?.email}</div>
       </div>
+
+      {business && (
+        <div className="field">
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('businessName')}</div>
+          <div style={{ fontSize: 14 }}>{business.name} <span style={{ color: 'var(--muted)', fontSize: 12 }}>· {business.type}</span></div>
+        </div>
+      )}
 
       <div className="field">
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('manageSubscription')}</div>
@@ -1483,11 +1492,17 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
 
 // ================= MANAGER VIEWS =================
 
-function ManagerDashboard({ staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
+function ManagerDashboard({ business, staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
   const { t } = useT();
   const lowStock = inventory.filter(i => i.stock <= i.threshold);
   const pending  = requests.filter(r => r.status === 'pending');
   const [busy, setBusy] = useState(false);
+  // Business-type aware label for booking section
+  const bizType = business?.type || 'spa';
+  const bookingLabel = bizType === 'gym' ? "Today's Classes"
+    : bizType === 'hotel' ? "Today's Check-Ins"
+    : bizType === 'clinic' ? "Today's Appointments"
+    : t('todaysBookings');
 
   const reorderAll = async () => {
     if (!lowStock.length) { toast && toast(t('noLowStock')); return; }
@@ -1501,12 +1516,12 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
   };
 
   const stats = [
-    { v: bookings.length, l: t('todaysBookings'), i: <Calendar size={16} /> },
+    { v: bookings.length, l: bookingLabel,       i: <Calendar size={16} /> },
     { v: staff.length,    l: t('activeStaff'),    i: <Users size={16} /> },
     { v: lowStock.length, l: t('lowStock'),       i: <Package size={16} /> },
   ];
 
-  const CHECKLIST_KEY = 'spa_checklist';
+  const CHECKLIST_KEY = 'app_checklist';
   const [checkItems, setCheckItems] = useState(() => {
     try { return JSON.parse(localStorage.getItem(CHECKLIST_KEY)) || []; }
     catch { return []; }
@@ -1837,7 +1852,7 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
           <input className="input" placeholder="Provider name" value={f.therapist || ''} onChange={e => setF({ ...f, therapist: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{t('clientPhone')}</label>
-            <input className="input" type="tel" placeholder="+62…" value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
+            <input className="input" type="tel" placeholder="Phone number" value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
             <input className="input" type="number" min="0" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         </div>
@@ -2005,7 +2020,7 @@ function StaffModal({ member, onClose, onSaved }) {
         <div className="field"><label>{t('birthday')}</label>
           <input className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
         <div className="field"><label>{t('staffPhone')}</label>
-          <input className="input" type="tel" placeholder="+62…" value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
+          <input className="input" type="tel" placeholder="Phone number" value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
         <div className="field"><label>{t('avatarColor')}</label>
           <div className="color-swatches">
             {COLOR_OPTIONS.map(c => (
@@ -2177,7 +2192,7 @@ function InventoryTab({ inventory, onReload, toast }) {
 function InventoryModal({ item, onClose, onSaved }) {
   const { t } = useT();
   const [f, setF] = useState(item || {
-    name: '', category: 'Oils', stock: 0, threshold: 5, unit: 'pcs', supplier: '',
+    name: '', category: '', stock: 0, threshold: 5, unit: 'pcs', supplier: '',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -3466,7 +3481,7 @@ function AppInner() {
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
         <div>
-          <div className="brand">Spa<span className="dot">·</span>Pilot</div>
+          <div className="brand">{business?.name || `${BRAND}·`}</div>
           <div className="sub">{t(role)} · {(user.email || '').split('@')[0]}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -3503,6 +3518,7 @@ function AppInner() {
             <>
               {tab === 'dashboard' && (
                 <ManagerDashboard
+                  business={business}
                   staff={staff.data} bookings={bookings.data} inventory={inventory.data}
                   requests={requests.data} announcements={announcements.data} violations={violations.data}
                   onGoto={setTab} onReload={inventory.reload} toast={toast}
