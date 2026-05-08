@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, createContext, useContext, useMemo, u
 import {
   Calendar, Users, Package, LayoutDashboard, AlertTriangle,
   CheckCircle, RefreshCw, Bell, User, ShieldCheck, Send, Home, Inbox,
-  Plus, Trash2, Edit2, X, LogOut, Megaphone, Heart, PhoneCall, CalendarOff,
+  Plus, Trash2, Edit2, X, LogOut, Megaphone, PhoneCall, CalendarOff,
   Repeat, Leaf, Sparkles, Gem, Check, Lock, Flower2, Dumbbell, UtensilsCrossed,
   Scissors, Building2, Mail, Search, Download, Globe,
 } from 'lucide-react';
@@ -1931,8 +1931,10 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
   const save = async (e) => {
     e.preventDefault(); setSaving(true); setErr(null);
     try {
-      if (booking) await api(`/api/bookings/${booking.id}`, { method: 'PUT', body: f });
-      else         await api('/api/bookings', { method: 'POST', body: f });
+      // Coerce empty-string price (from "clear-the-0" fix) back to numeric 0 before sending.
+      const body = { ...f, price: f.price === '' || f.price == null ? 0 : Number(f.price) };
+      if (booking) await api(`/api/bookings/${booking.id}`, { method: 'PUT', body });
+      else         await api('/api/bookings', { method: 'POST', body });
       onSaved();
     } catch (e) { setErr(e.message); setSaving(false); }
   };
