@@ -13,6 +13,8 @@ const TOKEN_KEY = 'opus_token';
 const LANG_KEY = 'opus_lang';
 const BRAND = 'Opus';
 const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
+// Per-user tour key so every new account sees the tour fresh, even on shared browsers.
+const tourKeyFor = (user) => user?.id ? `spapilot-tutorial-done-u${user.id}` : TOUR_DONE_KEY;
 const DEMO_KEY = 'spapilot-demo-mode';
 
 // ---------- Demo mode ----------
@@ -177,6 +179,9 @@ function clearDemoData() {
   const seed = buildDemoSeed();
   Object.keys(seed).forEach((path) => localStorage.removeItem(DEMO_COLL_KEY(path)));
   localStorage.removeItem(DEMO_TYPE_KEY);
+  // Clear demo-user tutorial flags so next demo entry feels fresh
+  localStorage.removeItem('spapilot-tutorial-done-u999');
+  localStorage.removeItem('spapilot-slides-done-u999');
   // If demo planted a fake auth token, clear it so subsequent real API calls don't 401.
   if (localStorage.getItem(TOKEN_KEY) === 'demo-token') {
     localStorage.removeItem(TOKEN_KEY);
@@ -1323,12 +1328,12 @@ function LandingPage({ onStartTrial, onSignIn, onTryDemo }) {
           border: '1px solid var(--gold)', borderRadius: 14,
           background: 'linear-gradient(135deg, #fff8ec 0%, #fff 100%)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontFamily: 'Fraunces, serif', fontSize: 28, fontWeight: 600, color: 'var(--emerald)' }}>$19</span>
-            <span style={{ fontSize: 13, color: 'var(--muted)' }}>/month, billed monthly</span>
+          <div style={{ fontSize: 13, color: 'var(--emerald)', fontWeight: 700, marginBottom: 8, letterSpacing: 0.2 }}>
+            No credit card · Start free trial
           </div>
-          <div style={{ fontSize: 12, color: 'var(--emerald)', fontWeight: 600, marginBottom: 10 }}>
-            7-day free trial · No credit card required
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+            <span style={{ fontFamily: 'Fraunces, serif', fontSize: 26, fontWeight: 600, color: 'var(--emerald)' }}>$19</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)' }}>/month, billed monthly · after 7-day trial</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text)' }}>
             {[
@@ -1737,7 +1742,12 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
 
       <div className="field">
         <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13 }} onClick={() => {
+          // Clear both legacy global key + this user's per-user keys so tutorial replays
           localStorage.removeItem(TOUR_DONE_KEY);
+          if (user?.id) {
+            localStorage.removeItem(`spapilot-tutorial-done-u${user.id}`);
+            localStorage.removeItem(`spapilot-slides-done-u${user.id}`);
+          }
           onClose();
           window.location.reload();
         }}>
@@ -3582,6 +3592,123 @@ const OWNER_NAV = [
 ];
 
 // ================= TOUR OVERLAY (data-tour DOM targeting) =================
+// ================= WELCOME SLIDESHOW =================
+// Runs once for every new account on first dashboard load. Five slides: app intro,
+// scope ("works for any service biz"), three capability slides, then "let's go".
+// User taps Next or swipes through. Skip available throughout.
+const SLIDES = [
+  {
+    icon: '👋',
+    title: 'Welcome aboard',
+    body: "We're going to make running your business much easier. This will only take 30 seconds.",
+  },
+  {
+    icon: '🌐',
+    title: 'Built for any service business',
+    body: 'Spas, salons, gyms, clinics, restaurants, hotels, cafés, repair shops, freelancers — and many more. If you take bookings or manage a team, this app fits.',
+  },
+  {
+    icon: '📅',
+    title: 'Smart scheduling',
+    body: 'Bookings, shifts, swaps, and reassignments — all in one calendar. When someone calls in sick, you can reassign their day in two taps.',
+  },
+  {
+    icon: '👥',
+    title: 'Your team, organized',
+    body: 'Time-off, sick calls, and shift swaps come through as requests you can approve or decline. No more "did you see my text?"',
+  },
+  {
+    icon: '📦',
+    title: 'Never run out of stock',
+    body: 'Track supplies, products, or equipment. Get alerts before you run low. One tap to mark items reordered.',
+  },
+  {
+    icon: '✨',
+    title: "Let's set up yours",
+    body: "Tap the button below — we'll show you where everything is.",
+  },
+];
+
+function WelcomeSlideshow({ onDone }) {
+  const [step, setStep] = useState(0);
+  const slide = SLIDES[step];
+  const isLast = step === SLIDES.length - 1;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9990,
+      background: 'rgba(28, 28, 30, 0.92)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20,
+    }}>
+      <div style={{
+        background: 'var(--cream)', borderRadius: 18,
+        maxWidth: 400, width: '100%',
+        padding: '32px 24px 22px',
+        boxShadow: '0 12px 60px rgba(0,0,0,0.4)',
+        textAlign: 'center',
+        animation: 'fadein 0.3s ease',
+      }}>
+        {/* Skip top-right */}
+        <button
+          onClick={onDone}
+          style={{
+            position: 'absolute', top: 22, right: 26,
+            background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)',
+            border: 'none', borderRadius: 18, padding: '5px 12px',
+            fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >Skip</button>
+
+        <div style={{ fontSize: 56, marginBottom: 18 }}>{slide.icon}</div>
+        <h2 style={{
+          fontFamily: 'Fraunces, serif', fontSize: 24, fontWeight: 600,
+          color: 'var(--emerald)', margin: 0, lineHeight: 1.2,
+        }}>{slide.title}</h2>
+        <p style={{
+          color: 'var(--ink)', fontSize: 14, lineHeight: 1.6,
+          marginTop: 14, marginBottom: 26,
+        }}>{slide.body}</p>
+
+        {/* Progress dots */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 22 }}>
+          {SLIDES.map((_, i) => (
+            <div key={i} style={{
+              width: i === step ? 22 : 7, height: 7, borderRadius: 4,
+              background: i <= step ? 'var(--emerald)' : 'var(--line)',
+              transition: 'all 0.25s',
+            }} />
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          {step > 0 && (
+            <button
+              onClick={() => setStep(step - 1)}
+              style={{
+                flex: 1, padding: '12px 16px', borderRadius: 10,
+                border: '1px solid var(--border)', background: 'transparent',
+                cursor: 'pointer', fontFamily: 'inherit', fontSize: 14,
+                color: 'var(--muted)',
+              }}
+            >← Back</button>
+          )}
+          <button
+            onClick={() => isLast ? onDone() : setStep(step + 1)}
+            style={{
+              flex: 2, padding: '14px 16px', borderRadius: 10,
+              border: 'none', background: 'var(--emerald)', color: '#fff',
+              cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 600,
+            }}
+          >
+            {isLast ? "Show me around →" : 'Next →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TourOverlay({ onDone }) {
   // Filter tour steps to only include tabs visible for this business type.
   // (gym hides SOP, etc — pointing at hidden tabs would hang the tour.)
@@ -3774,7 +3901,18 @@ function AppInner() {
   const [onboardingChoice, setOnboardingChoice] = useState(null); // null | 'owner' | 'staff'
   const [business, setBusiness] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [tourDone, setTourDone] = useState(() => localStorage.getItem(TOUR_DONE_KEY) === 'true');
+  const [tourDone, setTourDone] = useState(false);
+  // Re-evaluate tour + slideshow completion when user changes (per-user keys).
+  // Stored as functions so deps can be the user object itself without lint warnings.
+  useEffect(() => {
+    if (!user) { setTourDone(false); return; }
+    setTourDone(localStorage.getItem(tourKeyFor(user)) === 'true');
+  }, [user]);
+  const [slidesDone, setSlidesDone] = useState(false);
+  useEffect(() => {
+    if (!user) { setSlidesDone(false); return; }
+    setSlidesDone(localStorage.getItem(`spapilot-slides-done-u${user.id}`) === 'true');
+  }, [user]);
 
   const authed = !!user;
   const onboarded = !!(user?.role && user?.businessType && user?.businessId);
@@ -4082,10 +4220,17 @@ function AppInner() {
         })}
       </nav>
 
-      {!tourDone && (
+      {/* Welcome slideshow runs first (feature overview), then DOM-targeting tour. */}
+      {!slidesDone && !tourDone && (
+        <WelcomeSlideshow onDone={() => {
+          setSlidesDone(true);
+          if (user?.id) localStorage.setItem(`spapilot-slides-done-u${user.id}`, 'true');
+        }} />
+      )}
+      {slidesDone && !tourDone && (
         <TourOverlay onDone={async () => {
           setTourDone(true);
-          localStorage.setItem(TOUR_DONE_KEY, 'true');
+          localStorage.setItem(tourKeyFor(user), 'true');
           try { await api('/api/auth/complete-tutorial', { method: 'POST', body: {} }); } catch {}
         }} />
       )}
