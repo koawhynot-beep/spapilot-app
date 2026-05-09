@@ -9,9 +9,22 @@ import {
 import './App.css';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:3000';
-const TOKEN_KEY = 'opus_token';
-const LANG_KEY = 'opus_lang';
-const BRAND = 'Opus';
+const TOKEN_KEY = 'app_token';
+const LANG_KEY = 'app_lang';
+
+// One-time migration: copy any existing tokens/lang from old "opus_*" keys to new keys,
+// then delete the old keys so nothing references the legacy brand.
+(function migrateLegacyKeys() {
+  if (typeof window === 'undefined') return;
+  const map = { opus_token: TOKEN_KEY, opus_lang: LANG_KEY };
+  for (const [oldKey, newKey] of Object.entries(map)) {
+    const v = localStorage.getItem(oldKey);
+    if (v != null && localStorage.getItem(newKey) == null) {
+      localStorage.setItem(newKey, v);
+    }
+    localStorage.removeItem(oldKey);
+  }
+})();
 const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
 // Per-user tour key so every new account sees the tour fresh, even on shared browsers.
 const tourKeyFor = (user) => user?.id ? `spapilot-tutorial-done-u${user.id}` : TOUR_DONE_KEY;
@@ -284,7 +297,7 @@ const TRANSLATIONS = {
     email: 'Email', password: 'Password', confirmPassword: 'Confirm password',
     emailRequired: 'Email and password required', passwordsDontMatch: 'Passwords do not match',
     passwordTooShort: 'Password must be 6+ characters', pleaseWait: 'Please wait…',
-    demoAccount: 'Demo account:', emailPlaceholder: 'you@example.com',
+    emailPlaceholder: 'you@example.com',
     pwSignup: 'At least 6 characters', pwLogin: 'Your password',
     pickBusiness: 'pick your business type.', soon: 'Soon',
     spaWellness: 'Spa & Wellness', spaSub: 'Massage, facials, treatment rooms',
@@ -502,7 +515,7 @@ const TRANSLATIONS = {
     email: 'Email', password: 'Kata sandi', confirmPassword: 'Konfirmasi kata sandi',
     emailRequired: 'Email dan kata sandi wajib diisi', passwordsDontMatch: 'Kata sandi tidak cocok',
     passwordTooShort: 'Kata sandi minimal 6 karakter', pleaseWait: 'Mohon tunggu…',
-    demoAccount: 'Akun demo:', emailPlaceholder: 'anda@contoh.com',
+    emailPlaceholder: 'anda@contoh.com',
     pwSignup: 'Minimal 6 karakter', pwLogin: 'Kata sandi Anda',
     pickBusiness: 'pilih jenis bisnis Anda.', soon: 'Segera',
     spaWellness: 'Spa & Kebugaran', spaSub: 'Pijat, perawatan wajah, ruang terapi',
@@ -825,7 +838,7 @@ async function api(path, opts = {}) {
   }
   if (res.status === 401) {
     setToken(null);
-    window.dispatchEvent(new Event('opus:unauth'));
+    window.dispatchEvent(new Event('app:unauth'));
   }
   if (!res.ok) {
     let msg = `${res.status}`;
@@ -995,10 +1008,14 @@ function EmptyState({ icon: Icon, title, body, ctaLabel, onCta }) {
 }
 
 // ---------- Brand mark ----------
+// Pre-onboarding: simple gold dot logo (no brand text). Post-onboarding the topbar
+// shows the user's actual business name instead.
 function BrandMark({ sub }) {
   return (
     <>
-      <div className="brand">{BRAND}<span className="dot">·</span></div>
+      <div className="brand" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+        <span className="dot" style={{ fontSize: 32, lineHeight: 1, color: 'var(--gold)' }}>●</span>
+      </div>
       {sub && <div className="tagline">{sub}</div>}
     </>
   );
@@ -1199,10 +1216,6 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
           </form>
         )}
 
-        <div style={{ marginTop: 18, fontSize: 11, color: 'var(--muted)', lineHeight: 1.6 }}>
-          <Sparkles size={11} style={{ verticalAlign: 'middle', marginRight: 4, color: 'var(--gold)' }} />
-          {t('demoAccount')} <strong>demo@opus.app</strong> / <strong>demo1234</strong>
-        </div>
         {onBack && (
           <button className="btn btn-ghost" style={{ width: '100%', marginTop: 12, fontSize: 12 }} onClick={onBack}>
             ← {t('back')}
@@ -1610,14 +1623,19 @@ function PaymentRequired({ user, onActivated, onLogout }) {
     setErr(null);
     setBusy(true);
     try {
+      // In demo mode let the demoApi handle this. Real flow: Stripe must be configured.
+      if (isDemo()) {
+        const { user: u } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
+        onActivated(u); return;
+      }
       const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
       if (checkoutUrl) {
         window.location.href = checkoutUrl;
         return;
       }
-      // Stripe not configured: mock activate
-      const { user: u } = await api('/api/billing/mock-activate', { method: 'POST', body: {} });
-      onActivated(u);
+      // No checkout URL = backend Stripe missing. Don't silently auto-activate.
+      setErr('Subscription is temporarily unavailable. Please try again in a few minutes.');
+      setBusy(false);
     } catch (e) { setErr(e.message || t('failed')); setBusy(false); }
   };
 
@@ -1678,9 +1696,18 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
   const activate = async () => {
     setBusy(true);
     try {
-      const { user: u } = await api('/api/billing/mock-activate', { method: 'POST', body: {} });
-      onActivated(u);
-      toast(t('activated'));
+      // Real path: redirect to Stripe checkout. Demo path: mock activates.
+      if (isDemo()) {
+        const { user: u } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
+        onActivated(u); toast(t('activated'));
+      } else {
+        const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+        } else {
+          toast('Subscription temporarily unavailable. Please try again later.');
+        }
+      }
     } catch (e) { toast(e.message || t('failed')); }
     finally { setBusy(false); }
   };
@@ -3955,8 +3982,8 @@ function AppInner() {
   // Listen for 401s from other requests.
   useEffect(() => {
     const handler = () => { setUser(null); setRole(null); };
-    window.addEventListener('opus:unauth', handler);
-    return () => window.removeEventListener('opus:unauth', handler);
+    window.addEventListener('app:unauth', handler);
+    return () => window.removeEventListener('app:unauth', handler);
   }, []);
 
   // When user logs in: managers pick a role; non-managers go straight to staff view.
@@ -4105,7 +4132,7 @@ function AppInner() {
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
         <div>
-          <div className="brand">{business?.name || `${BRAND}·`}</div>
+          <div className="brand">{business?.name || <span style={{ color: 'var(--gold)' }}>●</span>}</div>
           <div className="sub">{t(role)} · {(user.email || '').split('@')[0]}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
