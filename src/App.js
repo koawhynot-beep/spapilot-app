@@ -3,8 +3,8 @@ import {
   Calendar, Users, Package, LayoutDashboard, AlertTriangle,
   CheckCircle, RefreshCw, Bell, User, ShieldCheck, Send, Home, Inbox,
   Plus, Trash2, Edit2, X, LogOut, Megaphone, PhoneCall, CalendarOff,
-  Repeat, Leaf, Sparkles, Gem, Check, Lock, Flower2, Dumbbell, UtensilsCrossed,
-  Scissors, Building2, Mail, Search, Download, Globe,
+  Repeat, Leaf, Sparkles, Gem, Check, Lock,
+  Building2, Mail, Search, Download, Globe,
 } from 'lucide-react';
 import './App.css';
 
@@ -177,6 +177,10 @@ function clearDemoData() {
   const seed = buildDemoSeed();
   Object.keys(seed).forEach((path) => localStorage.removeItem(DEMO_COLL_KEY(path)));
   localStorage.removeItem(DEMO_TYPE_KEY);
+  // If demo planted a fake auth token, clear it so subsequent real API calls don't 401.
+  if (localStorage.getItem(TOKEN_KEY) === 'demo-token') {
+    localStorage.removeItem(TOKEN_KEY);
+  }
 }
 
 // Mock API for demo mode. Returns same shapes as real backend.
@@ -189,7 +193,12 @@ async function demoApi(path, opts = {}) {
   const demoUser = { ...DEMO_USER, businessType: getDemoType() };
   if (path === '/api/auth/me') return demoUser;
   if (path === '/api/auth/logout') { clearDemoData(); return {}; }
-  if (path === '/api/auth/role') return { token: 'demo-token', user: demoUser };
+  if (path === '/api/auth/role') {
+    // Reflect the role the user picked (manager or staff) so the demo actually switches views
+    const requested = opts.body?.role || 'manager';
+    const staffId = opts.body?.staffId;
+    return { token: 'demo-token', user: { ...demoUser, role: requested, staffId: staffId || demoUser.staffId } };
+  }
   if (path === '/api/auth/complete-tutorial') return {};
   if (path === '/api/auth/switch-onboarding') return { token: 'demo-token', user: demoUser };
   if (path === '/api/businesses/me') return getDemoBusiness();
@@ -1785,62 +1794,6 @@ function TrialBanner({ user, onUpgrade }) {
   );
 }
 
-// ---------- Business type selector ----------
-function BusinessSelector({ user, onSelected, onLogout }) {
-  const { t } = useT();
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const options = [
-    { id: 'spa',        label: t('spaWellness'), sub: t('spaSub'),     icon: <Flower2 size={22} />, enabled: true },
-    { id: 'salon',      label: t('salon'),       sub: t('comingSoon'), icon: <Scissors size={22} />, enabled: false },
-    { id: 'gym',        label: t('gym'),         sub: t('comingSoon'), icon: <Dumbbell size={22} />, enabled: false },
-    { id: 'restaurant', label: t('restaurant'),  sub: t('comingSoon'), icon: <UtensilsCrossed size={22} />, enabled: false },
-    { id: 'retail',     label: t('retail'),      sub: t('comingSoon'), icon: <Building2 size={22} />, enabled: false },
-  ];
-
-  const pick = async (businessType) => {
-    setBusy(true); setErr(null);
-    try {
-      const { token, user: u } = await api('/api/auth/business', {
-        method: 'POST', body: { businessType },
-      });
-      setToken(token);
-      onSelected(u);
-    } catch (e) { setErr(e.message); setBusy(false); }
-  };
-
-  return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card">
-        <BrandMark sub={`${(user.email || '').split('@')[0]} — ${t('pickBusiness')}`} />
-        {err && <div className="error-banner" style={{ marginTop: 14 }}><AlertTriangle size={14} /> {err}</div>}
-        <div style={{ marginTop: 18 }}>
-          {options.map(o => (
-            <button
-              key={o.id}
-              className={`role-btn ${!o.enabled ? 'role-btn-disabled' : ''}`}
-              onClick={() => o.enabled && !busy && pick(o.id)}
-              disabled={!o.enabled || busy}
-            >
-              <div className="icon-wrap">{o.icon}</div>
-              <div>
-                <div className="label">{o.label}</div>
-                <div className="sub">{o.sub}</div>
-              </div>
-              {!o.enabled && <span className="badge badge-info" style={{ marginLeft: 'auto' }}>{t('soon')}</span>}
-            </button>
-          ))}
-        </div>
-        <button className="btn btn-ghost" style={{ width: '100%', marginTop: 16 }} onClick={onLogout}>
-          <LogOut size={14} /> {t('signOut')}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ---------- Role selector ----------
 function RoleSelector({ user, staff, onSelected, onLogout }) {
   const { t } = useT();
@@ -2068,7 +2021,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
         ))}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <input
-            className="inp"
+            className="input"
             value={newTask}
             onChange={e => setNewTask(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addItem()}
@@ -2256,11 +2209,15 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
   const { t } = useT();
   const { labels, business } = useBiz();
   const showAllergies = ['spa', 'salon', 'clinic'].includes(business?.type || 'spa');
+  const hasStaff = staff && staff.length > 0;
   const [f, setF] = useState(() => {
-    if (!booking) return { time: '10:00', client: '', treatment: '', duration: 60,
-      therapist: '', notes: '', allergies: '', clientPhone: '', price: 0 };
-    const staffName = staff.find(s => s.id === booking.staffId)?.name || booking.therapist || '';
-    return { ...booking, therapist: staffName };
+    if (!booking) return {
+      time: '10:00', client: '', treatment: '', duration: 60,
+      staffId: hasStaff ? staff[0].id : null,
+      therapist: '',
+      notes: '', allergies: '', clientPhone: '', price: 0,
+    };
+    return { ...booking, therapist: booking.therapist || '' };
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -2268,8 +2225,14 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
   const save = async (e) => {
     e.preventDefault(); setSaving(true); setErr(null);
     try {
-      // Coerce empty-string price (from "clear-the-0" fix) back to numeric 0 before sending.
-      const body = { ...f, price: f.price === '' || f.price == null ? 0 : Number(f.price) };
+      // Coerce empty-string price + ensure staffId is sent (so bookings show up in per-staff views).
+      // If staff exists but user typed a custom name in the fallback input, keep `therapist` text but
+      // also pass `staffId` if it was selected from the dropdown.
+      const body = {
+        ...f,
+        price: f.price === '' || f.price == null ? 0 : Number(f.price),
+        staffId: f.staffId || null,
+      };
       if (booking) await api(`/api/bookings/${booking.id}`, { method: 'PUT', body });
       else         await api('/api/bookings', { method: 'POST', body });
       onSaved();
@@ -2290,8 +2253,30 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
           <div className="field" style={{ flex: 1 }}><label>{t('durationMin')}</label>
             <input className="input" type="number" value={f.duration} onChange={e => setF({ ...f, duration: Number(e.target.value) })} /></div>
         </div>
+        {/* Staff picker — select from team if any exist, fallback to text input.
+            Both keep the booking linked correctly: select sets staffId, text input is for ad-hoc names. */}
         <div className="field"><label>{labels.staffMember}</label>
-          <input className="input" placeholder={`${labels.staffMember} name`} value={f.therapist || ''} onChange={e => setF({ ...f, therapist: e.target.value })} /></div>
+          {hasStaff ? (
+            <select
+              className="select"
+              value={f.staffId || ''}
+              onChange={e => {
+                const id = e.target.value ? Number(e.target.value) : null;
+                const name = staff.find(s => s.id === id)?.name || '';
+                setF({ ...f, staffId: id, therapist: name });
+              }}
+            >
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          ) : (
+            <input
+              className="input"
+              placeholder={`${labels.staffMember} name (no team yet)`}
+              value={f.therapist || ''}
+              onChange={e => setF({ ...f, therapist: e.target.value })}
+            />
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{labels.client} phone</label>
             <input className="input" type="tel" placeholder="Phone number" value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
@@ -2818,12 +2803,12 @@ function SOPRuleModal({ onClose, onSaved }) {
         {err && <div className="error-banner"><AlertTriangle size={14} /> {err}</div>}
         <div className="field">
           <label>{t('sopRuleTitle')}</label>
-          <input className="inp" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
+          <input className="input" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
             placeholder="e.g. Arrive on time, Wear uniform…" autoFocus />
         </div>
         <div className="field">
           <label>{t('category')}</label>
-          <input className="inp" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
+          <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
             placeholder="e.g. Punctuality, Appearance…" />
         </div>
         <div className="field">
@@ -3598,9 +3583,11 @@ function TourOverlay({ onDone }) {
 
   // Measure target element position live
   const measure = useCallback(() => {
-    const el = document.querySelector(`[data-tour="${visibleSteps[stepRef.current].targetId}"]`);
+    const target = visibleSteps[stepRef.current];
+    if (!target) { setRect(null); return; }
+    const el = document.querySelector(`[data-tour="${target.targetId}"]`);
     setRect(el ? el.getBoundingClientRect() : null);
-  }, []);
+  }, [visibleSteps]);
 
   // Recompute on step change, resize, scroll
   useEffect(() => {
@@ -3616,7 +3603,9 @@ function TourOverlay({ onDone }) {
 
   // Listen for clicks on the current target to advance
   useEffect(() => {
-    const { targetId } = visibleSteps[stepRef.current];
+    const target = visibleSteps[stepRef.current];
+    if (!target) return;
+    const { targetId } = target;
     const handler = (e) => {
       if (e.target.closest(`[data-tour="${targetId}"]`)) {
         setTimeout(() => {
@@ -3628,7 +3617,7 @@ function TourOverlay({ onDone }) {
     };
     document.addEventListener('click', handler, true);
     return () => document.removeEventListener('click', handler, true);
-  }, [step, onDone]);
+  }, [step, onDone, visibleSteps]);
 
   const currentStep = visibleSteps[step];
   const PAD = 10;
