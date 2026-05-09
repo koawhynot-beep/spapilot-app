@@ -3979,9 +3979,12 @@ function AppInner() {
       .catch(() => { setToken(null); setAuthChecking(false); });
   }, []);
 
-  // Listen for 401s from other requests.
+  // Listen for 401s from other requests — fully reset session state.
   useEffect(() => {
-    const handler = () => { setUser(null); setRole(null); };
+    const handler = () => {
+      setUser(null); setRole(null); setBusiness(null); setOnboardingChoice(null);
+      setAuthMode(null);
+    };
     window.addEventListener('app:unauth', handler);
     return () => window.removeEventListener('app:unauth', handler);
   }, []);
