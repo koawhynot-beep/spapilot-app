@@ -14,6 +14,39 @@ const LANG_KEY = 'opus_lang';
 const BRAND = 'Opus';
 const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
 const DEMO_KEY = 'spapilot-demo-mode';
+const ONBOARD_PREFS_KEY = 'spapilot-onboarding-prefs';
+const ONBOARD_DONE_KEY = 'spapilot-onboarding-done';
+
+// ---------- Onboarding quiz prefs ----------
+// Quiz answers customize the app: solo owners hide Staff tab, "scheduling chaos"
+// users land on Schedule first, etc. Stored client-side; backend not required.
+const getOnboardPrefs = () => {
+  try { return JSON.parse(localStorage.getItem(ONBOARD_PREFS_KEY)) || {}; }
+  catch { return {}; }
+};
+const setOnboardPrefs = (p) => localStorage.setItem(ONBOARD_PREFS_KEY, JSON.stringify(p));
+const isOnboardDone = () => localStorage.getItem(ONBOARD_DONE_KEY) === 'true';
+const markOnboardDone = () => localStorage.setItem(ONBOARD_DONE_KEY, 'true');
+
+// Derive customizations from quiz answers.
+// Solo owner has no team to manage — drop the Staff tab.
+function deriveExtraHiddenTabs(prefs) {
+  const extra = [];
+  if (prefs.teamSize === 'solo') extra.push('staff');
+  return extra;
+}
+// Land user on whichever tab maps to their #1 struggle.
+function deriveDefaultTab(prefs) {
+  const map = {
+    scheduling:    'schedule',
+    noshows:       'alerts',
+    inventory:     'inventory',
+    revenue:       'dashboard',
+    compliance:    'sop',
+    communication: 'announcements',
+  };
+  return map[prefs.mainStruggle] || 'dashboard';
+}
 
 // ---------- Demo mode ----------
 // Lets visitors try the full app without signing up. All "API calls" are
@@ -738,15 +771,17 @@ const BIZ_HIDDEN_TABS = {
 };
 const BizContext = createContext({ business: null, labels: BIZ_LABELS.spa, hiddenTabs: [] });
 const useBiz = () => useContext(BizContext);
-function BizProvider({ business, children }) {
+function BizProvider({ business, prefs, children }) {
   const value = useMemo(() => {
     const type = business?.type || 'spa';
+    const p = prefs || {};
     return {
       business,
       labels: BIZ_LABELS[type] || BIZ_LABELS.spa,
-      hiddenTabs: BIZ_HIDDEN_TABS[type] || [],
+      hiddenTabs: [...(BIZ_HIDDEN_TABS[type] || []), ...deriveExtraHiddenTabs(p)],
+      prefs: p,
     };
-  }, [business]);
+  }, [business, prefs]);
   return <BizContext.Provider value={value}>{children}</BizContext.Provider>;
 }
 
@@ -1728,6 +1763,17 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
           window.location.reload();
         }}>
           Restart tutorial
+        </button>
+      </div>
+
+      <div className="field">
+        <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13 }} onClick={() => {
+          localStorage.removeItem(ONBOARD_DONE_KEY);
+          localStorage.removeItem(ONBOARD_PREFS_KEY);
+          onClose();
+          window.location.reload();
+        }}>
+          Retake setup quiz
         </button>
       </div>
     </Modal>
@@ -3745,6 +3791,223 @@ function TourOverlay({ onDone }) {
   );
 }
 
+// ================= ONBOARDING QUIZ =================
+// 4-question quiz shown after a new owner finishes BusinessOwnerOnboarding.
+// Each question is its own screen (low cognitive load on mobile).
+// Every question is fully skippable. Every answer set has an "Other" with free-text fallback.
+// Answers persist to localStorage and drive customization (hidden tabs, default tab).
+
+const QUIZ_QUESTIONS = [
+  {
+    id: 'teamSize',
+    title: 'How many people work in your business?',
+    sub: 'Including yourself.',
+    options: [
+      { value: 'solo',  label: 'Just me (solo)',     icon: '👤' },
+      { value: '2-3',   label: '2 or 3',             icon: '👥' },
+      { value: '4-10',  label: '4 to 10',            icon: '👨‍👩‍👧' },
+      { value: '11-25', label: '11 to 25',           icon: '🏢' },
+      { value: '26+',   label: '26 or more',         icon: '🏬' },
+    ],
+  },
+  {
+    id: 'mainStruggle',
+    title: "What's your biggest struggle right now?",
+    sub: "We'll set up the app to focus on this.",
+    options: [
+      { value: 'scheduling',    label: 'Scheduling chaos / double bookings', icon: '📅' },
+      { value: 'noshows',       label: 'Staff no-shows or sick calls',       icon: '🚨' },
+      { value: 'inventory',     label: 'Running out of supplies or stock',   icon: '📦' },
+      { value: 'revenue',       label: 'Tracking revenue and commission',    icon: '💰' },
+      { value: 'compliance',    label: 'Standards and SOP compliance',       icon: '✅' },
+      { value: 'communication', label: 'Communicating with my team',         icon: '💬' },
+    ],
+  },
+  {
+    id: 'bookingsPerDay',
+    title: 'About how many bookings on a busy day?',
+    sub: 'Rough guess is fine.',
+    options: [
+      { value: '0-5',   label: '0 to 5',     icon: '🌱' },
+      { value: '6-15',  label: '6 to 15',    icon: '🌿' },
+      { value: '16-30', label: '16 to 30',   icon: '🌳' },
+      { value: '31-50', label: '31 to 50',   icon: '🔥' },
+      { value: '50+',   label: '50 or more', icon: '⚡' },
+    ],
+  },
+  {
+    id: 'currentTool',
+    title: 'How do you manage your business today?',
+    sub: 'No wrong answer.',
+    options: [
+      { value: 'paper',       label: 'Pen and paper',           icon: '📝' },
+      { value: 'spreadsheet', label: 'Excel or Google Sheets',  icon: '📊' },
+      { value: 'app',         label: 'Another app',             icon: '📱' },
+      { value: 'nothing',     label: 'Nothing organized yet',   icon: '🤷' },
+    ],
+  },
+];
+
+function OnboardingQuiz({ onDone, onSkip }) {
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState(() => getOnboardPrefs());
+  const [otherMode, setOtherMode] = useState(false);
+  const [otherText, setOtherText] = useState('');
+
+  const q = QUIZ_QUESTIONS[step];
+  const isLast = step === QUIZ_QUESTIONS.length - 1;
+
+  const saveAnswer = (value, customText) => {
+    const next = { ...answers, [q.id]: value };
+    if (customText) next[`${q.id}_custom`] = customText;
+    setAnswers(next);
+    setOnboardPrefs(next);
+    setOtherMode(false); setOtherText('');
+    if (isLast) {
+      markOnboardDone();
+      onDone(next);
+    } else {
+      setStep(step + 1);
+    }
+  };
+
+  const back = () => {
+    setOtherMode(false); setOtherText('');
+    if (step > 0) setStep(step - 1);
+  };
+
+  const skipAll = () => {
+    markOnboardDone();
+    setOnboardPrefs(answers); // keep partial answers
+    onSkip();
+  };
+
+  return (
+    <div className="role-screen">
+      <LangToggle floating />
+      <div className="role-card" style={{ maxWidth: 520 }}>
+        {/* Progress dots */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 22 }}>
+          {QUIZ_QUESTIONS.map((_, i) => (
+            <div key={i} style={{
+              width: i === step ? 24 : 8, height: 6, borderRadius: 3,
+              background: i <= step ? 'var(--emerald)' : 'var(--line)',
+              transition: 'all 0.2s',
+            }} />
+          ))}
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: 22 }}>
+          <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 22, color: 'var(--emerald)', margin: 0, lineHeight: 1.3 }}>
+            {q.title}
+          </h2>
+          <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 8 }}>{q.sub}</p>
+        </div>
+
+        {!otherMode ? (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {q.options.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => saveAnswer(opt.value)}
+                  style={{
+                    display: 'flex', gap: 12, alignItems: 'center',
+                    padding: '14px 16px', borderRadius: 12,
+                    border: '1px solid var(--border)',
+                    background: answers[q.id] === opt.value ? 'var(--emerald-soft)' : 'var(--cream)',
+                    cursor: 'pointer', textAlign: 'left',
+                    fontSize: 15, fontWeight: 500, color: 'var(--ink)',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.12s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--emerald)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                >
+                  <span style={{ fontSize: 22 }}>{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+              {/* Other — free text fallback so no one is forced into a bucket */}
+              <button
+                type="button"
+                onClick={() => setOtherMode(true)}
+                style={{
+                  display: 'flex', gap: 12, alignItems: 'center',
+                  padding: '14px 16px', borderRadius: 12,
+                  border: '1px dashed var(--border)', background: 'transparent',
+                  cursor: 'pointer', textAlign: 'left',
+                  fontSize: 15, fontWeight: 500, color: 'var(--muted)',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <span style={{ fontSize: 22 }}>✏️</span>
+                <span>Other (type your own)</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <input
+              className="input"
+              autoFocus
+              value={otherText}
+              onChange={e => setOtherText(e.target.value)}
+              placeholder="Type your answer…"
+              onKeyDown={e => {
+                if (e.key === 'Enter' && otherText.trim()) saveAnswer('other', otherText.trim());
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => { setOtherMode(false); setOtherText(''); }}
+                style={{ flex: 1, padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--cream)', cursor: 'pointer', fontFamily: 'inherit' }}
+              >Cancel</button>
+              <button
+                type="button"
+                disabled={!otherText.trim()}
+                onClick={() => saveAnswer('other', otherText.trim())}
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: 10, border: 'none',
+                  background: otherText.trim() ? 'var(--emerald)' : 'var(--line)',
+                  color: '#fff', cursor: otherText.trim() ? 'pointer' : 'default',
+                  fontFamily: 'inherit', fontWeight: 600,
+                }}
+              >Save answer</button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer: back / skip */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={back}
+            disabled={step === 0}
+            style={{
+              background: 'none', border: 'none', cursor: step === 0 ? 'default' : 'pointer',
+              color: step === 0 ? 'transparent' : 'var(--muted)', fontSize: 13, fontFamily: 'inherit',
+            }}
+          >← Back</button>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+            {step + 1} of {QUIZ_QUESTIONS.length}
+          </div>
+          <button
+            type="button"
+            onClick={skipAll}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--muted)', fontSize: 13, textDecoration: 'underline', fontFamily: 'inherit',
+            }}
+          >Skip all</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ================= APP =================
 function AppInner() {
   const { t } = useT();
@@ -3760,6 +4023,7 @@ function AppInner() {
   const [business, setBusiness] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [tourDone, setTourDone] = useState(() => localStorage.getItem(TOUR_DONE_KEY) === 'true');
+  const [onboardDone, setOnboardDone] = useState(() => isOnboardDone());
 
   const authed = !!user;
   const onboarded = !!(user?.role && user?.businessType && user?.businessId);
@@ -3873,6 +4137,9 @@ function AppInner() {
           setBusiness(getDemoBusiness());
           setRole('manager');
           setTab('dashboard');
+          // Skip the onboarding quiz in demo — sample data is the experience
+          markOnboardDone();
+          setOnboardDone(true);
         }}
       />;
     }
@@ -3915,6 +4182,19 @@ function AppInner() {
 
   if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} />;
 
+  // Onboarding quiz — managers only, once, skippable. Demo bypasses it.
+  if (role === 'manager' && !onboardDone && !isDemo()) {
+    const finishQuiz = (prefs) => {
+      // Land them on the tab that matches their #1 struggle
+      if (prefs && prefs.mainStruggle) setTab(deriveDefaultTab(prefs));
+      setOnboardDone(true);
+    };
+    return <OnboardingQuiz
+      onDone={finishQuiz}
+      onSkip={() => setOnboardDone(true)}
+    />;
+  }
+
   const currentStaffId = user.staffId || user.id;
 
   const currentStaffMember = role === 'staff' ? staff.data.find(s => s.id === currentStaffId) : null;
@@ -3923,9 +4203,13 @@ function AppInner() {
     if (item.id === 'schedule') return staffPerms.canViewSchedule;
     return true;
   });
-  // Filter manager nav by business-type-hidden tabs (gym hides SOP, etc.)
+  // Filter manager nav by biz-type defaults (gym hides SOP) PLUS user prefs (solo hides Staff).
   const bizType = business?.type || 'spa';
-  const hiddenTabs = BIZ_HIDDEN_TABS[bizType] || [];
+  const prefsForTabs = getOnboardPrefs();
+  const hiddenTabs = [
+    ...(BIZ_HIDDEN_TABS[bizType] || []),
+    ...deriveExtraHiddenTabs(prefsForTabs),
+  ];
   const filteredManagerNav = MANAGER_NAV.filter(item => !hiddenTabs.includes(item.id));
   const nav = role === 'manager' ? filteredManagerNav : role === 'staff' ? filteredStaffNav : OWNER_NAV;
   const lowStockCount = inventory.data.filter(i => i.stock <= i.threshold).length;
@@ -3941,7 +4225,7 @@ function AppInner() {
   const pageTitle = navItem ? t(navItem.labelKey) : tab;
 
   return (
-    <BizProvider business={business}>
+    <BizProvider business={business} prefs={prefsForTabs}>
     <div className="shell">
       <OfflineBanner />
       <DemoBanner onExit={() => {
