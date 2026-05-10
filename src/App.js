@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext, useMemo, useRef, Component } from 'react';
 import {
   Calendar, Users, Package, LayoutDashboard, AlertTriangle,
   CheckCircle, RefreshCw, Bell, User, ShieldCheck, Send, Home, Inbox,
@@ -7,6 +7,52 @@ import {
   Building2, Mail, Search, Download, Globe,
 } from 'lucide-react';
 import './App.css';
+
+// ── Error Boundary ────────────────────────────────────
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          minHeight: '100vh', padding: '20px', background: '#fff', textAlign: 'center', fontFamily: 'system-ui'
+        }}>
+          <AlertTriangle size={48} color="#d32f2f" style={{ marginBottom: '16px' }} />
+          <h1 style={{ color: '#d32f2f', marginBottom: '8px' }}>Something went wrong</h1>
+          <p style={{ color: '#666', marginBottom: '16px' }}>The app encountered an error. Try reloading.</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '10px 20px', background: '#2d5a4a', color: '#fff', border: 'none',
+              borderRadius: '4px', cursor: 'pointer', fontSize: '14px'
+            }}
+          >
+            Reload App
+          </button>
+          {process.env.NODE_ENV === 'development' && this.state.error && (
+            <pre style={{ marginTop: '20px', padding: '10px', background: '#f5f5f5', overflow: 'auto', maxWidth: '100%' }}>
+              {this.state.error.toString()}
+            </pre>
+          )}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 const TOKEN_KEY = 'app_token';
@@ -1040,7 +1086,7 @@ function ResetPasswordScreen({ token, onDone }) {
 }
 
 // ---------- Landing page (pre-auth) ----------
-function LandingPage({ onStartTrial, onSignIn, onJoinTeam }) {
+function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
   const { t } = useT();
   const [showJoinInfo, setShowJoinInfo] = useState(false);
   const features = [
@@ -1112,6 +1158,15 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam }) {
             onClick={onSignIn}>
             {t('signIn')}
           </button>
+        </div>
+
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: 11, color: 'var(--muted)' }}>
+          <button type="button"
+            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 11, padding: 0 }}
+            onClick={onShowPrivacy}>
+            Privacy Policy
+          </button>
+          {' · '}© {new Date().getFullYear()} Viroxit
         </div>
       </div>
 
@@ -3566,6 +3621,66 @@ function WelcomeSlideshow({ onDone }) {
   );
 }
 
+// ================= PRIVACY POLICY =================
+function PrivacyPolicyScreen({ onBack }) {
+  return (
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px', fontFamily: 'system-ui', lineHeight: 1.7, color: '#333' }}>
+      <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2d5a4a', fontSize: 14, marginBottom: 24, padding: 0 }}>
+        ← Back
+      </button>
+      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Privacy Policy</h1>
+      <p style={{ color: '#888', fontSize: 13, marginBottom: 32 }}>Last updated: {new Date().getFullYear()}</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>1. Who We Are</h2>
+      <p>Viroxit ("we", "us", "our") provides business operations management software for service businesses. This policy explains how we handle your data.</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>2. What We Collect</h2>
+      <ul>
+        <li><strong>Account data:</strong> Email address and password (hashed — we never store plain-text passwords)</li>
+        <li><strong>Business data:</strong> Staff, bookings, inventory, SOPs, and announcements you create inside the app</li>
+        <li><strong>Usage data:</strong> Basic server logs (request paths, timestamps) for debugging and security</li>
+      </ul>
+      <p>We do not collect payment card details directly. Payments are handled by Stripe.</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>3. How We Use It</h2>
+      <ul>
+        <li>Provide and improve the Viroxit service</li>
+        <li>Send password reset emails (only when you request them)</li>
+        <li>Detect and prevent security threats</li>
+        <li>Communicate service updates</li>
+      </ul>
+      <p>We do not sell your data. We do not share it with third parties except as required to operate the service (e.g., hosting provider, email delivery).</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>4. Data Storage</h2>
+      <p>Your data is stored on secure servers. Passwords are hashed using bcrypt. Connections use HTTPS. We retain your data for as long as your account is active.</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>5. Your Rights</h2>
+      <ul>
+        <li><strong>Access:</strong> You can request a copy of your data at any time</li>
+        <li><strong>Deletion:</strong> You can request account deletion by emailing us</li>
+        <li><strong>Correction:</strong> You can update your account information in the app</li>
+      </ul>
+      <p>To exercise these rights, contact us at the email below.</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>6. Cookies</h2>
+      <p>We use a single session token stored in your browser's local storage for authentication. No third-party tracking cookies.</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>7. Children</h2>
+      <p>Viroxit is not directed at children under 13. We do not knowingly collect data from children.</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>8. Changes</h2>
+      <p>We may update this policy. Continued use after changes means acceptance. We will notify users of material changes by email.</p>
+
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>9. Contact</h2>
+      <p>Questions? Email us at: <a href="mailto:privacy@viroxit.org" style={{ color: '#2d5a4a' }}>privacy@viroxit.org</a></p>
+
+      <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #eee', fontSize: 12, color: '#aaa' }}>
+        © {new Date().getFullYear()} Viroxit. All rights reserved.
+      </div>
+    </div>
+  );
+}
+
 function TourOverlay({ onDone }) {
   // Filter tour steps to only include tabs visible for this business type.
   // (gym hides SOP, etc — pointing at hidden tabs would hang the tour.)
@@ -3786,6 +3901,10 @@ function AppInner() {
 
   const authed = !!user;
   const onboarded = !!(user?.role && user?.businessType && user?.businessId);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(() => {
+    const path = window.location.pathname;
+    return path === '/privacy' || path === '/privacy-policy';
+  });
 
   const staff         = useCollection('/api/staff',         authed);
   const bookings      = useCollection('/api/bookings',      onboarded);
@@ -3860,6 +3979,10 @@ function AppInner() {
   const isPaid = user?.subscriptionStatus === 'active';
   const needsPayment = authed && trialExpired && !isPaid;
 
+  if (showPrivacyPolicy) return (
+    <PrivacyPolicyScreen onBack={() => setShowPrivacyPolicy(false)} />
+  );
+
   if (resetToken) return (
     <ResetPasswordScreen token={resetToken} onDone={() => {
       setResetToken(null);
@@ -3885,6 +4008,7 @@ function AppInner() {
         onStartTrial={() => { setSignupIntent('owner'); setAuthMode('signup'); }}
         onSignIn={() => setAuthMode('login')}
         onJoinTeam={() => { setSignupIntent('staff'); setAuthMode('signup'); }}
+        onShowPrivacy={() => setShowPrivacyPolicy(true)}
       />;
     }
     return <AuthScreen
@@ -4106,8 +4230,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <LangProvider>
-      <AppInner />
-    </LangProvider>
+    <ErrorBoundary>
+      <LangProvider>
+        <AppInner />
+      </LangProvider>
+    </ErrorBoundary>
   );
 }
