@@ -1038,7 +1038,7 @@ function ResetPasswordScreen({ token, onDone }) {
 }
 
 // ---------- Landing page (pre-auth) ----------
-function LandingPage({ onStartTrial, onSignIn }) {
+function LandingPage({ onStartTrial, onSignIn, onJoinTeam }) {
   const { t } = useT();
   const features = [
     { icon: Calendar, titleKey: 'featSchedTitle', bodyKey: 'featSchedBody' },
@@ -1080,12 +1080,62 @@ function LandingPage({ onStartTrial, onSignIn }) {
           </div>
         </div>
 
-        {/* Primary CTA first — lowest-friction action above the fold */}
+        {/* Primary CTA — for business owners starting trial */}
         <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
           <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
         </button>
         <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
           Then $19/month after 7-day free trial
+        </div>
+
+        {/* Divider */}
+        <div style={{
+          marginTop: 24, marginBottom: 16,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+          <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>OR</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+        </div>
+
+        {/* Join-as-staff section — clearly free, with how-to steps */}
+        <div style={{
+          padding: '16px 16px',
+          border: '1px solid var(--line)', borderRadius: 12,
+          background: 'var(--cream-soft, #faf6ef)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <Users size={18} color="var(--emerald)" />
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--emerald)' }}>
+              Joining a team?
+            </div>
+            <span style={{
+              marginLeft: 'auto',
+              fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+              padding: '3px 8px', borderRadius: 999,
+              background: 'var(--emerald)', color: '#fff',
+            }}>FREE FOREVER</span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
+            Staff accounts cost nothing. Ask your manager for the 6-letter business code, then:
+          </div>
+          <ol style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.6, paddingLeft: 18, margin: '0 0 12px' }}>
+            <li>Tap the button below</li>
+            <li>Create your free account (email + password)</li>
+            <li>Pick "I work as staff" and enter the code</li>
+          </ol>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{
+              width: '100%', padding: '12px 16px', fontSize: 14, fontWeight: 600,
+              border: '1.5px solid var(--emerald)', color: 'var(--emerald)',
+              background: '#fff',
+            }}
+            onClick={onJoinTeam}
+          >
+            Join your team →
+          </button>
         </div>
 
         <div style={{ marginTop: 22, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
@@ -3708,6 +3758,7 @@ function AppInner() {
   const toast = (m) => setToastMsg(m);
   const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset_token') || null);
   const [authMode, setAuthMode] = useState(null); // null | 'login' | 'signup'
+  const [signupIntent, setSignupIntent] = useState(null); // null | 'owner' | 'staff' — drives post-signup onboarding
   const [onboardingChoice, setOnboardingChoice] = useState(null); // null | 'owner' | 'staff'
   const [business, setBusiness] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -3822,14 +3873,22 @@ function AppInner() {
   if (!user) {
     if (!authMode) {
       return <LandingPage
-        onStartTrial={() => setAuthMode('signup')}
+        onStartTrial={() => { setSignupIntent('owner'); setAuthMode('signup'); }}
         onSignIn={() => setAuthMode('login')}
+        onJoinTeam={() => { setSignupIntent('staff'); setAuthMode('signup'); }}
       />;
     }
     return <AuthScreen
-      onAuthed={(u) => { setUser(u); setAuthMode(null); }}
+      onAuthed={(u) => {
+        setUser(u);
+        setAuthMode(null);
+        // If user came in via "Join your team", skip the role-picker screen
+        if (signupIntent === 'staff' && !u.businessId) setOnboardingChoice('staff');
+        if (signupIntent === 'owner' && !u.businessId) setOnboardingChoice('owner');
+        setSignupIntent(null);
+      }}
       initialMode={authMode}
-      onBack={() => setAuthMode(null)}
+      onBack={() => { setAuthMode(null); setSignupIntent(null); }}
     />;
   }
 
