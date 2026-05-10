@@ -1100,7 +1100,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam }) {
           onClick={() => setShowJoinInfo(true)}
         >
           <Users size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-          Join a team
+          Join a team <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13, marginLeft: 4 }}>(it's free)</span>
         </button>
 
         <div style={{ marginTop: 22, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
@@ -1130,7 +1130,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam }) {
           <ol style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.7, paddingLeft: 20, margin: '0 0 18px' }}>
             <li>Tap the button below</li>
             <li>Create your free account (email + password)</li>
-            <li>Pick "I work as staff" and enter the code</li>
+            <li>Pick "I work as staff" and enter the code given by the business owner</li>
           </ol>
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={() => setShowJoinInfo(false)}>Cancel</button>
