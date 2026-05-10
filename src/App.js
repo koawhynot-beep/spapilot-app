@@ -28,257 +28,6 @@ const LANG_KEY = 'app_lang';
 const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
 // Per-user tour key so every new account sees the tour fresh, even on shared browsers.
 const tourKeyFor = (user) => user?.id ? `spapilot-tutorial-done-u${user.id}` : TOUR_DONE_KEY;
-const DEMO_KEY = 'spapilot-demo-mode';
-
-// ---------- Demo mode ----------
-// Lets visitors try the full app without signing up. All "API calls" are
-// intercepted client-side and read/write to localStorage. Refresh keeps data.
-// Sign-up is the only path that hits the real backend.
-const isDemo = () => typeof window !== 'undefined' && localStorage.getItem(DEMO_KEY) === 'true';
-const setDemo = (v) => v ? localStorage.setItem(DEMO_KEY, 'true') : localStorage.removeItem(DEMO_KEY);
-const DEMO_COLL_KEY = (path) => `spapilot-demo${path}`;
-const getDemoColl = (path) => {
-  try { return JSON.parse(localStorage.getItem(DEMO_COLL_KEY(path))) ?? null; }
-  catch { return null; }
-};
-const setDemoColl = (path, data) => localStorage.setItem(DEMO_COLL_KEY(path), JSON.stringify(data));
-
-const DEMO_TYPE_KEY = 'spapilot-demo-type'; // remembers which biz-type demo
-const getDemoType = () => (typeof window !== 'undefined' && localStorage.getItem(DEMO_TYPE_KEY)) || 'spa';
-
-// Demo seed data per business type — visitor sees realistic data for their industry
-const DEMO_SEEDS = {
-  spa: {
-    business: { id: 999, name: 'Sunset Wellness Spa', type: 'spa', code: 'DEMO00' },
-    staff: [
-      { id: 1, name: 'Sarah Kim',    role: 'Senior Therapist',  avatar: 'S', color: '#5b8a72', schedule: ['Mon','Tue','Wed','Thu','Fri'], commissionRate: 35, phone: '+15551234567', birthday: '1990-04-12' },
-      { id: 2, name: 'Mike Chen',    role: 'Massage Therapist', avatar: 'M', color: '#b8956a', schedule: ['Tue','Wed','Thu','Fri','Sat'], commissionRate: 30, phone: '+15552345678', birthday: '1988-09-03' },
-      { id: 3, name: 'Aisha Patel',  role: 'Esthetician',       avatar: 'A', color: '#c66956', schedule: ['Mon','Wed','Thu','Fri','Sat'], commissionRate: 30, phone: '+15553456789', birthday: '1992-11-22' },
-    ],
-    bookings: [
-      { id: 1, time: '09:00', client: 'Emma Wilson',  clientPhone: '+15558881111', treatment: '60min Swedish Massage', duration: 60, staffId: 1, price: 80,  notes: '', allergies: '' },
-      { id: 2, time: '10:30', client: 'James Lee',    clientPhone: '+15558882222', treatment: 'Hot Stone Therapy',     duration: 90, staffId: 2, price: 120, notes: '', allergies: '' },
-      { id: 3, time: '13:00', client: 'Maria Garcia', clientPhone: '+15558883333', treatment: 'Deep Cleansing Facial', duration: 60, staffId: 3, price: 75,  notes: '', allergies: 'lavender' },
-      { id: 4, time: '15:00', client: 'David Brown',  clientPhone: '+15558884444', treatment: 'Aromatherapy',          duration: 75, staffId: 1, price: 95,  notes: '', allergies: '' },
-    ],
-    inventory: [
-      { id: 1, name: 'Lavender Massage Oil', category: 'Oils',     stock: 3,  threshold: 5,  unit: 'bottles', supplier: 'Aroma Co' },
-      { id: 2, name: 'Bath Towels',          category: 'Linens',   stock: 25, threshold: 10, unit: 'pcs',     supplier: 'Linen Co' },
-      { id: 3, name: 'Face Masks',           category: 'Skincare', stock: 12, threshold: 8,  unit: 'boxes',   supplier: 'Glow Lab' },
-      { id: 4, name: 'Cotton Pads',          category: 'Skincare', stock: 2,  threshold: 10, unit: 'packs',   supplier: 'Glow Lab' },
-    ],
-    sops: [
-      { id: 1, title: 'Sanitize work surfaces', category: 'Hygiene', description: 'Clean all tables and equipment between clients with disinfectant.', body: 'Clean all tables and equipment between clients with disinfectant.' },
-      { id: 2, title: 'Wash hands before sessions', category: 'Hygiene', description: 'Always wash hands with soap for 20+ seconds.', body: 'Always wash hands with soap for 20+ seconds.' },
-    ],
-  },
-  gym: {
-    business: { id: 999, name: 'Iron Pulse Fitness', type: 'gym', code: 'DEMO00' },
-    staff: [
-      { id: 1, name: 'Marcus Rivera', role: 'Head Trainer',         avatar: 'M', color: '#5b8a72', schedule: ['Mon','Tue','Wed','Thu','Fri'], commissionRate: 25, phone: '+15551111111', birthday: '1985-06-15' },
-      { id: 2, name: 'Lila Park',     role: 'Yoga Instructor',      avatar: 'L', color: '#b8956a', schedule: ['Mon','Wed','Fri','Sat','Sun'], commissionRate: 25, phone: '+15552222222', birthday: '1991-03-08' },
-      { id: 3, name: 'Tom Mueller',   role: 'Personal Trainer',     avatar: 'T', color: '#c66956', schedule: ['Tue','Wed','Thu','Fri','Sat'], commissionRate: 25, phone: '+15553333333', birthday: '1989-11-30' },
-    ],
-    bookings: [
-      { id: 1, time: '07:00', client: 'Group of 8',     clientPhone: '',             treatment: 'HIIT Bootcamp',     duration: 45, staffId: 1, price: 25, notes: '8 members', allergies: '' },
-      { id: 2, time: '09:00', client: 'Alex Johnson',   clientPhone: '+15558881111', treatment: '1-on-1 Strength',   duration: 60, staffId: 3, price: 70, notes: 'Member #145', allergies: '' },
-      { id: 3, time: '12:00', client: 'Group of 12',    clientPhone: '',             treatment: 'Vinyasa Flow Yoga', duration: 60, staffId: 2, price: 20, notes: '12 members', allergies: '' },
-      { id: 4, time: '17:30', client: 'Kim Davis',      clientPhone: '+15558882222', treatment: '1-on-1 PT',         duration: 60, staffId: 3, price: 70, notes: 'Member #210', allergies: '' },
-    ],
-    inventory: [
-      { id: 1, name: 'Resistance Bands', category: 'Equipment', stock: 18, threshold: 10, unit: 'pcs', supplier: 'Fit Supply' },
-      { id: 2, name: 'Yoga Mats',        category: 'Equipment', stock: 6,  threshold: 12, unit: 'pcs', supplier: 'Fit Supply' },
-      { id: 3, name: 'Towels',           category: 'Linens',    stock: 40, threshold: 20, unit: 'pcs', supplier: 'Linen Co' },
-      { id: 4, name: 'Disinfectant Spray', category: 'Cleaning', stock: 3, threshold: 5, unit: 'bottles', supplier: 'Clean Co' },
-    ],
-    sops: [
-      { id: 1, title: 'Wipe down equipment after each set', category: 'Hygiene', description: 'Members must wipe equipment with disinfectant after every use.', body: 'Members must wipe equipment with disinfectant after every use.' },
-      { id: 2, title: 'Check member ID at entry', category: 'Security', description: 'Scan or visually check member ID before letting anyone in.', body: 'Scan or visually check member ID before letting anyone in.' },
-    ],
-  },
-  clinic: {
-    business: { id: 999, name: 'Greenwood Family Clinic', type: 'clinic', code: 'DEMO00' },
-    staff: [
-      { id: 1, name: 'Dr. Anna Lewis', role: 'Family Physician',  avatar: 'A', color: '#5b8a72', schedule: ['Mon','Tue','Wed','Thu','Fri'], commissionRate: 0, phone: '+15551111111', birthday: '1978-04-03' },
-      { id: 2, name: 'Nurse Beth',     role: 'Registered Nurse',  avatar: 'B', color: '#b8956a', schedule: ['Mon','Tue','Wed','Thu','Fri'], commissionRate: 0, phone: '+15552222222', birthday: '1985-07-19' },
-      { id: 3, name: 'Dr. Raj Mehta',  role: 'Pediatrician',      avatar: 'R', color: '#c66956', schedule: ['Tue','Wed','Thu','Fri'],       commissionRate: 0, phone: '+15553333333', birthday: '1982-11-12' },
-    ],
-    bookings: [
-      { id: 1, time: '09:00', client: 'John Carter',   clientPhone: '+15558881111', treatment: 'Annual physical',     duration: 30, staffId: 1, price: 150, notes: 'Patient #1042', allergies: 'penicillin' },
-      { id: 2, time: '10:00', client: 'Lisa Tran',     clientPhone: '+15558882222', treatment: 'Vaccine consultation', duration: 20, staffId: 2, price: 60,  notes: 'Patient #2389', allergies: '' },
-      { id: 3, time: '11:30', client: 'Tommy Park',    clientPhone: '+15558883333', treatment: 'Pediatric checkup',    duration: 30, staffId: 3, price: 120, notes: 'Patient #3104, age 7', allergies: '' },
-      { id: 4, time: '14:00', client: 'Sandra White',  clientPhone: '+15558884444', treatment: 'Follow-up',           duration: 20, staffId: 1, price: 90,  notes: 'Patient #1067', allergies: '' },
-    ],
-    inventory: [
-      { id: 1, name: 'Disposable Gloves', category: 'PPE',       stock: 8,   threshold: 20, unit: 'boxes', supplier: 'MedSupply' },
-      { id: 2, name: 'Bandages',          category: 'First Aid', stock: 50,  threshold: 25, unit: 'pcs',   supplier: 'MedSupply' },
-      { id: 3, name: 'Syringes',          category: 'Medical',   stock: 120, threshold: 50, unit: 'pcs',   supplier: 'MedSupply' },
-      { id: 4, name: 'Hand Sanitizer',    category: 'Cleaning',  stock: 4,   threshold: 6,  unit: 'bottles', supplier: 'Clean Co' },
-    ],
-    sops: [
-      { id: 1, title: 'Verify patient ID before treatment', category: 'Safety', description: 'Always verify name, DOB, and patient ID before any procedure.', body: 'Always verify name, DOB, and patient ID before any procedure.' },
-      { id: 2, title: 'Document all medication administered', category: 'Compliance', description: 'Record dose, time, and patient response in chart immediately.', body: 'Record dose, time, and patient response in chart immediately.' },
-    ],
-  },
-  hotel: {
-    business: { id: 999, name: 'Cedar Bay Inn', type: 'hotel', code: 'DEMO00' },
-    staff: [
-      { id: 1, name: 'Diana Foster', role: 'Front Desk Manager', avatar: 'D', color: '#5b8a72', schedule: ['Mon','Tue','Wed','Thu','Fri'], commissionRate: 0, phone: '+15551111111', birthday: '1986-08-22' },
-      { id: 2, name: 'Carlos Rey',   role: 'Concierge',          avatar: 'C', color: '#b8956a', schedule: ['Wed','Thu','Fri','Sat','Sun'], commissionRate: 0, phone: '+15552222222', birthday: '1990-02-14' },
-      { id: 3, name: 'Mei Tanaka',   role: 'Housekeeping Lead',  avatar: 'M', color: '#c66956', schedule: ['Mon','Tue','Wed','Thu','Fri'], commissionRate: 0, phone: '+15553333333', birthday: '1984-12-01' },
-    ],
-    bookings: [
-      { id: 1, time: '14:00', client: 'Robinson Family', clientPhone: '+15558881111', treatment: 'Suite 12 · 3 nights', duration: 0, staffId: 1, price: 540, notes: 'Late check-in expected', allergies: '' },
-      { id: 2, time: '15:30', client: 'Luca Bianchi',    clientPhone: '+15558882222', treatment: 'Room 7 · 1 night',    duration: 0, staffId: 1, price: 180, notes: '', allergies: '' },
-      { id: 3, time: '16:00', client: 'Chen Group',      clientPhone: '+15558883333', treatment: 'Rooms 21–23 · 2 nights', duration: 0, staffId: 1, price: 720, notes: '3 rooms booked together', allergies: '' },
-    ],
-    inventory: [
-      { id: 1, name: 'Bath Towels',     category: 'Linens',    stock: 120, threshold: 60,  unit: 'pcs',    supplier: 'Linen Co' },
-      { id: 2, name: 'Bed Sheets',      category: 'Linens',    stock: 45,  threshold: 30,  unit: 'sets',   supplier: 'Linen Co' },
-      { id: 3, name: 'Shampoo Bottles', category: 'Toiletries', stock: 18, threshold: 30,  unit: 'pcs',    supplier: 'Hotel Supply' },
-      { id: 4, name: 'Toilet Paper',    category: 'Supplies',   stock: 80, threshold: 50,  unit: 'rolls',  supplier: 'Hotel Supply' },
-    ],
-    sops: [
-      { id: 1, title: 'Greet every guest by name at check-in', category: 'Service', description: 'Use guest name at least twice during check-in interaction.', body: 'Use guest name at least twice during check-in interaction.' },
-      { id: 2, title: 'Inspect rooms after housekeeping', category: 'Quality', description: 'Front desk must verify each room post-cleaning before re-listing.', body: 'Front desk must verify each room post-cleaning before re-listing.' },
-    ],
-  },
-};
-
-const DEMO_USER = {
-  id: 999, email: 'demo@example.com', role: 'manager', onboardingRole: 'owner',
-  businessType: 'spa', businessId: 999,
-  subscriptionStatus: 'trial', trialEndsAt: '2099-12-31T00:00:00Z',
-};
-
-// Resolve current demo business (varies by selected demo type)
-const getDemoBusiness = () => DEMO_SEEDS[getDemoType()]?.business || DEMO_SEEDS.spa.business;
-
-// Build the seed for current demo type. Each call returns a fresh object (don't mutate).
-function buildDemoSeed() {
-  const seed = DEMO_SEEDS[getDemoType()] || DEMO_SEEDS.spa;
-  const today = new Date().toISOString().slice(0,10);
-  return {
-    '/api/staff':    seed.staff.map(s => ({ ...s, permissions: { canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true, canRequestStock: true, canRequestNewProducts: false, canMarkViolations: false, canPostAnnouncements: false } })),
-    '/api/bookings': seed.bookings,
-    '/api/inventory': seed.inventory,
-    '/api/requests': [
-      { id: 1, staffId: 2, type: 'sick',   date: today,         status: 'pending', reason: 'Flu symptoms — fever started this morning' },
-      { id: 2, staffId: 3, type: 'dayoff', date: '2026-05-15',  status: 'pending', reason: 'Family event' },
-    ],
-    '/api/violations': [],
-    '/api/announcements': [
-      { id: 1, title: 'Welcome to your demo!', body: 'Click around — try the schedule, add a booking, check inventory. Everything you do is saved locally. Ready to use this for your business? Sign up free.', from: 'Demo', createdAt: new Date().toISOString() },
-    ],
-    '/api/sop': seed.sops,
-  };
-}
-
-function initDemoData(type) {
-  // If type provided, set it (entry point) and reset seed for fresh demo
-  if (type) {
-    localStorage.setItem(DEMO_TYPE_KEY, type);
-    // Clear previous demo collections so new type's seed loads
-    Object.keys(buildDemoSeed()).forEach(p => localStorage.removeItem(DEMO_COLL_KEY(p)));
-  }
-  const seed = buildDemoSeed();
-  // Only seed if data not already present (preserve user changes across refresh).
-  Object.entries(seed).forEach(([path, data]) => {
-    if (getDemoColl(path) === null) setDemoColl(path, data);
-  });
-}
-function clearDemoData() {
-  setDemo(false);
-  const seed = buildDemoSeed();
-  Object.keys(seed).forEach((path) => localStorage.removeItem(DEMO_COLL_KEY(path)));
-  localStorage.removeItem(DEMO_TYPE_KEY);
-  // Clear demo-user tutorial flags so next demo entry feels fresh
-  localStorage.removeItem('spapilot-tutorial-done-u999');
-  localStorage.removeItem('spapilot-slides-done-u999');
-  // If demo planted a fake auth token, clear it so subsequent real API calls don't 401.
-  if (localStorage.getItem(TOKEN_KEY) === 'demo-token') {
-    localStorage.removeItem(TOKEN_KEY);
-  }
-}
-
-// Mock API for demo mode. Returns same shapes as real backend.
-async function demoApi(path, opts = {}) {
-  const method = opts.method || 'GET';
-  // Simulate small network delay so loading states actually render briefly.
-  await new Promise(r => setTimeout(r, 80));
-
-  // Auth endpoints — adapt user.businessType to current demo type
-  const demoUser = { ...DEMO_USER, businessType: getDemoType() };
-  if (path === '/api/auth/me') return demoUser;
-  if (path === '/api/auth/logout') { clearDemoData(); return {}; }
-  if (path === '/api/auth/role') {
-    // Reflect the role the user picked (manager or staff) so the demo actually switches views
-    const requested = opts.body?.role || 'manager';
-    const staffId = opts.body?.staffId;
-    return { token: 'demo-token', user: { ...demoUser, role: requested, staffId: staffId || demoUser.staffId } };
-  }
-  if (path === '/api/auth/complete-tutorial') return {};
-  if (path === '/api/auth/switch-onboarding') return { token: 'demo-token', user: demoUser };
-  if (path === '/api/businesses/me') return getDemoBusiness();
-
-  // Billing
-  if (path === '/api/billing/subscribe' || path === '/api/billing/mock-activate') {
-    return { user: demoUser };
-  }
-
-  // Collection list / create
-  const collMatch = path.match(/^\/api\/(staff|bookings|inventory|requests|announcements|violations|sop)$/);
-  if (collMatch) {
-    const collPath = path;
-    if (method === 'GET') return getDemoColl(collPath) || [];
-    if (method === 'POST') {
-      const coll = getDemoColl(collPath) || [];
-      const item = { ...opts.body, id: Date.now(), createdAt: new Date().toISOString() };
-      coll.push(item); setDemoColl(collPath, coll);
-      return item;
-    }
-  }
-
-  // Item update / delete
-  const itemMatch = path.match(/^\/api\/(staff|bookings|inventory|requests|sop|violations|announcements)\/(\d+)$/);
-  if (itemMatch) {
-    const collPath = `/api/${itemMatch[1]}`;
-    const id = Number(itemMatch[2]);
-    const coll = getDemoColl(collPath) || [];
-    if (method === 'PUT') {
-      const idx = coll.findIndex(x => x.id === id);
-      if (idx >= 0) { coll[idx] = { ...coll[idx], ...opts.body }; setDemoColl(collPath, coll); return coll[idx]; }
-      return {};
-    }
-    if (method === 'DELETE') {
-      setDemoColl(collPath, coll.filter(x => x.id !== id));
-      return null;
-    }
-  }
-
-  // Stock adjust
-  const stockMatch = path.match(/^\/api\/inventory\/(\d+)\/stock$/);
-  if (stockMatch && method === 'PATCH') {
-    const id = Number(stockMatch[1]);
-    const coll = getDemoColl('/api/inventory') || [];
-    const item = coll.find(x => x.id === id);
-    if (item) { item.stock = Math.max(0, item.stock + (opts.body?.delta || 0)); setDemoColl('/api/inventory', coll); }
-    return item || {};
-  }
-
-  // Stock reorder mark
-  const orderMatch = path.match(/^\/api\/inventory\/(\d+)\/order$/);
-  if (orderMatch && method === 'POST') {
-    const id = Number(orderMatch[1]);
-    const coll = getDemoColl('/api/inventory') || [];
-    const item = coll.find(x => x.id === id);
-    if (item) { item.lastOrder = new Date().toISOString(); item.stock = item.threshold * 2; setDemoColl('/api/inventory', coll); }
-    return item || {};
-  }
-
-  // Default: silently succeed
-  return {};
-}
 
 const TOUR_STEPS = [
   { targetId: 'tab-dashboard',  message: "Your dashboard — today's overview is here",     position: 'top' },
@@ -812,9 +561,6 @@ function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function setToken(t) { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }
 
 async function api(path, opts = {}) {
-  // Demo mode: short-circuit the network and serve from localStorage.
-  if (isDemo()) return demoApi(path, opts);
-
   const headers = {
     'Content-Type': 'application/json',
     ...(opts.headers || {}),
@@ -1292,9 +1038,8 @@ function ResetPasswordScreen({ token, onDone }) {
 }
 
 // ---------- Landing page (pre-auth) ----------
-function LandingPage({ onStartTrial, onSignIn, onTryDemo }) {
+function LandingPage({ onStartTrial, onSignIn }) {
   const { t } = useT();
-  const [showDemoPicker, setShowDemoPicker] = useState(false);
   const features = [
     { icon: Calendar, titleKey: 'featSchedTitle', bodyKey: 'featSchedBody' },
     { icon: Package,  titleKey: 'featOpsTitle',   bodyKey: 'featOpsBody' },
@@ -1335,9 +1080,14 @@ function LandingPage({ onStartTrial, onSignIn, onTryDemo }) {
           </div>
         </div>
 
-        {/* Pricing card — transparent, builds trust before CTA */}
+        {/* Primary CTA first — lowest-friction action above the fold */}
+        <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
+          <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
+        </button>
+
+        {/* Pricing detail card — sits below CTA, reinforces no-risk message after click intent */}
         <div style={{
-          marginBottom: 18, padding: '18px 18px',
+          marginTop: 14, padding: '18px 18px',
           border: '1px solid var(--gold)', borderRadius: 14,
           background: 'linear-gradient(135deg, #fff8ec 0%, #fff 100%)',
         }}>
@@ -1363,55 +1113,6 @@ function LandingPage({ onStartTrial, onSignIn, onTryDemo }) {
             ))}
           </div>
         </div>
-
-        <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
-          <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
-        </button>
-
-        {/* Try Demo — picks biz type so demo data matches visitor's industry */}
-        {!showDemoPicker ? (
-          <button
-            className="btn btn-ghost"
-            style={{ width: '100%', marginTop: 10, padding: '14px 16px', fontSize: 14, border: '1px solid var(--border)' }}
-            onClick={() => setShowDemoPicker(true)}
-          >
-            ▶ Try the demo (no sign-up)
-          </button>
-        ) : (
-          <div style={{ marginTop: 10, padding: 14, border: '1px solid var(--gold)', borderRadius: 12, background: '#fff8ec' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--emerald)', marginBottom: 8, textAlign: 'center' }}>
-              Pick your business type for the demo
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-              {[
-                { id: 'spa',    icon: '🌿', label: 'Spa' },
-                { id: 'gym',    icon: '🏋', label: 'Gym' },
-                { id: 'clinic', icon: '⚕',  label: 'Clinic' },
-                { id: 'hotel',  icon: '🏨', label: 'Hotel' },
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => onTryDemo(opt.id)}
-                  style={{
-                    padding: '14px 8px', borderRadius: 10,
-                    border: '1px solid var(--border)', background: 'var(--cream)',
-                    cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600,
-                    color: 'var(--emerald)',
-                  }}
-                >
-                  <div style={{ fontSize: 22, marginBottom: 4 }}>{opt.icon}</div>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowDemoPicker(false)}
-              style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
-            >Cancel</button>
-          </div>
-        )}
 
         <div style={{ marginTop: 10, textAlign: 'center' }}>
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>
@@ -1623,11 +1324,6 @@ function PaymentRequired({ user, onActivated, onLogout }) {
     setErr(null);
     setBusy(true);
     try {
-      // In demo mode let the demoApi handle this. Real flow: Stripe must be configured.
-      if (isDemo()) {
-        const { user: u } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
-        onActivated(u); return;
-      }
       const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
       if (checkoutUrl) {
         window.location.href = checkoutUrl;
@@ -1696,17 +1392,11 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
   const activate = async () => {
     setBusy(true);
     try {
-      // Real path: redirect to Stripe checkout. Demo path: mock activates.
-      if (isDemo()) {
-        const { user: u } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
-        onActivated(u); toast(t('activated'));
+      const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
       } else {
-        const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
-        if (checkoutUrl) {
-          window.location.href = checkoutUrl;
-        } else {
-          toast('Subscription temporarily unavailable. Please try again later.');
-        }
+        toast('Subscription temporarily unavailable. Please try again later.');
       }
     } catch (e) { toast(e.message || t('failed')); }
     finally { setBusy(false); }
@@ -1782,25 +1472,6 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
         </button>
       </div>
     </Modal>
-  );
-}
-
-// ---------- Demo banner ----------
-function DemoBanner({ onExit }) {
-  if (!isDemo()) return null;
-  return (
-    <div style={{
-      background: '#fff8ec', borderBottom: '1px solid var(--gold)', color: 'var(--emerald)',
-      padding: '8px 14px', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-    }}>
-      <span>
-        <strong>Demo mode</strong> — exploring with sample data. Sign up to save your work.
-      </span>
-      <button
-        onClick={onExit}
-        style={{ background: 'var(--emerald)', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-      >Sign up free</button>
-    </div>
   );
 }
 
@@ -3962,16 +3633,8 @@ function AppInner() {
     requests.reload();
   };
 
-  // On mount: restore session if token present, or restore demo if active.
+  // On mount: restore session if token present.
   useEffect(() => {
-    if (isDemo()) {
-      initDemoData(); // no type arg — keeps existing
-      setUser({ ...DEMO_USER, businessType: getDemoType() });
-      setBusiness(getDemoBusiness());
-      setRole('manager');
-      setAuthChecking(false);
-      return;
-    }
     const token = getToken();
     if (!token) { setAuthChecking(false); return; }
     api('/api/auth/me')
@@ -4049,14 +3712,6 @@ function AppInner() {
       return <LandingPage
         onStartTrial={() => setAuthMode('signup')}
         onSignIn={() => setAuthMode('login')}
-        onTryDemo={(type) => {
-          setDemo(true);
-          initDemoData(type || 'spa');
-          setUser({ ...DEMO_USER, businessType: type || 'spa' });
-          setBusiness(getDemoBusiness());
-          setRole('manager');
-          setTab('dashboard');
-        }}
       />;
     }
     return <AuthScreen
@@ -4127,11 +3782,6 @@ function AppInner() {
     <BizProvider business={business}>
     <div className="shell">
       <OfflineBanner />
-      <DemoBanner onExit={() => {
-        clearDemoData();
-        setUser(null); setBusiness(null); setRole(null);
-        setAuthMode('signup');
-      }} />
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
         <div>
