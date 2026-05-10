@@ -198,7 +198,7 @@ const TRANSLATIONS = {
     featOpsBody: 'Inventory tracking, low-stock alerts, daily checklists, SOPs.',
     featTeamTitle: 'Team Management',
     featTeamBody: 'Roles, permissions, time-off requests, sick calls, swap shifts.',
-    startFreeTrial: 'No credit card, start free trial',
+    startFreeTrial: 'Start your 7-day free trial',
     haveAccount: 'Already have an account?',
     trialFinePrint: '7-day free trial',
     trialFinePrintSub: 'Then $19/month. Cancel anytime.',
@@ -416,7 +416,7 @@ const TRANSLATIONS = {
     featOpsBody: 'Lacak inventaris, peringatan stok rendah, daftar harian, SOP.',
     featTeamTitle: 'Manajemen Tim',
     featTeamBody: 'Peran, izin, permintaan cuti, lapor sakit, tukar shift.',
-    startFreeTrial: 'Tanpa kartu kredit, mulai uji coba gratis',
+    startFreeTrial: 'Mulai uji coba gratis 7 hari',
     haveAccount: 'Sudah punya akun?',
     trialFinePrint: 'Uji coba 7 hari gratis',
     trialFinePrintSub: 'Lalu $19/bulan. Batal kapan saja.',
@@ -1084,6 +1084,9 @@ function LandingPage({ onStartTrial, onSignIn }) {
         <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
           <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
         </button>
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
+          Then $19/month after 7-day free trial
+        </div>
 
         <div style={{ marginTop: 22, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
           {t('haveAccount')}{' '}
