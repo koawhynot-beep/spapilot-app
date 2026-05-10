@@ -1433,9 +1433,59 @@ function PaymentRequired({ user, onActivated, onLogout }) {
 }
 
 // ---------- Settings drawer (subscription + switch role) ----------
-function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toast }) {
+function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAccountDeleted, toast }) {
   const { t } = useT();
   const [busy, setBusy] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteErr, setDeleteErr] = useState(null);
+
+  const exportData = async () => {
+    setBusy(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API}/api/auth/export-data`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `viroxit-data-${user.id}-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast('Data exported');
+    } catch (e) { toast(e.message || 'Export failed'); }
+    finally { setBusy(false); }
+  };
+
+  const deleteAccount = async () => {
+    setDeleteErr(null);
+    if (deleteConfirm !== 'DELETE') {
+      setDeleteErr('Type DELETE to confirm');
+      return;
+    }
+    if (!deletePassword) {
+      setDeleteErr('Password required');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api('/api/auth/account', {
+        method: 'DELETE',
+        body: { password: deletePassword, confirmation: 'DELETE' },
+      });
+      toast('Account deleted');
+      onAccountDeleted && onAccountDeleted();
+    } catch (e) {
+      setDeleteErr(e.message || 'Failed');
+      setBusy(false);
+    }
+  };
 
   const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
   const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - new Date()) / (24 * 60 * 60 * 1000))) : 0;
@@ -1537,6 +1587,69 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, toas
         }}>
           Restart tutorial
         </button>
+      </div>
+
+      <div className="field" style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+          Privacy & Data
+        </div>
+        <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13, marginBottom: 8 }} disabled={busy} onClick={exportData}>
+          <Download size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+          Export my data
+        </button>
+        {!showDeleteConfirm ? (
+          <button
+            className="btn btn-ghost"
+            style={{ width: '100%', fontSize: 13, color: '#c33' }}
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            <Trash2 size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+            Delete account
+          </button>
+        ) : (
+          <div style={{ padding: 12, background: '#fee', border: '1px solid #fbb', borderRadius: 8, marginTop: 4 }}>
+            <div style={{ fontSize: 13, color: '#900', marginBottom: 10, fontWeight: 600 }}>
+              ⚠ This permanently deletes your account and all your business data. Cannot be undone.
+            </div>
+            <input
+              type="password"
+              className="input"
+              placeholder="Your password"
+              value={deletePassword}
+              onChange={e => { setDeleteErr(null); setDeletePassword(e.target.value); }}
+              style={{ marginBottom: 8 }}
+            />
+            <input
+              type="text"
+              className="input"
+              placeholder="Type DELETE to confirm"
+              value={deleteConfirm}
+              onChange={e => { setDeleteErr(null); setDeleteConfirm(e.target.value); }}
+              style={{ marginBottom: 8 }}
+            />
+            {deleteErr && (
+              <div style={{ color: '#900', fontSize: 12, marginBottom: 8 }}>{deleteErr}</div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ flex: 1 }}
+                disabled={busy}
+                onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteConfirm(''); setDeleteErr(null); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-sm"
+                style={{ flex: 1, background: '#c33', color: '#fff', border: 'none' }}
+                disabled={busy}
+                onClick={deleteAccount}
+              >
+                {busy ? 'Deleting…' : 'Delete forever'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );
@@ -4114,6 +4227,15 @@ function AppInner() {
           onClose={() => setShowSettings(false)}
           onSwitched={(u) => { setUser(u); setRole(null); setOnboardingChoice(null); }}
           onActivated={setUser}
+          onAccountDeleted={() => {
+            setToken(null);
+            setUser(null);
+            setRole(null);
+            setBusiness(null);
+            setOnboardingChoice(null);
+            setAuthMode(null);
+            setShowSettings(false);
+          }}
           toast={toast}
         />
       )}
