@@ -57,7 +57,7 @@ const TRANSLATIONS = {
     staffSub: 'Your shifts, your guests', whichMember: 'Which team member are you?',
     back: 'Back', continue: 'Continue', saving: 'Saving…',
     switch: 'Switch', loading: 'Loading…', retry: 'Retry',
-    home: 'Home', schedule: 'Schedule', stock: 'Stock', alerts: 'Alerts',
+    home: 'Home', schedule: 'Schedule', stock: 'Stock', alerts: 'Alerts', clients: 'Clients',
     sop: 'SOP', send: 'Send', today: 'Today', inbox: 'Inbox', profile: 'Profile',
     add: 'Add', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
     approve: 'Approve', decline: 'Decline', remove: 'Remove', reload: 'Reload',
@@ -275,7 +275,7 @@ const TRANSLATIONS = {
     staffSub: 'Shift Anda, tamu Anda', whichMember: 'Anggota tim mana Anda?',
     back: 'Kembali', continue: 'Lanjut', saving: 'Menyimpan…',
     switch: 'Tukar', loading: 'Memuat…', retry: 'Coba lagi',
-    home: 'Beranda', schedule: 'Jadwal', stock: 'Stok', alerts: 'Peringatan',
+    home: 'Beranda', schedule: 'Jadwal', stock: 'Stok', alerts: 'Peringatan', clients: 'Klien',
     sop: 'SOP', send: 'Kirim', today: 'Hari ini', inbox: 'Kotak Masuk', profile: 'Profil',
     add: 'Tambah', edit: 'Ubah', delete: 'Hapus', save: 'Simpan', cancel: 'Batal',
     approve: 'Setujui', decline: 'Tolak', remove: 'Hapus', reload: 'Muat ulang',
@@ -1091,9 +1091,6 @@ function LandingPage({ onStartTrial, onSignIn }) {
           border: '1px solid var(--gold)', borderRadius: 14,
           background: 'linear-gradient(135deg, #fff8ec 0%, #fff 100%)',
         }}>
-          <div style={{ fontSize: 13, color: 'var(--emerald)', fontWeight: 700, marginBottom: 8, letterSpacing: 0.2 }}>
-            No credit card · Start free trial
-          </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
             <span style={{ fontFamily: 'Fraunces, serif', fontSize: 26, fontWeight: 600, color: 'var(--emerald)' }}>$19</span>
             <span style={{ fontSize: 13, color: 'var(--muted)' }}>/month, billed monthly · after 7-day trial</span>
@@ -2020,6 +2017,152 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+// ================= CLIENTS TAB =================
+// Derived from bookings — aggregates by client name (case-insensitive). No backend
+// schema change required. Each row = 1 unique client with totals + last visit + history.
+function ClientsTab({ bookings, staff, toast }) {
+  const { t } = useT();
+  const { labels } = useBiz();
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(null); // selected client name or null
+
+  // Aggregate clients from bookings
+  const clients = useMemo(() => {
+    const map = new Map();
+    for (const b of bookings) {
+      const name = (b.client || '').trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      const existing = map.get(key) || {
+        name, key, phone: '', visits: 0, totalSpend: 0, lastVisit: null,
+        bookings: [], allergies: '', notes: '',
+      };
+      existing.visits += 1;
+      existing.totalSpend += Number(b.price) || 0;
+      if (b.clientPhone && !existing.phone) existing.phone = b.clientPhone;
+      if (b.allergies && !existing.allergies) existing.allergies = b.allergies;
+      const date = b.date || b.time || '';
+      if (!existing.lastVisit || date > existing.lastVisit) existing.lastVisit = date;
+      existing.bookings.push(b);
+      map.set(key, existing);
+    }
+    return Array.from(map.values()).sort((a, b) => b.visits - a.visits);
+  }, [bookings]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.phone || '').toLowerCase().includes(q)
+    );
+  }, [clients, query]);
+
+  const exportCsv = () => {
+    const rows = clients.map(c => ({
+      name: c.name, phone: c.phone, visits: c.visits,
+      totalSpend: c.totalSpend, lastVisit: c.lastVisit || '',
+    }));
+    downloadCSV(`${labels.clientPlural.toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`, rows);
+  };
+
+  const detail = open && clients.find(c => c.key === open);
+
+  return (
+    <div>
+      <div className="card">
+        <div className="card-head">
+          <h3>{labels.clientPlural} ({clients.length})</h3>
+        </div>
+        <div className="search-wrap">
+          <Search size={14} className="search-icon" />
+          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
+        </div>
+        <div className="toolbar">
+          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={clients.length === 0}>
+            <Download size={12} /> {t('exportCsv')}
+          </button>
+        </div>
+
+        {clients.length === 0 ? (
+          <EmptyState
+            icon={User}
+            title={`No ${labels.clientPlural.toLowerCase()} yet`}
+            body={`${labels.clientPlural} you add to ${labels.bookingPlural.toLowerCase()} will show up here automatically.`}
+          />
+        ) : filtered.length === 0 ? (
+          <div className="center-muted">{t('noResults')}</div>
+        ) : filtered.map(c => (
+          <div key={c.key} className="row" style={{ cursor: 'pointer' }} onClick={() => setOpen(c.key)}>
+            <Avatar initial={c.name[0]} color="#5b8a72" size={40} />
+            <div className="grow">
+              <div className="title">{c.name}</div>
+              <div className="meta">
+                {c.visits} {c.visits === 1 ? labels.booking.toLowerCase() : labels.bookingPlural.toLowerCase()}
+                {c.phone ? ` · ${c.phone}` : ''}
+              </div>
+              {c.allergies && (
+                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>
+                  <AlertTriangle size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />
+                  {t('allergies')}: {c.allergies}
+                </div>
+              )}
+            </div>
+            <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--muted)' }}>
+              <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>${c.totalSpend}</div>
+              <div style={{ fontSize: 11 }}>{c.lastVisit || ''}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {detail && (
+        <Modal title={detail.name} onClose={() => setOpen(null)}>
+          <div className="field">
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
+              <Avatar initial={detail.name[0]} color="#5b8a72" size={56} />
+              <div>
+                <div style={{ fontFamily: 'Fraunces, serif', fontSize: 20, color: 'var(--emerald)' }}>{detail.name}</div>
+                {detail.phone && <div className="meta">{detail.phone}</div>}
+              </div>
+            </div>
+
+            <div className="stats" style={{ marginBottom: 14 }}>
+              <div className="stat"><div className="v">{detail.visits}</div><div className="l">{labels.bookingPlural}</div></div>
+              <div className="stat"><div className="v">${detail.totalSpend}</div><div className="l">{t('revenue')}</div></div>
+              <div className="stat"><div className="v">{detail.lastVisit || '—'}</div><div className="l">Last visit</div></div>
+            </div>
+
+            {detail.allergies && (
+              <div style={{ background: '#fbecec', padding: '10px 12px', borderRadius: 8, marginBottom: 14, fontSize: 13, color: 'var(--danger)' }}>
+                <AlertTriangle size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                <strong>{t('allergies')}:</strong> {detail.allergies}
+              </div>
+            )}
+
+            <h3 style={{ fontSize: 13, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '14px 0 8px' }}>
+              History
+            </h3>
+            {detail.bookings.slice().reverse().map(b => {
+              const m = staff.find(s => s.id === b.staffId);
+              return (
+                <div key={b.id} className="row">
+                  <Calendar size={16} color="var(--gold)" />
+                  <div className="grow">
+                    <div className="title">{b.treatment}</div>
+                    <div className="meta">{b.time} · {b.duration}min{m ? ` · ${m.name}` : ''}</div>
+                  </div>
+                  {b.price > 0 && <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>${b.price}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 }
 
@@ -3273,6 +3416,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
 const MANAGER_NAV = [
   { id: 'dashboard',     labelKey: 'home',          icon: LayoutDashboard },
   { id: 'schedule',      labelKey: 'schedule',      icon: Calendar },
+  { id: 'clients',       labelKey: 'clients',       icon: User },
   { id: 'staff',         labelKey: 'staff',         icon: Users },
   { id: 'inventory',     labelKey: 'stock',         icon: Package },
   { id: 'alerts',        labelKey: 'alerts',        icon: Bell },
@@ -3829,6 +3973,9 @@ function AppInner() {
               )}
               {tab === 'schedule' && (
                 <ScheduleTab bookings={bookings.data} staff={staff.data} onReload={bookings.reload} toast={toast} />
+              )}
+              {tab === 'clients' && (
+                <ClientsTab bookings={bookings.data} staff={staff.data} toast={toast} />
               )}
               {tab === 'staff' && (
                 <StaffTab staff={staff.data} violations={violations.data} onReload={staff.reload} toast={toast} />
