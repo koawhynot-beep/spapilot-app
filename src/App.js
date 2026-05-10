@@ -1085,41 +1085,6 @@ function LandingPage({ onStartTrial, onSignIn }) {
           <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
         </button>
 
-        {/* Pricing detail card — sits below CTA, reinforces no-risk message after click intent */}
-        <div style={{
-          marginTop: 14, padding: '18px 18px',
-          border: '1px solid var(--gold)', borderRadius: 14,
-          background: 'linear-gradient(135deg, #fff8ec 0%, #fff 100%)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-            <span style={{ fontFamily: 'Fraunces, serif', fontSize: 26, fontWeight: 600, color: 'var(--emerald)' }}>$19</span>
-            <span style={{ fontSize: 13, color: 'var(--muted)' }}>/month, billed monthly · after 7-day trial</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text)' }}>
-            {[
-              'Unlimited staff and bookings',
-              'Inventory tracking with low-stock alerts',
-              'Time-off, sick, and shift-swap requests',
-              'CSV export of all data',
-              'Cancel anytime — your data stays yours',
-            ].map(line => (
-              <div key={line} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <Check size={13} color="var(--emerald)" style={{ flexShrink: 0, marginTop: 3 }} />
-                <span>{line}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 10, textAlign: 'center' }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-            {t('trialFinePrint')}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-            {t('trialFinePrintSub')}
-          </div>
-        </div>
-
         <div style={{ marginTop: 22, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
           {t('haveAccount')}{' '}
           <button type="button"
