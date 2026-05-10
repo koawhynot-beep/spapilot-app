@@ -1040,6 +1040,7 @@ function ResetPasswordScreen({ token, onDone }) {
 // ---------- Landing page (pre-auth) ----------
 function LandingPage({ onStartTrial, onSignIn, onJoinTeam }) {
   const { t } = useT();
+  const [showJoinInfo, setShowJoinInfo] = useState(false);
   const features = [
     { icon: Calendar, titleKey: 'featSchedTitle', bodyKey: 'featSchedBody' },
     { icon: Package,  titleKey: 'featOpsTitle',   bodyKey: 'featOpsBody' },
@@ -1088,55 +1089,19 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam }) {
           Then $19/month after 7-day free trial
         </div>
 
-        {/* Divider */}
-        <div style={{
-          marginTop: 24, marginBottom: 16,
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
-          <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>OR</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
-        </div>
-
-        {/* Join-as-staff section — clearly free, with how-to steps */}
-        <div style={{
-          padding: '16px 16px',
-          border: '1px solid var(--line)', borderRadius: 12,
-          background: 'var(--cream-soft, #faf6ef)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <Users size={18} color="var(--emerald)" />
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--emerald)' }}>
-              Joining a team?
-            </div>
-            <span style={{
-              marginLeft: 'auto',
-              fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-              padding: '3px 8px', borderRadius: 999,
-              background: 'var(--emerald)', color: '#fff',
-            }}>FREE FOREVER</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
-            Staff accounts cost nothing. Ask your manager for the 6-letter business code, then:
-          </div>
-          <ol style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.6, paddingLeft: 18, margin: '0 0 12px' }}>
-            <li>Tap the button below</li>
-            <li>Create your free account (email + password)</li>
-            <li>Pick "I work as staff" and enter the code</li>
-          </ol>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            style={{
-              width: '100%', padding: '12px 16px', fontSize: 14, fontWeight: 600,
-              border: '1.5px solid var(--emerald)', color: 'var(--emerald)',
-              background: '#fff',
-            }}
-            onClick={onJoinTeam}
-          >
-            Join your team →
-          </button>
-        </div>
+        {/* Small Join-team button — modal opens with full instructions on click */}
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{
+            width: '100%', marginTop: 12, padding: '12px 16px', fontSize: 14, fontWeight: 600,
+            border: '1px solid var(--border)', color: 'var(--emerald)', background: 'transparent',
+          }}
+          onClick={() => setShowJoinInfo(true)}
+        >
+          <Users size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+          Join a team
+        </button>
 
         <div style={{ marginTop: 22, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
           {t('haveAccount')}{' '}
@@ -1147,6 +1112,36 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam }) {
           </button>
         </div>
       </div>
+
+      {/* Join-team info modal */}
+      {showJoinInfo && (
+        <Modal title="Join a team" onClose={() => setShowJoinInfo(false)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <Users size={20} color="var(--emerald)" />
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+              padding: '3px 8px', borderRadius: 999,
+              background: 'var(--emerald)', color: '#fff',
+            }}>FREE FOREVER</span>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 14 }}>
+            Staff accounts cost nothing. Ask your manager for the 6-letter business code, then:
+          </div>
+          <ol style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.7, paddingLeft: 20, margin: '0 0 18px' }}>
+            <li>Tap the button below</li>
+            <li>Create your free account (email + password)</li>
+            <li>Pick "I work as staff" and enter the code</li>
+          </ol>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-ghost" onClick={() => setShowJoinInfo(false)}>Cancel</button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => { setShowJoinInfo(false); onJoinTeam(); }}
+            >Join your team →</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
