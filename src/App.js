@@ -30,12 +30,14 @@ const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
 const tourKeyFor = (user) => user?.id ? `spapilot-tutorial-done-u${user.id}` : TOUR_DONE_KEY;
 
 const TOUR_STEPS = [
-  { targetId: 'tab-dashboard',  message: "Your dashboard — today's overview is here",     position: 'top' },
-  { targetId: 'tab-schedule',   message: 'Tap Schedule to manage all your bookings',      position: 'top' },
-  { targetId: 'tab-staff',      message: 'Manage your team and their schedules here',     position: 'top' },
-  { targetId: 'tab-inventory',  message: 'Track products and get low-stock alerts here',  position: 'top' },
-  { targetId: 'tab-alerts',     message: 'Staff requests and notifications land here',    position: 'top' },
-  { targetId: 'tab-sop',        message: 'View SOPs and log any violations here',        position: 'top' },
+  { targetId: 'tab-dashboard',     message: "Your dashboard — today's overview lives here", position: 'top' },
+  { targetId: 'tab-schedule',      message: 'Schedule — manage every booking and shift',    position: 'top' },
+  { targetId: 'tab-clients',       message: 'Clients — see everyone you serve, with full visit history', position: 'top' },
+  { targetId: 'tab-staff',         message: 'Staff — your team, their roles, and schedules', position: 'top' },
+  { targetId: 'tab-inventory',     message: 'Stock — track supplies and get low-stock alerts', position: 'top' },
+  { targetId: 'tab-alerts',        message: 'Alerts — staff requests and stock warnings land here', position: 'top' },
+  { targetId: 'tab-sop',           message: 'SOPs — your standards, and any violations to log', position: 'top' },
+  { targetId: 'tab-announcements', message: 'Send — broadcast announcements to your team',  position: 'top' },
 ];
 
 // ---------- i18n ----------
@@ -3574,20 +3576,29 @@ function TourOverlay({ onDone }) {
   );
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState(null);
+  // Tracks whether we've attempted to measure for the current step. Prevents the
+  // dark-flash glitch where the overlay covered the whole screen for a beat
+  // before the spotlight cutout was positioned.
+  const [triedMeasure, setTriedMeasure] = useState(false);
   const stepRef = useRef(step);
   stepRef.current = step;
 
   // Measure target element position live
   const measure = useCallback(() => {
     const target = visibleSteps[stepRef.current];
-    if (!target) { setRect(null); return; }
+    if (!target) { setRect(null); setTriedMeasure(true); return; }
     const el = document.querySelector(`[data-tour="${target.targetId}"]`);
     setRect(el ? el.getBoundingClientRect() : null);
+    setTriedMeasure(true);
   }, [visibleSteps]);
 
-  // Recompute on step change, resize, scroll
+  // Recompute on step change, resize, scroll. Reset rect on step change so we
+  // don't briefly show the previous step's spotlight on the new step.
   useEffect(() => {
-    const tid = setTimeout(measure, 120); // wait for DOM after tab switch
+    setRect(null);
+    setTriedMeasure(false);
+    // 250ms gives the just-mounted DOM (post-slideshow or post-tab-switch) time to settle.
+    const tid = setTimeout(measure, 250);
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
@@ -3636,8 +3647,10 @@ function TourOverlay({ onDone }) {
 
   return (
     <>
-      {/* Spotlight cutout: box-shadow creates dark vignette, transparent hole reveals target */}
-      {rect ? (
+      {/* Spotlight cutout: box-shadow creates dark vignette, transparent hole reveals target.
+          Only render the dark fallback after we've actually tried to measure — avoids the
+          full-screen dark flash glitch on initial mount. */}
+      {rect && (
         <div style={{
           position: 'fixed',
           left: rect.left - PAD, top: rect.top - PAD,
@@ -3649,7 +3662,8 @@ function TourOverlay({ onDone }) {
           pointerEvents: 'none',
           transition: 'all 0.2s ease',
         }} />
-      ) : (
+      )}
+      {!rect && triedMeasure && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9990, pointerEvents: 'none' }} />
       )}
 
@@ -3687,8 +3701,8 @@ function TourOverlay({ onDone }) {
         </div>
       )}
 
-      {/* No target found — fallback card */}
-      {!rect && (
+      {/* No target found — fallback card. Only show after we've tried, to avoid initial flash. */}
+      {!rect && triedMeasure && currentStep && (
         <div style={{
           position: 'fixed', top: '40%', left: '50%', transform: 'translate(-50%,-50%)',
           zIndex: 9996, background: '#1c1c1e', color: '#f5f0e8',
