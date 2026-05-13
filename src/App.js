@@ -644,7 +644,7 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
-function useCollection(path, enabled = true) {
+function useCollection(path, enabled = true, pollMs = 0) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(enabled);
   const [refreshing, setRefreshing] = useState(false);
@@ -667,6 +667,19 @@ function useCollection(path, enabled = true) {
   }, [path, enabled]);
 
   useEffect(() => { if (enabled) reload(); }, [reload, enabled]);
+
+  // Optional background polling — only when tab visible and enabled, to keep manager
+  // dashboards fresh (new requests / new low-stock alerts) without manual refresh.
+  useEffect(() => {
+    if (!enabled || !pollMs) return undefined;
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        reload();
+      }
+    }, pollMs);
+    return () => clearInterval(interval);
+  }, [enabled, pollMs, reload]);
+
   // Expose `loading` true only for initial fetch; subsequent refreshes don't blank the UI.
   return { data, loading: loading && !hasLoaded, refreshing, error, reload, setData };
 }
@@ -4021,9 +4034,9 @@ function AppInner() {
 
   const staff         = useCollection('/api/staff',         authed);
   const bookings      = useCollection('/api/bookings',      onboarded);
-  const inventory     = useCollection('/api/inventory',     onboarded);
-  const requests      = useCollection('/api/requests',      onboarded);
-  const announcements = useCollection('/api/announcements', onboarded);
+  const inventory     = useCollection('/api/inventory',     onboarded, 120000);
+  const requests      = useCollection('/api/requests',      onboarded, 60000);
+  const announcements = useCollection('/api/announcements', onboarded, 120000);
   const violations    = useCollection('/api/violations',    onboarded);
   const sops          = useCollection('/api/sop',           onboarded);
 
@@ -4183,9 +4196,15 @@ function AppInner() {
   const hiddenTabs = BIZ_HIDDEN_TABS[bizType] || [];
   const filteredManagerNav = MANAGER_NAV.filter(item => !hiddenTabs.includes(item.id));
   const nav = role === 'manager' ? filteredManagerNav : role === 'staff' ? filteredStaffNav : OWNER_NAV;
-  const lowStockCount = inventory.data.filter(i => i.stock <= i.threshold).length;
-  const pendingCount  = requests.data.filter(r => r.status === 'pending').length;
-  const alertBadge    = lowStockCount + pendingCount;
+  const lowStockCount = useMemo(
+    () => inventory.data.filter(i => i.stock <= i.threshold).length,
+    [inventory.data]
+  );
+  const pendingCount = useMemo(
+    () => requests.data.filter(r => r.status === 'pending').length,
+    [requests.data]
+  );
+  const alertBadge = lowStockCount + pendingCount;
 
   const anyLoading = staff.loading || bookings.loading || inventory.loading
     || requests.loading || announcements.loading || violations.loading || sops.loading;
