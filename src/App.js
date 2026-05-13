@@ -106,6 +106,7 @@ const TRANSLATIONS = {
     back: 'Back', continue: 'Continue', saving: 'Saving…',
     switch: 'Switch', loading: 'Loading…', retry: 'Retry',
     home: 'Home', schedule: 'Schedule', stock: 'Stock', alerts: 'Alerts', clients: 'Clients',
+    services: 'Services',
     sop: 'SOP', send: 'Send', today: 'Today', inbox: 'Inbox', profile: 'Profile',
     add: 'Add', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
     approve: 'Approve', decline: 'Decline', remove: 'Remove', reload: 'Reload',
@@ -221,6 +222,7 @@ const TRANSLATIONS = {
     permCanSwapShifts: 'Can swap shifts',
     permCanRequestStock: 'Can request product stock',
     permCanRequestNewProducts: 'Can request new products',
+    permCanEditStock: 'Can directly edit stock levels',
     permCanMarkViolations: 'Can mark SOP violations',
     permCanPostAnnouncements: 'Can post announcements',
     emptyBookingsTitle: 'No bookings yet',
@@ -324,6 +326,7 @@ const TRANSLATIONS = {
     back: 'Kembali', continue: 'Lanjut', saving: 'Menyimpan…',
     switch: 'Tukar', loading: 'Memuat…', retry: 'Coba lagi',
     home: 'Beranda', schedule: 'Jadwal', stock: 'Stok', alerts: 'Peringatan', clients: 'Klien',
+    services: 'Layanan',
     sop: 'SOP', send: 'Kirim', today: 'Hari ini', inbox: 'Kotak Masuk', profile: 'Profil',
     add: 'Tambah', edit: 'Ubah', delete: 'Hapus', save: 'Simpan', cancel: 'Batal',
     approve: 'Setujui', decline: 'Tolak', remove: 'Hapus', reload: 'Muat ulang',
@@ -438,6 +441,7 @@ const TRANSLATIONS = {
     permCanRequestTimeOff: 'Boleh minta cuti',
     permCanSwapShifts: 'Boleh tukar shift',
     permCanRequestStock: 'Boleh minta stok produk',
+    permCanEditStock: 'Boleh mengedit stok langsung',
     permCanRequestNewProducts: 'Boleh minta produk baru',
     permCanMarkViolations: 'Boleh catat pelanggaran SOP',
     permCanPostAnnouncements: 'Boleh kirim pengumuman',
@@ -690,6 +694,7 @@ const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const STAFF_DEFAULT_PERMISSIONS = {
   canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true,
   canRequestStock: true, canRequestNewProducts: false,
+  canEditStock: false,
   canMarkViolations: false, canPostAnnouncements: false,
 };
 const PERMISSION_DEFS = [
@@ -698,6 +703,7 @@ const PERMISSION_DEFS = [
   { key: 'canSwapShifts',          labelKey: 'permCanSwapShifts' },
   { key: 'canRequestStock',        labelKey: 'permCanRequestStock' },
   { key: 'canRequestNewProducts',  labelKey: 'permCanRequestNewProducts' },
+  { key: 'canEditStock',           labelKey: 'permCanEditStock' },
   { key: 'canMarkViolations',      labelKey: 'permCanMarkViolations' },
   { key: 'canPostAnnouncements',   labelKey: 'permCanPostAnnouncements' },
 ];
@@ -1984,7 +1990,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
   );
 }
 
-function ScheduleTab({ bookings, staff, onReload, toast }) {
+function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   const { labels } = useBiz();
   const { t, lang } = useT();
   const [modal, setModal] = useState(null);
@@ -2112,6 +2118,7 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
         <BookingModal
           booking={modal === 'new' ? null : modal}
           staff={staff}
+          services={services}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); onReload(); toast(modal === 'new' ? t('bookingAdded') : t('bookingUpdated')); }}
         />
@@ -2120,11 +2127,12 @@ function ScheduleTab({ bookings, staff, onReload, toast }) {
   );
 }
 
-function BookingModal({ booking, staff, onClose, onSaved }) {
+function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
   const { t } = useT();
   const { labels, business } = useBiz();
   const showAllergies = ['spa', 'salon', 'clinic'].includes(business?.type || 'spa');
   const hasStaff = staff && staff.length > 0;
+  const hasServices = services && services.length > 0;
   const [f, setF] = useState(() => {
     if (!booking) return {
       time: '10:00', client: '', treatment: '', duration: 60,
@@ -2134,6 +2142,17 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
     };
     return { ...booking, therapist: booking.therapist || '' };
   });
+
+  const pickService = (id) => {
+    const svc = services.find(s => s.id === Number(id));
+    if (!svc) return;
+    setF(prev => ({
+      ...prev,
+      treatment: svc.name,
+      duration: svc.durationMin || prev.duration,
+      price: svc.price || prev.price,
+    }));
+  };
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -2160,13 +2179,23 @@ function BookingModal({ booking, staff, onClose, onSaved }) {
         {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{labels.client}</label>
           <input className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} /></div>
+        {hasServices && (
+          <div className="field"><label>Pick from catalog (optional)</label>
+            <select className="select" value="" onChange={e => e.target.value && pickService(e.target.value)}>
+              <option value="">— Choose a service —</option>
+              {services.map(s => (
+                <option key={s.id} value={s.id}>{s.name} · {s.durationMin}min · ${Number(s.price).toFixed(2)}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="field"><label>{labels.service}</label>
           <input className="input" required value={f.treatment} onChange={e => setF({ ...f, treatment: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{t('time')}</label>
             <input className="input" type="time" required value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label>{t('durationMin')}</label>
-            <input className="input" type="number" value={f.duration} onChange={e => setF({ ...f, duration: Number(e.target.value) })} /></div>
+            <input className="input" type="number" min="0" inputMode="numeric" value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         </div>
         {/* Staff picker — select from team if any exist, fallback to text input.
             Both keep the booking linked correctly: select sets staffId, text input is for ad-hoc names. */}
@@ -2553,6 +2582,146 @@ function StaffModal({ member, onClose, onSaved }) {
   );
 }
 
+// ---------- Services Catalog ----------
+function ServicesTab({ services, onReload, toast }) {
+  const { t } = useT();
+  const [modal, setModal] = useState(null);
+
+  const grouped = useMemo(() => {
+    const groups = {};
+    for (const s of services) {
+      const c = s.category || 'General';
+      if (!groups[c]) groups[c] = [];
+      groups[c].push(s);
+    }
+    return groups;
+  }, [services]);
+
+  const delService = async (id) => {
+    if (!window.confirm('Remove this service?')) return;
+    try {
+      await api(`/api/services/${id}`, { method: 'DELETE' });
+      toast('Service removed');
+      onReload();
+    } catch (e) { toast(e.message || 'Failed'); }
+  };
+
+  return (
+    <div>
+      <div className="card">
+        <div className="card-head">
+          <h3>Service catalog</h3>
+          <button className="btn btn-primary btn-sm" onClick={() => setModal({})}>
+            <Plus size={14} /> Add service
+          </button>
+        </div>
+        {services.length === 0 ? (
+          <EmptyState
+            icon={Sparkles}
+            title="No services yet"
+            body="Define the services you offer (e.g., 60-min massage, haircut, oil change). Add price and duration once, then pick from this list when creating bookings."
+            ctaLabel="Add service"
+            onCta={() => setModal({})}
+          />
+        ) : (
+          Object.entries(grouped).map(([cat, items]) => (
+            <div key={cat} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>
+                {cat}
+              </div>
+              {items.map(s => (
+                <div key={s.id} className="row" style={{ marginBottom: 6 }}>
+                  <div style={{ width: 10, height: 30, borderRadius: 3, background: s.color || '#2d5a4a' }} />
+                  <div className="grow">
+                    <div className="title" style={{ fontSize: 14 }}>{s.name}</div>
+                    <div className="meta" style={{ fontSize: 11 }}>
+                      {s.durationMin} min · ${Number(s.price).toFixed(2)}
+                    </div>
+                  </div>
+                  <button className="icon-btn" onClick={() => setModal(s)} aria-label="edit">
+                    <Edit2 size={14} />
+                  </button>
+                  <button className="icon-btn" onClick={() => delService(s.id)} aria-label="delete">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+      {modal && (
+        <ServiceModal
+          service={modal.id ? modal : null}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); onReload(); toast('Saved'); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ServiceModal({ service, onClose, onSaved }) {
+  const { t } = useT();
+  const [f, setF] = useState(service ? {
+    ...service,
+    durationMin: String(service.durationMin ?? ''),
+    price: String(service.price ?? ''),
+  } : {
+    name: '', category: 'General', durationMin: '60', price: '', color: '#2d5a4a',
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const save = async (e) => {
+    e.preventDefault(); setSaving(true); setErr(null);
+    try {
+      const payload = {
+        name: f.name,
+        category: f.category,
+        durationMin: f.durationMin === '' ? 0 : Number(f.durationMin),
+        price: f.price === '' ? 0 : Number(f.price),
+        color: f.color,
+      };
+      if (service) await api(`/api/services/${service.id}`, { method: 'PUT', body: payload });
+      else         await api('/api/services', { method: 'POST', body: payload });
+      onSaved();
+    } catch (e) { setErr(e.message); setSaving(false); }
+  };
+
+  return (
+    <Modal title={service ? 'Edit service' : 'New service'} onClose={onClose}>
+      <form onSubmit={save}>
+        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        <div className="field"><label>Name</label>
+          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+        <div className="field"><label>Category</label>
+          <input className="input" placeholder="e.g. Massage, Haircut, Repair" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}><label>Duration (min)</label>
+            <input className="input" type="number" min="0" inputMode="numeric" value={f.durationMin} onChange={e => setF({ ...f, durationMin: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label>Price</label>
+            <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></div>
+        </div>
+        <div className="field"><label>Color</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {COLOR_OPTIONS.map(c => (
+              <button key={c} type="button" onClick={() => setF({ ...f, color: c })}
+                style={{
+                  width: 28, height: 28, borderRadius: 6, background: c, border: f.color === c ? '2px solid var(--ink)' : '1px solid var(--border)', cursor: 'pointer',
+                }} />
+            ))}
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('saving') : t('save')}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function InventoryTab({ inventory, onReload, toast }) {
   const { t } = useT();
   const [modal, setModal] = useState(null);
@@ -2683,8 +2852,13 @@ function InventoryTab({ inventory, onReload, toast }) {
 
 function InventoryModal({ item, onClose, onSaved }) {
   const { t } = useT();
-  const [f, setF] = useState(item || {
-    name: '', category: '', stock: 0, threshold: 5, unit: 'pcs', supplier: '',
+  // Hold numeric fields as strings so user can clear them (empty input becomes '', not 0)
+  const [f, setF] = useState(item ? {
+    ...item,
+    stock: String(item.stock ?? ''),
+    threshold: String(item.threshold ?? ''),
+  } : {
+    name: '', category: '', stock: '', threshold: '5', unit: 'pcs', supplier: '',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -2692,8 +2866,13 @@ function InventoryModal({ item, onClose, onSaved }) {
   const save = async (e) => {
     e.preventDefault(); setSaving(true); setErr(null);
     try {
-      if (item) await api(`/api/inventory/${item.id}`, { method: 'PUT', body: f });
-      else       await api('/api/inventory', { method: 'POST', body: f });
+      const payload = {
+        ...f,
+        stock: f.stock === '' ? 0 : Number(f.stock),
+        threshold: f.threshold === '' ? 0 : Number(f.threshold),
+      };
+      if (item) await api(`/api/inventory/${item.id}`, { method: 'PUT', body: payload });
+      else       await api('/api/inventory', { method: 'POST', body: payload });
       onSaved();
     } catch (e) { setErr(e.message); setSaving(false); }
   };
@@ -2712,10 +2891,10 @@ function InventoryModal({ item, onClose, onSaved }) {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{t('stockLevel')}</label>
-            <input className="input" type="number" value={f.stock} onChange={e => setF({ ...f, stock: Number(e.target.value) })} /></div>
+            <input className="input" type="number" min="0" inputMode="numeric" value={f.stock} onChange={e => setF({ ...f, stock: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}>
             <label>{t('threshold')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>— alert when below</span></label>
-            <input className="input" type="number" value={f.threshold} onChange={e => setF({ ...f, threshold: Number(e.target.value) })} /></div>
+            <input className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} /></div>
         </div>
         <div className="field"><label>{t('supplier')}</label>
           <input className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} /></div>
@@ -3612,6 +3791,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
 const MANAGER_NAV = [
   { id: 'dashboard',     labelKey: 'home',          icon: LayoutDashboard },
   { id: 'schedule',      labelKey: 'schedule',      icon: Calendar },
+  { id: 'services',      labelKey: 'services',      icon: Sparkles },
   { id: 'clients',       labelKey: 'clients',       icon: User },
   { id: 'staff',         labelKey: 'staff',         icon: Users },
   { id: 'inventory',     labelKey: 'stock',         icon: Package },
@@ -3620,10 +3800,11 @@ const MANAGER_NAV = [
   { id: 'announcements', labelKey: 'send',          icon: Megaphone },
 ];
 const STAFF_NAV = [
-  { id: 'today',    labelKey: 'today',    icon: Home },
-  { id: 'schedule', labelKey: 'schedule', icon: Calendar },
-  { id: 'inbox',    labelKey: 'inbox',    icon: Inbox },
-  { id: 'profile',  labelKey: 'profile',  icon: User },
+  { id: 'today',     labelKey: 'today',    icon: Home },
+  { id: 'schedule',  labelKey: 'schedule', icon: Calendar },
+  { id: 'inventory', labelKey: 'stock',    icon: Package, requiresPerm: 'canEditStock' },
+  { id: 'inbox',     labelKey: 'inbox',    icon: Inbox },
+  { id: 'profile',   labelKey: 'profile',  icon: User },
 ];
 const OWNER_NAV = [
   { id: 'overview', labelKey: 'home', icon: Gem },
@@ -4039,10 +4220,12 @@ function AppInner() {
   const announcements = useCollection('/api/announcements', onboarded, 120000);
   const violations    = useCollection('/api/violations',    onboarded);
   const sops          = useCollection('/api/sop',           onboarded);
+  const services      = useCollection('/api/services',      onboarded);
 
   const reloadAll = () => {
     staff.reload(); bookings.reload(); inventory.reload();
     requests.reload(); announcements.reload(); violations.reload();
+    sops.reload(); services.reload();
   };
 
   const submitRequest = async (data) => {
@@ -4189,6 +4372,7 @@ function AppInner() {
   const staffPerms = { ...STAFF_DEFAULT_PERMISSIONS, ...(currentStaffMember?.permissions || {}) };
   const filteredStaffNav = STAFF_NAV.filter(item => {
     if (item.id === 'schedule') return staffPerms.canViewSchedule;
+    if (item.requiresPerm) return staffPerms[item.requiresPerm];
     return true;
   });
   // Filter manager nav by biz-type defaults (gym hides SOP, etc.).
@@ -4207,9 +4391,9 @@ function AppInner() {
   const alertBadge = lowStockCount + pendingCount;
 
   const anyLoading = staff.loading || bookings.loading || inventory.loading
-    || requests.loading || announcements.loading || violations.loading || sops.loading;
+    || requests.loading || announcements.loading || violations.loading || sops.loading || services.loading;
   const anyError = staff.error || bookings.error || inventory.error
-    || requests.error || announcements.error || violations.error || sops.error;
+    || requests.error || announcements.error || violations.error || sops.error || services.error;
 
   const navItem = nav.find(n => n.id === tab);
   const pageTitle = navItem ? t(navItem.labelKey) : tab;
@@ -4273,7 +4457,7 @@ function AppInner() {
                 />
               )}
               {tab === 'schedule' && (
-                <ScheduleTab bookings={bookings.data} staff={staff.data} onReload={bookings.reload} toast={toast} />
+                <ScheduleTab bookings={bookings.data} staff={staff.data} services={services.data} onReload={bookings.reload} toast={toast} />
               )}
               {tab === 'clients' && (
                 <ClientsTab bookings={bookings.data} staff={staff.data} toast={toast} />
@@ -4283,6 +4467,9 @@ function AppInner() {
               )}
               {tab === 'inventory' && (
                 <InventoryTab inventory={inventory.data} onReload={inventory.reload} toast={toast} />
+              )}
+              {tab === 'services' && (
+                <ServicesTab services={services.data} onReload={services.reload} toast={toast} />
               )}
               {tab === 'alerts' && (
                 <AlertsTab
@@ -4308,6 +4495,9 @@ function AppInner() {
               )}
               {tab === 'schedule' && staffPerms.canViewSchedule && (
                 <StaffScheduleView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} />
+              )}
+              {tab === 'inventory' && staffPerms.canEditStock && (
+                <InventoryTab inventory={inventory.data} onReload={inventory.reload} toast={toast} />
               )}
               {tab === 'inbox' && (
                 <StaffInboxView
