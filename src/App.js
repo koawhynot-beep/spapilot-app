@@ -93,9 +93,9 @@ const TRANSLATIONS = {
     signIn: 'Sign in', createAccount: 'Create account', signOut: 'Sign out',
     email: 'Email', password: 'Password', confirmPassword: 'Confirm password',
     emailRequired: 'Email and password required', passwordsDontMatch: 'Passwords do not match',
-    passwordTooShort: 'Password must be 6+ characters', pleaseWait: 'Please wait…',
+    passwordTooShort: 'Password must be 8+ characters', pleaseWait: 'Please wait…',
     emailPlaceholder: 'you@example.com',
-    pwSignup: 'At least 6 characters', pwLogin: 'Your password',
+    pwSignup: 'At least 8 characters', pwLogin: 'Your password',
     pickBusiness: 'pick your business type.', soon: 'Soon',
     spaWellness: 'Spa & Wellness', spaSub: 'Massage, facials, treatment rooms',
     salon: 'Salon', gym: 'Gym & Fitness', restaurant: 'Restaurant', retail: 'Retail / Other',
@@ -311,9 +311,9 @@ const TRANSLATIONS = {
     signIn: 'Masuk', createAccount: 'Daftar', signOut: 'Keluar',
     email: 'Email', password: 'Kata sandi', confirmPassword: 'Konfirmasi kata sandi',
     emailRequired: 'Email dan kata sandi wajib diisi', passwordsDontMatch: 'Kata sandi tidak cocok',
-    passwordTooShort: 'Kata sandi minimal 6 karakter', pleaseWait: 'Mohon tunggu…',
+    passwordTooShort: 'Kata sandi minimal 8 karakter', pleaseWait: 'Mohon tunggu…',
     emailPlaceholder: 'anda@contoh.com',
-    pwSignup: 'Minimal 6 karakter', pwLogin: 'Kata sandi Anda',
+    pwSignup: 'Minimal 8 karakter', pwLogin: 'Kata sandi Anda',
     pickBusiness: 'pilih jenis bisnis Anda.', soon: 'Segera',
     spaWellness: 'Spa & Kebugaran', spaSub: 'Pijat, perawatan wajah, ruang terapi',
     salon: 'Salon', gym: 'Gym & Kebugaran', restaurant: 'Restoran', retail: 'Ritel / Lainnya',
@@ -893,7 +893,7 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
     }
     if (!email || !password) { setErr(t('emailRequired')); return; }
     if (mode === 'signup' && password !== confirm) { setErr(t('passwordsDontMatch')); return; }
-    if (mode === 'signup' && password.length < 6) { setErr(t('passwordTooShort')); return; }
+    if (mode === 'signup' && password.length < 8) { setErr(t('passwordTooShort')); return; }
     setBusy(true);
     try {
       const path = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
@@ -1033,7 +1033,7 @@ function ResetPasswordScreen({ token, onDone }) {
     e.preventDefault();
     setErr(null);
     if (password !== confirm) { setErr(t('passwordsDontMatch')); return; }
-    if (password.length < 6) { setErr(t('passwordTooShort')); return; }
+    if (password.length < 8) { setErr(t('passwordTooShort')); return; }
     setBusy(true);
     try {
       await api('/api/auth/reset-password', { method: 'POST', body: { token, password } });
