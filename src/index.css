@@ -1,60 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
-
-:root {
-  --cream: #f5f0e8;
-  --cream-soft: #faf6ef;
-  --cream-deep: #ece3d3;
-  --emerald: #2d5a4a;
-  --emerald-dark: #1e3f33;
-  --emerald-soft: #e6ede9;
-  --gold: #b8956a;
-  --gold-soft: #e7d8c2;
-  --ink: #2b2623;
-  --muted: #8a7f74;
-  --line: #e8dfd1;
-  --border: #e8dfd1;
-  --text: #2b2623;
-  --cream-2: #f3ebde;
-  --danger: #b84a4a;
-  --success: #5a8f6c;
-  --warn: #c9872a;
-  --radius: 14px;
-  --shadow: 0 4px 20px rgba(45, 90, 74, 0.08);
+* {
+  box-sizing: border-box;
 }
-
-* { box-sizing: border-box; }
-
 html, body {
-  margin: 0; padding: 0;
-  background: var(--cream);
-  color: var(--ink);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: #f5f7fa;
+  color: #222;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
 }
-
-h1, h2, h3, h4, .serif {
-  font-family: 'Fraunces', Georgia, serif;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+input, button, select, textarea {
+  font-family: inherit;
 }
-
-button, select, input, textarea { font-family: inherit; }
-
-button { cursor: pointer; }
-
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@keyframes slideup { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-
-.fade { animation: fadein 0.28s ease; }
-.slide { animation: slideup 0.32s ease; }
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
-
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: var(--cream-deep); border-radius: 4px; }
-::-webkit-scrollbar-track { background: transparent; }

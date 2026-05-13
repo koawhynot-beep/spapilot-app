@@ -1,52 +1,38 @@
-import { useState, useEffect, useCallback, createContext, useContext, useMemo, useRef, Component } from 'react';
+import React, { useState, useEffect, useCallback, Component, useMemo } from 'react';
 import {
-  Calendar, Users, Package, LayoutDashboard, AlertTriangle,
-  CheckCircle, RefreshCw, Bell, User, ShieldCheck, Send, Home, Inbox,
-  Plus, Trash2, Edit2, X, LogOut, Megaphone, PhoneCall, CalendarOff,
-  Repeat, Leaf, Sparkles, Gem, Check, Lock,
-  Building2, Mail, Search, Download, Globe,
+  Package, Store, Users, ShieldCheck, LogOut, Plus, Trash2, Edit2,
+  Search, RefreshCw, Check, X, AlertTriangle, Copy, Megaphone, Settings,
+  ChevronRight, ChevronLeft, Eye, EyeOff, Minus, ArrowLeft, Lock,
 } from 'lucide-react';
 import './App.css';
 
-// ── Error Boundary ────────────────────────────────────
+// ── Config ────────────────────────────────────────────────
+const API = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const TOKEN_KEY = 'stockpilot_token';
+
+const getToken = () => localStorage.getItem(TOKEN_KEY);
+const setToken = (t) => {
+  if (t) localStorage.setItem(TOKEN_KEY, t);
+  else localStorage.removeItem(TOKEN_KEY);
+};
+
+// ── Error Boundary ────────────────────────────────────────
 class ErrorBoundary extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('Boundary:', error, info); }
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          minHeight: '100vh', padding: '20px', background: '#fff', textAlign: 'center', fontFamily: 'system-ui'
-        }}>
-          <AlertTriangle size={48} color="#d32f2f" style={{ marginBottom: '16px' }} />
-          <h1 style={{ color: '#d32f2f', marginBottom: '8px' }}>Something went wrong</h1>
-          <p style={{ color: '#666', marginBottom: '16px' }}>The app encountered an error. Try reloading.</p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              padding: '10px 20px', background: '#2d5a4a', color: '#fff', border: 'none',
-              borderRadius: '4px', cursor: 'pointer', fontSize: '14px'
-            }}
-          >
-            Reload App
-          </button>
-          {process.env.NODE_ENV === 'development' && this.state.error && (
-            <pre style={{ marginTop: '20px', padding: '10px', background: '#f5f5f5', overflow: 'auto', maxWidth: '100%' }}>
-              {this.state.error.toString()}
-            </pre>
-          )}
+        <div className="auth-screen">
+          <div className="auth-card" style={{ textAlign: 'center' }}>
+            <AlertTriangle size={48} color="#c4453a" style={{ margin: '0 auto 16px' }} />
+            <h2>Something went wrong</h2>
+            <p style={{ color: '#666', marginBottom: 24 }}>Try reloading the app.</p>
+            <button className="btn btn-primary btn-block" onClick={() => window.location.reload()}>
+              Reload
+            </button>
+          </div>
         </div>
       );
     }
@@ -54,569 +40,9 @@ class ErrorBoundary extends Component {
   }
 }
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:3000';
-const TOKEN_KEY = 'app_token';
-const LANG_KEY = 'app_lang';
-
-// One-time migration: copy any existing tokens/lang from old "opus_*" keys to new keys,
-// then delete the old keys so nothing references the legacy brand.
-(function migrateLegacyKeys() {
-  if (typeof window === 'undefined') return;
-  const map = { opus_token: TOKEN_KEY, opus_lang: LANG_KEY };
-  for (const [oldKey, newKey] of Object.entries(map)) {
-    const v = localStorage.getItem(oldKey);
-    if (v != null && localStorage.getItem(newKey) == null) {
-      localStorage.setItem(newKey, v);
-    }
-    localStorage.removeItem(oldKey);
-  }
-})();
-const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
-// Per-user tour key so every new account sees the tour fresh, even on shared browsers.
-const tourKeyFor = (user) => user?.id ? `spapilot-tutorial-done-u${user.id}` : TOUR_DONE_KEY;
-
-const TOUR_STEPS = [
-  { targetId: 'tab-dashboard',     message: "Your dashboard — today's overview lives here", position: 'top' },
-  { targetId: 'tab-schedule',      message: 'Schedule — manage every booking and shift',    position: 'top' },
-  { targetId: 'tab-clients',       message: 'Clients — see everyone you serve, with full visit history', position: 'top' },
-  { targetId: 'tab-staff',         message: 'Staff — your team, their roles, and schedules', position: 'top' },
-  { targetId: 'tab-inventory',     message: 'Stock — track supplies and get low-stock alerts', position: 'top' },
-  { targetId: 'tab-alerts',        message: 'Alerts — staff requests and stock warnings land here', position: 'top' },
-  { targetId: 'tab-sop',           message: 'SOPs — your standards, and any violations to log', position: 'top' },
-  { targetId: 'tab-announcements', message: 'Send — broadcast announcements to your team',  position: 'top' },
-];
-
-// ---------- i18n ----------
-const TRANSLATIONS = {
-  en: {
-    welcomeBack: 'Welcome back.', createWorkspace: 'Create your workspace.',
-    signIn: 'Sign in', createAccount: 'Create account', signOut: 'Sign out',
-    email: 'Email', password: 'Password', confirmPassword: 'Confirm password',
-    emailRequired: 'Email and password required', passwordsDontMatch: 'Passwords do not match',
-    passwordTooShort: 'Password must be 8+ characters', pleaseWait: 'Please wait…',
-    emailPlaceholder: 'you@example.com',
-    pwSignup: 'At least 8 characters', pwLogin: 'Your password',
-    pickBusiness: 'pick your business type.', soon: 'Soon',
-    spaWellness: 'Spa & Wellness', spaSub: 'Massage, facials, treatment rooms',
-    salon: 'Salon', gym: 'Gym & Fitness', restaurant: 'Restaurant', retail: 'Retail / Other',
-    comingSoon: 'Coming soon',
-    oneLast: 'One last step — who are you?',
-    manager: 'Manager', staff: 'Staff', owner: 'Owner', managerSub: 'Run the day, manage the team',
-    staffSub: 'Your shifts, your guests', whichMember: 'Which team member are you?',
-    back: 'Back', continue: 'Continue', saving: 'Saving…',
-    switch: 'Switch', loading: 'Loading…', retry: 'Retry',
-    home: 'Home', schedule: 'Schedule', stock: 'Stock', alerts: 'Alerts', clients: 'Clients',
-    services: 'Services',
-    sop: 'SOP', send: 'Send', today: 'Today', inbox: 'Inbox', profile: 'Profile',
-    add: 'Add', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
-    approve: 'Approve', decline: 'Decline', remove: 'Remove', reload: 'Reload',
-    todaysBookings: "Today's Bookings", activeStaff: 'Active Staff', lowStock: 'Low Stock',
-    pendingRequest: 'pending request', pendingRequests: 'pending requests', review: 'Review',
-    upcomingBookings: 'Upcoming Bookings', viewAll: 'View all',
-    todaysChecklist: "Today's Checklist", latestAnnouncement: 'Latest Announcement',
-    manage: 'Manage', noAnnouncements: 'No announcements yet.',
-    recentSopNotes: 'Recent SOP Notes', sopViolation: 'SOP violation logged',
-    todaysSchedule: "Today's Schedule", noBookings: 'No bookings today.', weekOverview: 'Week Overview',
-    deleteBooking: 'Delete this booking?', bookingDeleted: 'Booking deleted',
-    bookingAdded: 'Booking added', bookingUpdated: 'Booking updated',
-    couldNotDeleteBooking: 'Could not delete booking',
-    newBooking: 'New Booking', editBooking: 'Edit Booking',
-    client: 'Client', treatment: 'Service', time: 'Time', durationMin: 'Duration (min)',
-    therapist: 'Provider', notes: 'Notes', rolePlaceholder: 'e.g. Manager, Stylist, Trainer',
-    teamMembers: 'Team Members', noTeamYet: 'No team members yet.',
-    removeStaff: 'Remove this staff member?', staffRemoved: 'Staff removed',
-    staffAdded: 'Staff added', staffUpdated: 'Staff updated',
-    couldNotRemoveStaff: 'Could not remove staff',
-    sopNotes: 'SOP notes', sopNote: 'SOP note',
-    addTeamMember: 'Add Team Member', editTeamMember: 'Edit Team Member',
-    name: 'Name', role: 'Role', birthday: 'Birthday', avatarColor: 'Avatar color',
-    workingDays: 'Working days',
-    inventory: 'Inventory', noItemsYet: 'No items yet.',
-    removeItem: 'Remove this item?', itemRemoved: 'Item removed',
-    itemAdded: 'Item added', itemUpdated: 'Item updated', markedOrdered: 'Marked as ordered',
-    couldNotUpdateStock: 'Could not update stock',
-    couldNotMarkOrdered: 'Could not mark ordered', couldNotRemoveItem: 'Could not remove item',
-    decrease: 'decrease', increase: 'increase', ordered: 'Ordered',
-    low: 'Low', addItem: 'Add Item', editItem: 'Edit Item',
-    category: 'Category', stockLevel: 'Stock', threshold: 'Low Stock Alert', unit: 'Unit', supplier: 'Supplier',
-    sopTitle: 'Standard Operating Procedures',
-    logSopViolation: 'Log SOP Violation', log: 'Log',
-    noViolations: 'No violations logged.', repeatOffenders: 'Repeat Offenders',
-    notes_n: 'notes', notes_1: 'note',
-    removeViolation: 'Remove this violation note?', noteRemoved: 'Note removed',
-    couldNotRemoveNote: 'Could not remove note', violationLogged: 'Violation logged',
-    logViolation: 'Log Violation', staffPerson: 'Staff', sopRule: 'SOP', noteText: 'Note',
-    stockAlerts: 'Stock Alerts', allStockHealthy: 'All stock healthy',
-    staffRequests: 'Staff Requests', noPendingReq: 'No pending requests',
-    reorder: 'Reorder',
-    sickCall: 'Sick Call', dayOff: 'Day Off', shiftSwap: 'Shift Swap',
-    noReason: 'No reason given',
-    bookingNeedReassign1: 'booking needs reassigning.',
-    bookingNeedReassign: 'bookings need reassigning.',
-    approveReassign: 'Approve & Reassign',
-    requestApproved: 'Request approved', requestDeclined: 'Request declined',
-    couldNotUpdateRequest: 'Could not update request',
-    reassignBookings: 'Reassign Bookings', assignBookingsTo: "Assign this staffer's bookings on",
-    to: 'to:',
-    announcements: 'Announcements', nothingSent: 'Nothing sent yet.',
-    deleteAnnouncement: 'Delete announcement?', deleted: 'Deleted',
-    couldNotDeleteAnnouncement: 'Could not delete announcement',
-    announcementSent: 'Announcement sent',
-    newAnnouncement: 'New Announcement', title: 'Title', message: 'Message', from: 'From',
-    sending: 'Sending…',
-    goodMorning: 'Good morning', sessionsToday: 'sessions today',
-    myWeek: 'My Week', on: 'On', off: 'Off', todaysSessions: "Today's Sessions",
-    noSessionsToday: 'No sessions today.', noSessions: 'No sessions scheduled.',
-    theTeam: 'The Team',
-    quickActions: 'Quick Actions', sick: 'Sick', dayOffShort: 'Day off', swap: 'Swap',
-    complaintsToLearn: 'Complaints to Learn From', myRequests: 'My Requests',
-    noRequestsSubmitted: 'No requests submitted.',
-    requestSubmitted: 'Request submitted', couldNotSubmitRequest: 'Could not submit request',
-    callInSick: 'Call in Sick', requestDayOff: 'Request Day Off', requestSwap: 'Request Shift Swap',
-    date: 'Date', swapWith: 'Swap with', selectColleague: 'Select colleague',
-    theirDay: 'Their day', reason: 'Reason', noteOptional: 'Note (optional)', submit: 'Submit',
-    sickReasonRequired: 'Please explain why you are calling in sick.',
-    sickCallNotice: 'Policy: call in sick at least 3 hours before your shift starts.',
-    daysWeek: 'Days / week', mySopNotes: 'My SOP Notes', cleanRecord: 'Clean record — well done.',
-    selectStaff: 'Select team member',
-    search: 'Search', sortBy: 'Sort by', filterCategory: 'Filter category', allCategories: 'All',
-    timeAsc: 'Time ↑', timeDesc: 'Time ↓', exportCsv: '⬇ Download Spreadsheet',
-    language: 'Language', english: 'English', indonesian: 'Bahasa',
-    failed: 'Failed', noResults: 'No results.',
-    active: 'Active', leftLabel: 'left · quota',
-    todaySopReminder: "Today's SOP Reminder", yourSessions: 'Your Sessions',
-    noteLabel: 'Note:', birthdayLabel: 'Birthday:',
-    teamSize: 'Team Size', sopNotesStat: 'SOP Notes',
-    snapshot: 'Snapshot', lowStockItems: 'Low stock items', flagged: 'flagged',
-    pendingRequestsSnap: 'Pending requests', announcementsSent: 'Announcements sent',
-    team: 'Team', sessionsTodayStat: 'Sessions today',
-    loadingProfile: 'Loading profile…',
-    checklistOpen: 'Unlock reception & diffuse oils',
-    checklistBrief: 'Morning team briefing',
-    checklistInventory: 'Check low-stock items',
-    checklistWrapup: 'End-of-day reconciliation',
-    quickActionsBar: 'Quick Actions', reorderAll: 'Reorder all low stock',
-    reviewRequests: 'Review sick calls', broadcast: 'Broadcast message',
-    reorderAllDone: 'Reorder placed for all low-stock items',
-    noLowStock: 'Nothing to reorder',
-    callOutSick: 'Call out sick today', sickCallToday: 'Sick call submitted for today',
-    allergies: 'Allergies', clientPhone: 'Client phone',
-    price: 'Price', staffPhone: 'Staff phone', whatsapp: 'WhatsApp',
-    undo: 'Undo', restored: 'Restored',
-    thisWeek: 'This Week', revenue: 'Revenue', completed: 'Completed',
-    avgPerDay: 'Avg / day', topTherapist: 'Top Performer',
-    commission: 'Commission', commissionRate: 'Commission rate (%)',
-    estEarnings: 'Est. earnings', deferred: 'Coming soon',
-    friction: 'Notes for your team:', waMsg: 'Hi, quick check-in from the team.',
-    days: { Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri', Sat: 'Sat', Sun: 'Sun' },
-    forgotPassword: 'Forgot password?', sendResetLink: 'Send Reset Link',
-    resetPassword: 'Reset Password', backToLogin: 'Back to login',
-    resetLinkSent: 'If that email is registered, a reset link has been sent.',
-    newPassword: 'New Password', passwordResetSuccess: 'Password reset. You can now log in.',
-    requestStock: 'Request Stock', stockRequest: 'Stock Request',
-    product: 'Product', quantityLabel: 'Quantity',
-    stockRequestSubmitted: 'Stock request submitted',
-    permissionsLabel: 'Permissions',
-    permCanViewSchedule: 'Can view schedules',
-    permCanRequestTimeOff: 'Can request time off',
-    permCanSwapShifts: 'Can swap shifts',
-    permCanRequestStock: 'Can request product stock',
-    permCanRequestNewProducts: 'Can request new products',
-    permCanEditStock: 'Can directly edit stock levels',
-    permCanMarkViolations: 'Can mark SOP violations',
-    permCanPostAnnouncements: 'Can post announcements',
-    emptyBookingsTitle: 'No bookings yet',
-    emptyBookingsBody: 'Add your first appointment to see it on the schedule.',
-    emptyInventoryTitle: 'No products yet',
-    emptyInventoryBody: 'Track supplies, ingredients, or anything that runs out.',
-    emptyStaffTitle: 'No team members yet',
-    emptyStaffBody: 'Add the people who work with you so you can assign bookings.',
-    emptySopTitle: 'No procedures yet',
-    emptySopBody: 'Document the rules and routines your team should follow.',
-    addFirstBooking: 'Add your first booking',
-    addFirstProduct: 'Add your first product',
-    addFirstTeamMember: 'Add your first team member',
-    addFirstSop: 'Add your first procedure',
-    addSopRule: 'Add Rule', sopRuleAdded: 'Rule added', sopRuleRemoved: 'Rule removed',
-    removeSopRule: 'Remove this rule?', sopRuleTitle: 'Rule title', sopRuleDesc: 'Description (optional)',
-    noSopsYetViolation: 'Add SOP rules first before logging a violation.',
-    landingHero: 'Service business management made simple.',
-    landingSub: 'Schedule staff, track inventory, manage operations, reduce chaos.',
-    featSchedTitle: 'Scheduling',
-    featSchedBody: 'Bookings, shifts, swaps, and reassignments — all in one calendar.',
-    featOpsTitle: 'Operations',
-    featOpsBody: 'Inventory tracking, low-stock alerts, daily checklists, SOPs.',
-    featTeamTitle: 'Team Management',
-    featTeamBody: 'Roles, permissions, time-off requests, sick calls, swap shifts.',
-    startFreeTrial: 'No credit card. Start free trial',
-    haveAccount: 'Already have an account?',
-    trialFinePrint: '7-day free trial',
-    trialFinePrintSub: 'Then $19/month. Cancel anytime.',
-    whatYouCanDo: 'What you can do',
-    trialActiveBanner: 'Trial active — {n} days left',
-    trialEndingSoon: 'Trial ends in {n} days',
-    trialEnded: 'Trial ended',
-    trialActiveUntil: 'Trial active until',
-    chooseYourPath: 'How will you use this app?',
-    iOwnBusiness: 'Set up my business',
-    iOwnBusinessSub: 'Create your workspace and invite your team.',
-    iWorkAsStaff: 'Join my team',
-    iWorkAsStaffSub: 'Use a code to join your business.',
-    setupBusiness: 'Set up your business',
-    setupBusinessSub: 'A few details so we can build your workspace.',
-    businessName: 'Business name',
-    businessNamePh: 'e.g. Your Business Name',
-    businessTypeLabel: 'Business type',
-    bizTypeSpa: 'Spa', bizTypeSalon: 'Salon', bizTypeBarbershop: 'Barbershop',
-    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Clinic', bizTypeOther: 'Other',
-    numberOfStaff: 'Number of staff',
-    createBusiness: 'Create business',
-    joinBusiness: 'Join your business',
-    joinBusinessSub: 'Enter the code your owner shared with you.',
-    businessCode: 'Business code',
-    businessCodePh: 'e.g. AB12CD',
-    join: 'Join',
-    invalidBusinessCode: 'Invalid business code',
-    noCodeYet: "Don't have a code? Ask the business owner to share it.",
-    paymentRequiredTitle: 'Trial ended',
-    paymentRequiredSub: 'Subscribe to keep using your workspace.',
-    subscribeMonthly: 'Subscribe — $19/month',
-    subscribeNote: 'Secure checkout via Stripe. Cancel anytime.',
-    settings: 'Settings',
-    manageSubscription: 'Manage subscription',
-    switchAccountType: 'Switch account type',
-    confirmSwitchAccountType: 'Switching account type will require re-onboarding. Continue?',
-    yourBusinessCode: 'Your business code',
-    shareWithStaff: 'Share this code with your staff so they can join.',
-    copy: 'Copy', copied: 'Copied',
-    activated: 'Subscription activated',
-    checklist: 'Checklist',
-    checklistAdd: 'Add a task…',
-    checklistEmpty: 'No tasks yet. Add one below.',
-    tapThisTab: 'Tap this tab ↓',
-    tutorialStep1Title: 'Welcome to your workspace',
-    tutorialStep1Body: "Everything's set up. Let's show you where things live.",
-    tutorialStep2Title: 'Schedule',
-    tutorialStep2Body: 'Add appointments, bookings, and sessions here. This is the main calendar for your business.',
-    tutorialStep3Title: 'Team',
-    tutorialStep3Body: 'Add the people who work with you. Assign them to bookings and manage their shifts.',
-    tutorialStep4Title: 'Stock',
-    tutorialStep4Body: 'Track your supplies, products, and anything that runs low. Get alerts before you run out.',
-    tutorialStep5Title: "You're all set",
-    tutorialStep5Body: 'Start by adding your first team member or booking. Your dashboard will fill up from there.',
-    tutorialNext: 'Next',
-    tutorialGetStarted: 'Get started',
-    tutorialSkip: 'Skip tour',
-  },
-  id: {
-    welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
-    signIn: 'Masuk', createAccount: 'Daftar', signOut: 'Keluar',
-    email: 'Email', password: 'Kata sandi', confirmPassword: 'Konfirmasi kata sandi',
-    emailRequired: 'Email dan kata sandi wajib diisi', passwordsDontMatch: 'Kata sandi tidak cocok',
-    passwordTooShort: 'Kata sandi minimal 8 karakter', pleaseWait: 'Mohon tunggu…',
-    emailPlaceholder: 'anda@contoh.com',
-    pwSignup: 'Minimal 8 karakter', pwLogin: 'Kata sandi Anda',
-    pickBusiness: 'pilih jenis bisnis Anda.', soon: 'Segera',
-    spaWellness: 'Spa & Kebugaran', spaSub: 'Pijat, perawatan wajah, ruang terapi',
-    salon: 'Salon', gym: 'Gym & Kebugaran', restaurant: 'Restoran', retail: 'Ritel / Lainnya',
-    comingSoon: 'Segera hadir',
-    oneLast: 'Satu langkah lagi — siapa Anda?',
-    manager: 'Manajer', staff: 'Staf', owner: 'Pemilik', managerSub: 'Atur hari, kelola tim',
-    staffSub: 'Shift Anda, tamu Anda', whichMember: 'Anggota tim mana Anda?',
-    back: 'Kembali', continue: 'Lanjut', saving: 'Menyimpan…',
-    switch: 'Tukar', loading: 'Memuat…', retry: 'Coba lagi',
-    home: 'Beranda', schedule: 'Jadwal', stock: 'Stok', alerts: 'Peringatan', clients: 'Klien',
-    services: 'Layanan',
-    sop: 'SOP', send: 'Kirim', today: 'Hari ini', inbox: 'Kotak Masuk', profile: 'Profil',
-    add: 'Tambah', edit: 'Ubah', delete: 'Hapus', save: 'Simpan', cancel: 'Batal',
-    approve: 'Setujui', decline: 'Tolak', remove: 'Hapus', reload: 'Muat ulang',
-    todaysBookings: 'Pemesanan Hari Ini', activeStaff: 'Staf Aktif', lowStock: 'Stok Menipis',
-    pendingRequest: 'permintaan tertunda', pendingRequests: 'permintaan tertunda', review: 'Tinjau',
-    upcomingBookings: 'Pemesanan Mendatang', viewAll: 'Lihat semua',
-    todaysChecklist: 'Daftar Periksa Hari Ini', latestAnnouncement: 'Pengumuman Terbaru',
-    manage: 'Kelola', noAnnouncements: 'Belum ada pengumuman.',
-    recentSopNotes: 'Catatan SOP Terbaru', sopViolation: 'Pelanggaran SOP dicatat',
-    todaysSchedule: 'Jadwal Hari Ini', noBookings: 'Tidak ada pemesanan hari ini.', weekOverview: 'Ringkasan Minggu',
-    deleteBooking: 'Hapus pemesanan ini?', bookingDeleted: 'Pemesanan dihapus',
-    bookingAdded: 'Pemesanan ditambahkan', bookingUpdated: 'Pemesanan diperbarui',
-    couldNotDeleteBooking: 'Tidak dapat menghapus pemesanan',
-    newBooking: 'Pemesanan Baru', editBooking: 'Ubah Pemesanan',
-    client: 'Klien', treatment: 'Layanan', time: 'Waktu', durationMin: 'Durasi (menit)',
-    therapist: 'Penyedia', notes: 'Catatan', rolePlaceholder: 'misal Manajer, Penata, Pelatih',
-    teamMembers: 'Anggota Tim', noTeamYet: 'Belum ada anggota tim.',
-    removeStaff: 'Hapus anggota staf ini?', staffRemoved: 'Staf dihapus',
-    staffAdded: 'Staf ditambahkan', staffUpdated: 'Staf diperbarui',
-    couldNotRemoveStaff: 'Tidak dapat menghapus staf',
-    sopNotes: 'catatan SOP', sopNote: 'catatan SOP',
-    addTeamMember: 'Tambah Anggota Tim', editTeamMember: 'Ubah Anggota Tim',
-    name: 'Nama', role: 'Peran', birthday: 'Ulang Tahun', avatarColor: 'Warna avatar',
-    workingDays: 'Hari kerja',
-    inventory: 'Inventaris', noItemsYet: 'Belum ada item.',
-    removeItem: 'Hapus item ini?', itemRemoved: 'Item dihapus',
-    itemAdded: 'Item ditambahkan', itemUpdated: 'Item diperbarui', markedOrdered: 'Ditandai sebagai dipesan',
-    couldNotUpdateStock: 'Tidak dapat memperbarui stok',
-    couldNotMarkOrdered: 'Tidak dapat menandai dipesan', couldNotRemoveItem: 'Tidak dapat menghapus item',
-    decrease: 'kurangi', increase: 'tambah', ordered: 'Dipesan',
-    low: 'Rendah', addItem: 'Tambah Item', editItem: 'Ubah Item',
-    category: 'Kategori', stockLevel: 'Stok', threshold: 'Peringatan Stok Rendah', unit: 'Unit', supplier: 'Pemasok',
-    sopTitle: 'Prosedur Operasi Standar',
-    logSopViolation: 'Catat Pelanggaran SOP', log: 'Catat',
-    noViolations: 'Tidak ada pelanggaran tercatat.', repeatOffenders: 'Pelanggar Berulang',
-    notes_n: 'catatan', notes_1: 'catatan',
-    removeViolation: 'Hapus catatan pelanggaran ini?', noteRemoved: 'Catatan dihapus',
-    couldNotRemoveNote: 'Tidak dapat menghapus catatan', violationLogged: 'Pelanggaran dicatat',
-    logViolation: 'Catat Pelanggaran', staffPerson: 'Staf', sopRule: 'SOP', noteText: 'Catatan',
-    stockAlerts: 'Peringatan Stok', allStockHealthy: 'Semua stok sehat',
-    staffRequests: 'Permintaan Staf', noPendingReq: 'Tidak ada permintaan tertunda',
-    reorder: 'Pesan ulang',
-    sickCall: 'Panggilan Sakit', dayOff: 'Hari Libur', shiftSwap: 'Tukar Shift',
-    noReason: 'Tidak ada alasan',
-    bookingNeedReassign1: 'pemesanan perlu dialihkan.',
-    bookingNeedReassign: 'pemesanan perlu dialihkan.',
-    approveReassign: 'Setujui & Alihkan',
-    requestApproved: 'Permintaan disetujui', requestDeclined: 'Permintaan ditolak',
-    couldNotUpdateRequest: 'Tidak dapat memperbarui permintaan',
-    reassignBookings: 'Alihkan Pemesanan', assignBookingsTo: 'Alihkan pemesanan staf ini pada',
-    to: 'kepada:',
-    announcements: 'Pengumuman', nothingSent: 'Belum ada yang dikirim.',
-    deleteAnnouncement: 'Hapus pengumuman?', deleted: 'Dihapus',
-    couldNotDeleteAnnouncement: 'Tidak dapat menghapus pengumuman',
-    announcementSent: 'Pengumuman terkirim',
-    newAnnouncement: 'Pengumuman Baru', title: 'Judul', message: 'Pesan', from: 'Dari',
-    sending: 'Mengirim…',
-    goodMorning: 'Selamat pagi', sessionsToday: 'sesi hari ini',
-    myWeek: 'Minggu Saya', on: 'Aktif', off: 'Libur', todaysSessions: 'Sesi Hari Ini',
-    noSessionsToday: 'Tidak ada sesi hari ini.', noSessions: 'Tidak ada sesi terjadwal.',
-    theTeam: 'Tim',
-    quickActions: 'Aksi Cepat', sick: 'Sakit', dayOffShort: 'Libur', swap: 'Tukar',
-    complaintsToLearn: 'Keluhan untuk Dipelajari', myRequests: 'Permintaan Saya',
-    noRequestsSubmitted: 'Tidak ada permintaan diajukan.',
-    requestSubmitted: 'Permintaan diajukan', couldNotSubmitRequest: 'Tidak dapat mengajukan permintaan',
-    callInSick: 'Lapor Sakit', requestDayOff: 'Minta Libur', requestSwap: 'Minta Tukar Shift',
-    date: 'Tanggal', swapWith: 'Tukar dengan', selectColleague: 'Pilih rekan',
-    theirDay: 'Hari mereka', reason: 'Alasan', noteOptional: 'Catatan (opsional)', submit: 'Kirim',
-    sickReasonRequired: 'Jelaskan mengapa Anda tidak bisa masuk.',
-    sickCallNotice: 'Kebijakan: lapor sakit minimal 3 jam sebelum shift dimulai.',
-    daysWeek: 'Hari / minggu', mySopNotes: 'Catatan SOP Saya', cleanRecord: 'Catatan bersih — kerja bagus.',
-    selectStaff: 'Pilih anggota tim',
-    search: 'Cari', sortBy: 'Urutkan', filterCategory: 'Filter kategori', allCategories: 'Semua',
-    timeAsc: 'Waktu ↑', timeDesc: 'Waktu ↓', exportCsv: '⬇ Unduh Spreadsheet',
-    language: 'Bahasa', english: 'English', indonesian: 'Bahasa',
-    failed: 'Gagal', noResults: 'Tidak ada hasil.',
-    active: 'Aktif', leftLabel: 'tersisa · kuota',
-    todaySopReminder: 'Pengingat SOP Hari Ini', yourSessions: 'Sesi Anda',
-    noteLabel: 'Catatan:', birthdayLabel: 'Ulang Tahun:',
-    teamSize: 'Jumlah Tim', sopNotesStat: 'Catatan SOP',
-    snapshot: 'Ringkasan', lowStockItems: 'Item stok rendah', flagged: 'ditandai',
-    pendingRequestsSnap: 'Permintaan tertunda', announcementsSent: 'Pengumuman terkirim',
-    team: 'Tim', sessionsTodayStat: 'Sesi hari ini',
-    loadingProfile: 'Memuat profil…',
-    checklistOpen: 'Buka resepsi & nyalakan diffuser',
-    checklistBrief: 'Briefing tim pagi',
-    checklistInventory: 'Periksa item stok rendah',
-    checklistWrapup: 'Rekonsiliasi akhir hari',
-    quickActionsBar: 'Aksi Cepat', reorderAll: 'Pesan ulang semua stok menipis',
-    reviewRequests: 'Tinjau panggilan sakit', broadcast: 'Kirim pengumuman',
-    reorderAllDone: 'Pesanan ulang dibuat untuk semua item menipis',
-    noLowStock: 'Tidak ada yang perlu dipesan',
-    callOutSick: 'Lapor sakit hari ini', sickCallToday: 'Laporan sakit hari ini dikirim',
-    allergies: 'Alergi', clientPhone: 'Telp klien',
-    price: 'Harga', staffPhone: 'Telp staf', whatsapp: 'WhatsApp',
-    undo: 'Batalkan', restored: 'Dipulihkan',
-    thisWeek: 'Minggu Ini', revenue: 'Pendapatan', completed: 'Selesai',
-    avgPerDay: 'Rata-rata / hari', topTherapist: 'Staf Terbaik',
-    commission: 'Komisi', commissionRate: 'Tingkat komisi (%)',
-    estEarnings: 'Perkiraan pendapatan', deferred: 'Segera hadir',
-    friction: 'Catatan untuk tim Anda:', waMsg: 'Halo, pemberitahuan singkat dari tim.',
-    days: { Mon: 'Sen', Tue: 'Sel', Wed: 'Rab', Thu: 'Kam', Fri: 'Jum', Sat: 'Sab', Sun: 'Min' },
-    forgotPassword: 'Lupa kata sandi?', sendResetLink: 'Kirim Link Reset',
-    resetPassword: 'Reset Kata Sandi', backToLogin: 'Kembali ke login',
-    resetLinkSent: 'Jika email terdaftar, link reset telah dikirim.',
-    newPassword: 'Kata Sandi Baru', passwordResetSuccess: 'Kata sandi direset. Silakan masuk.',
-    requestStock: 'Minta Stok', stockRequest: 'Permintaan Stok',
-    product: 'Produk', quantityLabel: 'Jumlah',
-    stockRequestSubmitted: 'Permintaan stok dikirim',
-    permissionsLabel: 'Izin',
-    permCanViewSchedule: 'Boleh lihat jadwal',
-    permCanRequestTimeOff: 'Boleh minta cuti',
-    permCanSwapShifts: 'Boleh tukar shift',
-    permCanRequestStock: 'Boleh minta stok produk',
-    permCanEditStock: 'Boleh mengedit stok langsung',
-    permCanRequestNewProducts: 'Boleh minta produk baru',
-    permCanMarkViolations: 'Boleh catat pelanggaran SOP',
-    permCanPostAnnouncements: 'Boleh kirim pengumuman',
-    emptyBookingsTitle: 'Belum ada pemesanan',
-    emptyBookingsBody: 'Tambahkan janji pertama Anda untuk melihatnya di jadwal.',
-    emptyInventoryTitle: 'Belum ada produk',
-    emptyInventoryBody: 'Lacak persediaan, bahan, atau apa pun yang sering habis.',
-    emptyStaffTitle: 'Belum ada anggota tim',
-    emptyStaffBody: 'Tambahkan orang yang bekerja dengan Anda agar bisa diberi pemesanan.',
-    emptySopTitle: 'Belum ada prosedur',
-    emptySopBody: 'Dokumentasikan aturan dan rutinitas yang harus diikuti tim.',
-    addFirstBooking: 'Tambah pemesanan pertama',
-    addFirstProduct: 'Tambah produk pertama',
-    addFirstTeamMember: 'Tambah anggota tim pertama',
-    addFirstSop: 'Tambah prosedur pertama',
-    addSopRule: 'Tambah Aturan', sopRuleAdded: 'Aturan ditambahkan', sopRuleRemoved: 'Aturan dihapus',
-    removeSopRule: 'Hapus aturan ini?', sopRuleTitle: 'Judul aturan', sopRuleDesc: 'Deskripsi (opsional)',
-    noSopsYetViolation: 'Tambahkan aturan SOP terlebih dahulu sebelum mencatat pelanggaran.',
-    landingHero: 'Manajemen bisnis jasa dipermudah.',
-    landingSub: 'Atur jadwal staf, lacak inventaris, kelola operasional, kurangi kekacauan.',
-    featSchedTitle: 'Penjadwalan',
-    featSchedBody: 'Pemesanan, shift, tukar, dan pengalihan — semua dalam satu kalender.',
-    featOpsTitle: 'Operasional',
-    featOpsBody: 'Lacak inventaris, peringatan stok rendah, daftar harian, SOP.',
-    featTeamTitle: 'Manajemen Tim',
-    featTeamBody: 'Peran, izin, permintaan cuti, lapor sakit, tukar shift.',
-    startFreeTrial: 'Tanpa kartu kredit. Mulai uji coba gratis',
-    haveAccount: 'Sudah punya akun?',
-    trialFinePrint: 'Uji coba 7 hari gratis',
-    trialFinePrintSub: 'Lalu $19/bulan. Batal kapan saja.',
-    whatYouCanDo: 'Apa yang bisa Anda lakukan',
-    trialActiveBanner: 'Uji coba aktif — sisa {n} hari',
-    trialEndingSoon: 'Uji coba berakhir dalam {n} hari',
-    trialEnded: 'Uji coba berakhir',
-    trialActiveUntil: 'Uji coba aktif hingga',
-    chooseYourPath: 'Bagaimana Anda akan menggunakan aplikasi ini?',
-    iOwnBusiness: 'Siapkan bisnis saya',
-    iOwnBusinessSub: 'Buat ruang kerja Anda dan undang tim.',
-    iWorkAsStaff: 'Gabung tim saya',
-    iWorkAsStaffSub: 'Gunakan kode untuk bergabung.',
-    setupBusiness: 'Siapkan bisnis Anda',
-    setupBusinessSub: 'Beberapa detail untuk membangun ruang kerja Anda.',
-    businessName: 'Nama bisnis',
-    businessNamePh: 'misal Nama Bisnis Anda',
-    businessTypeLabel: 'Jenis bisnis',
-    bizTypeSpa: 'Spa', bizTypeSalon: 'Salon', bizTypeBarbershop: 'Pangkas Rambut',
-    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Klinik', bizTypeOther: 'Lainnya',
-    numberOfStaff: 'Jumlah staf',
-    createBusiness: 'Buat bisnis',
-    joinBusiness: 'Gabung bisnis Anda',
-    joinBusinessSub: 'Masukkan kode dari pemilik.',
-    businessCode: 'Kode bisnis',
-    businessCodePh: 'misal AB12CD',
-    join: 'Gabung',
-    invalidBusinessCode: 'Kode bisnis tidak valid',
-    noCodeYet: 'Belum punya kode? Minta dari pemilik bisnis.',
-    paymentRequiredTitle: 'Uji coba berakhir',
-    paymentRequiredSub: 'Berlangganan untuk terus menggunakan ruang kerja Anda.',
-    subscribeMonthly: 'Berlangganan — $19/bulan',
-    subscribeNote: 'Pembayaran aman via Stripe. Batal kapan saja.',
-    settings: 'Pengaturan',
-    manageSubscription: 'Kelola langganan',
-    switchAccountType: 'Ganti jenis akun',
-    confirmSwitchAccountType: 'Mengganti jenis akun memerlukan onboarding ulang. Lanjut?',
-    yourBusinessCode: 'Kode bisnis Anda',
-    shareWithStaff: 'Bagikan kode ini agar staf bisa bergabung.',
-    copy: 'Salin', copied: 'Disalin',
-    activated: 'Langganan diaktifkan',
-    checklist: 'Daftar Tugas',
-    checklistAdd: 'Tambah tugas…',
-    checklistEmpty: 'Belum ada tugas. Tambahkan di bawah.',
-    tapThisTab: 'Ketuk tab ini ↓',
-    tutorialStep1Title: 'Selamat datang di ruang kerja Anda',
-    tutorialStep1Body: 'Semuanya sudah siap. Kami akan tunjukkan di mana setiap fitur berada.',
-    tutorialStep2Title: 'Jadwal',
-    tutorialStep2Body: 'Tambahkan janji, pemesanan, dan sesi di sini. Ini kalender utama bisnis Anda.',
-    tutorialStep3Title: 'Tim',
-    tutorialStep3Body: 'Tambahkan orang yang bekerja dengan Anda. Atur shift dan tugaskan pemesanan.',
-    tutorialStep4Title: 'Stok',
-    tutorialStep4Body: 'Lacak persediaan dan produk Anda. Dapatkan peringatan sebelum kehabisan.',
-    tutorialStep5Title: 'Semuanya siap',
-    tutorialStep5Body: 'Mulai dengan menambahkan anggota tim atau pemesanan pertama Anda.',
-    tutorialNext: 'Lanjut',
-    tutorialGetStarted: 'Mulai',
-    tutorialSkip: 'Lewati',
-  },
-};
-
-const LangContext = createContext({ lang: 'en', t: (k) => k, setLang: () => {} });
-const useT = () => useContext(LangContext);
-
-// ---------- Business-type-aware terminology ----------
-// Each business type uses different words for the same concepts.
-// gym calls clients "Members", clinic calls them "Patients", hotel calls them "Guests".
-const BIZ_LABELS = {
-  // Broad work categories — primary onboarding choice. Cover any service business.
-  services:   { client: 'Client',   clientPlural: 'Clients',   staffMember: 'Provider', staffPlural: 'Providers', service: 'Service',     servicePlural: 'Services',     booking: 'Booking',     bookingPlural: 'Bookings',     todayCount: "Today's Bookings" },
-  products:   { client: 'Customer', clientPlural: 'Customers', staffMember: 'Staff',    staffPlural: 'Staff',     service: 'Product',     servicePlural: 'Products',     booking: 'Order',       bookingPlural: 'Orders',       todayCount: "Today's Orders" },
-  space:      { client: 'Guest',    clientPlural: 'Guests',    staffMember: 'Staff',    staffPlural: 'Staff',     service: 'Stay',        servicePlural: 'Stays',        booking: 'Check-In',    bookingPlural: 'Check-Ins',    todayCount: "Today's Check-Ins" },
-  mix:        { client: 'Customer', clientPlural: 'Customers', staffMember: 'Staff',    staffPlural: 'Staff',     service: 'Service',     servicePlural: 'Services',     booking: 'Booking',     bookingPlural: 'Bookings',     todayCount: "Today's Bookings" },
-  // Specific industry types — used by the demo's "Try X demo" cards (industry preview).
-  // Existing real users with these legacy types still get correct labels.
-  spa:        { client: 'Client',   clientPlural: 'Clients',   staffMember: 'Therapist', staffPlural: 'Therapists', service: 'Treatment',   servicePlural: 'Treatments',   booking: 'Booking',     bookingPlural: 'Bookings',     todayCount: "Today's Bookings" },
-  salon:      { client: 'Client',   clientPlural: 'Clients',   staffMember: 'Stylist',   staffPlural: 'Stylists',   service: 'Service',     servicePlural: 'Services',     booking: 'Appointment', bookingPlural: 'Appointments', todayCount: "Today's Appointments" },
-  barbershop: { client: 'Client',   clientPlural: 'Clients',   staffMember: 'Barber',    staffPlural: 'Barbers',    service: 'Cut',         servicePlural: 'Services',     booking: 'Appointment', bookingPlural: 'Appointments', todayCount: "Today's Appointments" },
-  gym:        { client: 'Member',   clientPlural: 'Members',   staffMember: 'Trainer',   staffPlural: 'Trainers',   service: 'Class',       servicePlural: 'Classes',      booking: 'Class',       bookingPlural: 'Classes',      todayCount: "Today's Classes" },
-  hotel:      { client: 'Guest',    clientPlural: 'Guests',    staffMember: 'Staff',     staffPlural: 'Staff',      service: 'Stay',        servicePlural: 'Stays',        booking: 'Check-In',    bookingPlural: 'Check-Ins',    todayCount: "Today's Check-Ins" },
-  clinic:     { client: 'Patient',  clientPlural: 'Patients',  staffMember: 'Provider',  staffPlural: 'Providers',  service: 'Appointment', servicePlural: 'Appointments', booking: 'Appointment', bookingPlural: 'Appointments', todayCount: "Today's Appointments" },
-  other:      { client: 'Customer', clientPlural: 'Customers', staffMember: 'Staff',     staffPlural: 'Staff',      service: 'Service',     servicePlural: 'Services',     booking: 'Booking',     bookingPlural: 'Bookings',     todayCount: "Today's Bookings" },
-};
-// Tabs hidden by default per business type.
-const BIZ_HIDDEN_TABS = {
-  services:   [],
-  products:   ['sop'],            // product-only sellers usually skip SOP compliance
-  space:      [],
-  mix:        [],
-  spa:        [],
-  salon:      [],
-  barbershop: ['sop'],
-  gym:        ['sop'],
-  hotel:      [],
-  clinic:     [],
-  other:      ['sop'],
-};
-const BizContext = createContext({ business: null, labels: BIZ_LABELS.spa, hiddenTabs: [] });
-const useBiz = () => useContext(BizContext);
-function BizProvider({ business, children }) {
-  const value = useMemo(() => {
-    const type = business?.type || 'spa';
-    return {
-      business,
-      labels: BIZ_LABELS[type] || BIZ_LABELS.spa,
-      hiddenTabs: BIZ_HIDDEN_TABS[type] || [],
-    };
-  }, [business]);
-  return <BizContext.Provider value={value}>{children}</BizContext.Provider>;
-}
-
-function LangProvider({ children }) {
-  const [lang, setLangState] = useState(() => localStorage.getItem(LANG_KEY) || 'en');
-  const setLang = useCallback((l) => { localStorage.setItem(LANG_KEY, l); setLangState(l); }, []);
-  const t = useCallback((k) => {
-    const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
-    return dict[k] !== undefined ? dict[k] : (TRANSLATIONS.en[k] || k);
-  }, [lang]);
-  const value = useMemo(() => ({ lang, t, setLang }), [lang, t, setLang]);
-  return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
-}
-
-// ---------- CSV export ----------
-function downloadCSV(filename, rows) {
-  if (!rows || rows.length === 0) return;
-  const headers = Object.keys(rows[0]);
-  const escape = (v) => {
-    const s = v == null ? '' : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-// ---------- API helpers ----------
-function getToken() { return localStorage.getItem(TOKEN_KEY); }
-function setToken(t) { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }
-
+// ── API client ────────────────────────────────────────────
 async function api(path, opts = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(opts.headers || {}),
-  };
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   let res;
@@ -627,12 +53,8 @@ async function api(path, opts = {}) {
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
   } catch (e) {
-    // Network failures (server down, DNS, offline) produce TypeError "Failed to fetch".
-    // Translate to a human-readable message so users know what to do.
-    if (!navigator.onLine) {
-      throw new Error("You're offline. Check your internet connection and try again.");
-    }
-    throw new Error("Can't reach the server. It may be starting up — please try again in a moment.");
+    if (!navigator.onLine) throw new Error("You're offline. Check your internet.");
+    throw new Error("Can't reach the server. It may be starting up — try again in a moment.");
   }
   if (res.status === 401) {
     setToken(null);
@@ -641,122 +63,73 @@ async function api(path, opts = {}) {
   if (!res.ok) {
     let msg = `${res.status}`;
     try { const d = await res.json(); msg = d.error || msg; } catch {}
-    if (res.status >= 500) msg = `Server error (${res.status}). Please try again.`;
+    if (res.status >= 500) msg = `Server error (${res.status}). Try again.`;
     throw new Error(msg);
   }
   if (res.status === 204) return null;
   return res.json();
 }
 
+// ── Helpers ───────────────────────────────────────────────
 function useCollection(path, enabled = true, pollMs = 0) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(enabled);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   const reload = useCallback(() => {
     if (!enabled) return;
-    setRefreshing(true);
     setError(null);
     api(path)
-      .then(d => {
-        setData(Array.isArray(d) ? d : []);
-        setLoading(false); setRefreshing(false); setHasLoaded(true);
-      })
-      .catch(e => {
-        setError(e.message);
-        setLoading(false); setRefreshing(false);
-      });
+      .then(d => { setData(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
   }, [path, enabled]);
 
   useEffect(() => { if (enabled) reload(); }, [reload, enabled]);
 
-  // Optional background polling — only when tab visible and enabled, to keep manager
-  // dashboards fresh (new requests / new low-stock alerts) without manual refresh.
   useEffect(() => {
     if (!enabled || !pollMs) return undefined;
     const interval = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        reload();
-      }
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') reload();
     }, pollMs);
     return () => clearInterval(interval);
   }, [enabled, pollMs, reload]);
 
-  // Expose `loading` true only for initial fetch; subsequent refreshes don't blank the UI.
-  return { data, loading: loading && !hasLoaded, refreshing, error, reload, setData };
+  return { data, loading, error, reload, setData };
 }
 
-// ---------- Constants ----------
-const COLOR_OPTIONS = ['#2d5a4a', '#b8956a', '#8ba888', '#d4b896', '#6b8e7f', '#a17c52', '#c9a97a'];
-const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const STAFF_DEFAULT_PERMISSIONS = {
-  canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true,
-  canRequestStock: true, canRequestNewProducts: false,
-  canEditStock: false,
-  canMarkViolations: false, canPostAnnouncements: false,
-};
-const PERMISSION_DEFS = [
-  { key: 'canViewSchedule',        labelKey: 'permCanViewSchedule' },
-  { key: 'canRequestTimeOff',      labelKey: 'permCanRequestTimeOff' },
-  { key: 'canSwapShifts',          labelKey: 'permCanSwapShifts' },
-  { key: 'canRequestStock',        labelKey: 'permCanRequestStock' },
-  { key: 'canRequestNewProducts',  labelKey: 'permCanRequestNewProducts' },
-  { key: 'canEditStock',           labelKey: 'permCanEditStock' },
-  { key: 'canMarkViolations',      labelKey: 'permCanMarkViolations' },
-  { key: 'canPostAnnouncements',   labelKey: 'permCanPostAnnouncements' },
-];
-
-
-// ---------- Shared UI ----------
-function Avatar({ initial, color, size = 36 }) {
+// ── Toast ─────────────────────────────────────────────────
+const ToastCtx = React.createContext(null);
+function ToastProvider({ children }) {
+  const [msg, setMsg] = useState(null);
+  useEffect(() => {
+    if (!msg) return undefined;
+    const t = setTimeout(() => setMsg(null), 3000);
+    return () => clearTimeout(t);
+  }, [msg]);
   return (
-    <div className="avatar" style={{
-      width: size, height: size,
-      background: color, fontSize: size * 0.4,
-    }}>{initial}</div>
+    <ToastCtx.Provider value={setMsg}>
+      {children}
+      {msg && <div className="toast">{msg}</div>}
+    </ToastCtx.Provider>
   );
 }
+const useToast = () => React.useContext(ToastCtx);
 
-function Badge({ label, type = 'info' }) {
-  return <span className={`badge badge-${type}`}>{label}</span>;
-}
-
-function Skeleton({ height = 48, count = 3 }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="skeleton" style={{ height, borderRadius: 10 }} />
-      ))}
-    </div>
-  );
-}
-
-function LoadState({ loading, error, reload, children }) {
-  const { t } = useT();
-  if (loading) return <Skeleton count={4} />;
-  if (error) return (
-    <div className="error-banner">
-      <AlertTriangle size={16} /> {error}
-      {reload && <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={reload}>{t('retry')}</button>}
-    </div>
-  );
-  return children;
-}
-
+// ── Modal ─────────────────────────────────────────────────
 function Modal({ title, onClose, children }) {
   useEffect(() => {
-    const esc = e => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', esc);
-    return () => window.removeEventListener('keydown', esc);
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="card-head">
-          <h3>{title}</h3>
-          <button className="btn-icon" onClick={onClose} aria-label="close"><X size={16} /></button>
+        <div className="modal-header">
+          <h2>{title}</h2>
+          <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '8px 12px' }} onClick={onClose} aria-label="close">
+            <X size={20} />
+          </button>
         </div>
         {children}
       </div>
@@ -764,3807 +137,1123 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-function Toast({ payload, onDone }) {
-  const msg = typeof payload === 'string' ? payload : payload?.message;
-  const action = typeof payload === 'object' && payload ? payload : null;
-  useEffect(() => {
-    if (!msg) return;
-    const ttl = action?.undo ? 10000 : 2400;
-    const t = setTimeout(onDone, ttl);
-    return () => clearTimeout(t);
-  }, [msg, action, onDone]);
-  if (!msg) return null;
+// ═══════════════════════════════════════════════════════════
+// LANDING (pre-auth)
+// ═══════════════════════════════════════════════════════════
+function LandingScreen({ onStart, onSignIn, onJoinTeam }) {
   return (
-    <div className="toast" role="status" aria-live="polite">
-      <span>{msg}</span>
-      {action?.undo && (
-        <button
-          className="toast-btn"
-          onClick={() => { action.undo(); onDone(); }}
-          aria-label="undo"
-        >{action.undoLabel || 'Undo'}</button>
-      )}
-    </div>
-  );
-}
+    <div className="auth-screen">
+      <div className="auth-card">
+        <div className="brand">
+          <h1>StockPilot</h1>
+          <p>Multi-shop inventory tracking made simple.</p>
+        </div>
 
-// ---------- Empty state ----------
-function EmptyState({ icon: Icon, title, body, ctaLabel, onCta }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--muted)' }}>
-      {Icon && (
-        <div style={{
-          width: 56, height: 56, borderRadius: 14, margin: '0 auto 14px',
-          background: 'var(--cream-2, #f3ebde)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon size={24} color="var(--emerald)" />
+        <div style={{ marginBottom: 28 }}>
+          <FeatureRow icon={Store} text="Manage stock across all your shops in one place" />
+          <FeatureRow icon={Users} text="Invite your staff with simple one-use codes" />
+          <FeatureRow icon={ShieldCheck} text="Big buttons, big text — easy for everyone" />
         </div>
-      )}
-      {title && (
-        <div style={{ fontFamily: 'Fraunces, serif', fontSize: 17, color: 'var(--emerald)', marginBottom: 6 }}>
-          {title}
-        </div>
-      )}
-      {body && (
-        <div style={{ fontSize: 13, lineHeight: 1.5, maxWidth: 320, margin: '0 auto 14px' }}>
-          {body}
-        </div>
-      )}
-      {ctaLabel && onCta && (
-        <button className="btn btn-primary btn-sm" onClick={onCta}>
-          <Plus size={12} style={{ marginRight: 4 }} /> {ctaLabel}
+
+        <button className="btn btn-primary btn-block btn-large" onClick={onStart}>
+          Start 7-day free trial
         </button>
-      )}
+        <p style={{ textAlign: 'center', color: '#666', fontSize: 14, margin: '14px 0 24px' }}>
+          $10/month after trial · cancel anytime
+        </p>
+
+        <button className="btn btn-ghost btn-block" onClick={onJoinTeam}>
+          I have an invite code
+        </button>
+        <p style={{ textAlign: 'center', color: '#666', fontSize: 14, marginTop: 18 }}>
+          Already have an account?{' '}
+          <button onClick={onSignIn} style={{ background: 'none', border: 'none', color: '#1e3a5f', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'underline', padding: 0 }}>
+            Sign in
+          </button>
+        </p>
+      </div>
     </div>
   );
 }
 
-// ---------- Brand mark ----------
-// Pre-onboarding: simple gold dot logo (no brand text). Post-onboarding the topbar
-// shows the user's actual business name instead.
-function BrandMark({ sub }) {
+function FeatureRow({ icon: Icon, text }) {
   return (
-    <>
-      <div className="brand" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
-        <span className="dot" style={{ fontSize: 32, lineHeight: 1, color: 'var(--gold)' }}>●</span>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+      <div style={{ background: '#e8eef5', borderRadius: 10, padding: 10, color: '#1e3a5f', flexShrink: 0 }}>
+        <Icon size={20} />
       </div>
-      {sub && <div className="tagline">{sub}</div>}
-    </>
+      <div style={{ fontSize: 15, color: '#222', paddingTop: 2 }}>{text}</div>
+    </div>
   );
 }
 
-// ---------- Language toggle ----------
-function LangToggle({ floating = false, large = false }) {
-  const { lang, setLang, t } = useT();
-  const langName = lang === 'en' ? 'English' : 'Bahasa';
-
-  if (large) {
-    return (
-      <button
-        onClick={() => setLang(lang === 'en' ? 'id' : 'en')}
-        aria-label="toggle language"
-        title={lang === 'en' ? 'Bahasa Indonesia' : 'English'}
-        style={{
-          position: 'fixed',
-          top: 16,
-          right: 16,
-          zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '10px 16px',
-          fontSize: 14,
-          fontWeight: 600,
-          background: 'var(--cream, #faf6ed)',
-          color: 'var(--emerald)',
-          border: '1.5px solid var(--emerald)',
-          borderRadius: 999,
-          cursor: 'pointer',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        }}
-      >
-        <Globe size={16} />
-        {t('language')}: {langName}
-      </button>
-    );
-  }
-
-  const className = floating ? 'lang-toggle-float' : 'switch';
-  return (
-    <button
-      className={className}
-      onClick={() => setLang(lang === 'en' ? 'id' : 'en')}
-      aria-label="toggle language"
-      title={lang === 'en' ? 'Bahasa Indonesia' : 'English'}
-    >
-      <Globe size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-      {lang === 'en' ? 'EN' : 'ID'}
-    </button>
-  );
-}
-
-// ---------- Auth screen: login + signup + forgot password ----------
-function AuthScreen({ onAuthed, initialMode, onBack }) {
-  const { t } = useT();
-  const [mode, setMode] = useState(initialMode || 'login');
+// ═══════════════════════════════════════════════════════════
+// SIGN UP (owner)
+// ═══════════════════════════════════════════════════════════
+function SignupOwnerScreen({ onAuthed, onBack }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [forgotDone, setForgotDone] = useState(false);
-
-  const switchMode = (m) => { setMode(m); setErr(null); setForgotDone(false); };
 
   const submit = async (e) => {
     e.preventDefault();
     setErr(null);
-    if (mode === 'forgot') {
-      if (!email) { setErr(t('emailRequired')); return; }
-      setBusy(true);
-      try {
-        await api('/api/auth/forgot-password', { method: 'POST', body: { email: email.trim().toLowerCase() } });
-        setForgotDone(true);
-      } catch { setForgotDone(true); }
-      finally { setBusy(false); }
-      return;
-    }
-    if (!email || !password) { setErr(t('emailRequired')); return; }
-    if (mode === 'signup' && password !== confirm) { setErr(t('passwordsDontMatch')); return; }
-    if (mode === 'signup' && password.length < 8) { setErr(t('passwordTooShort')); return; }
+    if (password.length < 8) { setErr('Password must be at least 8 characters'); return; }
     setBusy(true);
     try {
-      const path = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
-      const { token, user } = await api(path, {
+      const d = await api('/api/auth/signup', {
+        method: 'POST',
+        body: { email: email.trim().toLowerCase(), password, businessName: businessName.trim() },
+      });
+      setToken(d.token);
+      onAuthed(d.user, d.business);
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={onBack}>
+          <ArrowLeft size={18} /> Back
+        </button>
+        <div className="brand">
+          <h1>Create account</h1>
+          <p>Start your 7-day free trial</p>
+        </div>
+        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>Your business name</label>
+            <input className="input" required placeholder="e.g. Acme Stores" value={businessName} onChange={e => setBusinessName(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Email</label>
+            <input className="input" type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Password</label>
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showPw ? 'text' : 'password'} required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 50 }} />
+              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 8 }}>
+                {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+          <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
+            {busy ? 'Creating account…' : 'Create account & start trial'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// JOIN TEAM (staff via invite)
+// ═══════════════════════════════════════════════════════════
+function JoinTeamScreen({ onAuthed, onBack }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    if (password.length < 8) { setErr('Password must be at least 8 characters'); return; }
+    setBusy(true);
+    try {
+      const d = await api('/api/auth/signup-with-code', {
+        method: 'POST',
+        body: { email: email.trim().toLowerCase(), password, code: code.trim().toUpperCase() },
+      });
+      setToken(d.token);
+      onAuthed(d.user, d.business);
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={onBack}>
+          <ArrowLeft size={18} /> Back
+        </button>
+        <div className="brand">
+          <h1>Join your team</h1>
+          <p>Enter the invite code from your manager</p>
+        </div>
+        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>Invite code</label>
+            <input
+              className="input"
+              required
+              placeholder="6-character code"
+              value={code}
+              onChange={e => setCode(e.target.value.toUpperCase())}
+              style={{ fontFamily: 'monospace', fontSize: 22, letterSpacing: 4, textAlign: 'center', textTransform: 'uppercase' }}
+              maxLength={8}
+            />
+          </div>
+          <div className="field">
+            <label>Email</label>
+            <input className="input" type="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Password</label>
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showPw ? 'text' : 'password'} required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 50 }} />
+              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 8 }}>
+                {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+          <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
+            {busy ? 'Joining…' : 'Join team'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SIGN IN
+// ═══════════════════════════════════════════════════════════
+function SignInScreen({ onAuthed, onBack }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    setBusy(true);
+    try {
+      const d = await api('/api/auth/login', {
         method: 'POST',
         body: { email: email.trim().toLowerCase(), password },
       });
-      setToken(token);
-      onAuthed(user);
-    } catch (e) {
-      setErr(e.message || t('failed')); setBusy(false);
-    }
+      setToken(d.token);
+      onAuthed(d.user, d.business);
+    } catch (e) { setErr(e.message); setBusy(false); }
   };
 
   return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card">
-        <BrandMark sub={mode === 'forgot' ? t('forgotPassword') : mode === 'login' ? t('welcomeBack') : t('createWorkspace')} />
-
-        {mode !== 'forgot' && (
-          <div className="auth-tabs">
-            <button
-              className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
-              onClick={() => switchMode('login')}
-            >
-              {mode === 'login' && <span style={{ marginRight: 6, fontSize: 11 }}>●</span>}
-              {t('signIn')}
-            </button>
-            <button
-              className={`auth-tab ${mode === 'signup' ? 'active' : ''}`}
-              onClick={() => switchMode('signup')}
-            >
-              {mode === 'signup' && <span style={{ marginRight: 6, fontSize: 11 }}>●</span>}
-              {t('createAccount')}
-            </button>
+    <div className="auth-screen">
+      <div className="auth-card">
+        <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={onBack}>
+          <ArrowLeft size={18} /> Back
+        </button>
+        <div className="brand">
+          <h1>Sign in</h1>
+          <p>Welcome back to StockPilot</p>
+        </div>
+        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>Email</label>
+            <input className="input" type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
           </div>
-        )}
-
-        {mode === 'forgot' && forgotDone ? (
-          <div style={{ marginTop: 24, textAlign: 'center' }}>
-            <CheckCircle size={32} color="var(--emerald)" style={{ marginBottom: 12 }} />
-            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16 }}>{t('resetLinkSent')}</div>
-            <button className="btn btn-ghost" style={{ width: '100%' }} onClick={() => switchMode('login')}>{t('backToLogin')}</button>
-          </div>
-        ) : (
-          <form onSubmit={submit} style={{ marginTop: 18 }}>
-            <div className="field">
-              <label>{t('email')}</label>
-              <div className="input-wrap">
-                <Mail size={14} className="input-icon" />
-                <input
-                  className="input input-with-icon"
-                  type="email"
-                  autoFocus
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  placeholder={t('emailPlaceholder')}
-                  value={email}
-                  onChange={e => { setErr(null); setEmail(e.target.value); }}
-                />
-              </div>
+          <div className="field">
+            <label>Password</label>
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showPw ? 'text' : 'password'} required autoComplete="current-password" placeholder="Your password" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 50 }} />
+              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 8 }}>
+                {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
-            {mode !== 'forgot' && (
-              <div className="field">
-                <label>{t('password')}</label>
-                <div className="input-wrap">
-                  <Lock size={14} className="input-icon" />
-                  <input
-                    className="input input-with-icon"
-                    type="password"
-                    placeholder={mode === 'signup' ? t('pwSignup') : t('pwLogin')}
-                    value={password}
-                    onChange={e => { setErr(null); setPassword(e.target.value); }}
-                  />
-                </div>
-              </div>
-            )}
-            {mode === 'signup' && (
-              <div className="field">
-                <label>{t('confirmPassword')}</label>
-                <div className="input-wrap">
-                  <Lock size={14} className="input-icon" />
-                  <input
-                    className="input input-with-icon"
-                    type="password"
-                    placeholder={t('confirmPassword')}
-                    value={confirm}
-                    onChange={e => { setErr(null); setConfirm(e.target.value); }}
-                  />
-                </div>
-              </div>
-            )}
-            {err && (
-              <div className="error-banner" style={{ marginTop: 4 }}>
-                <AlertTriangle size={14} /> {err}
-              </div>
-            )}
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
-              {busy ? t('pleaseWait') : mode === 'forgot' ? t('sendResetLink') : mode === 'login' ? t('signIn') : t('createAccount')}
-            </button>
-            {mode === 'login' && (
-              <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 6, fontSize: 12 }}
-                onClick={() => switchMode('forgot')}>
-                {t('forgotPassword')}
-              </button>
-            )}
-            {mode === 'forgot' && (
-              <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 6 }}
-                onClick={() => switchMode('login')}>
-                {t('backToLogin')}
-              </button>
-            )}
-          </form>
-        )}
-
-        {onBack && (
-          <button className="btn btn-ghost" style={{ width: '100%', marginTop: 12, fontSize: 12 }} onClick={onBack}>
-            ← {t('back')}
+          </div>
+          <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
+            {busy ? 'Signing in…' : 'Sign in'}
           </button>
-        )}
+        </form>
       </div>
     </div>
   );
 }
 
-// ---------- Reset password screen (via email link) ----------
-function ResetPasswordScreen({ token, onDone }) {
-  const { t } = useT();
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [err, setErr] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
+// ═══════════════════════════════════════════════════════════
+// MAIN APP (post-auth)
+// ═══════════════════════════════════════════════════════════
+function MainApp({ user, business, onLogout, onUserUpdate }) {
+  const [tab, setTab] = useState('stock');
+  const [showSettings, setShowSettings] = useState(false);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr(null);
-    if (password !== confirm) { setErr(t('passwordsDontMatch')); return; }
-    if (password.length < 8) { setErr(t('passwordTooShort')); return; }
-    setBusy(true);
-    try {
-      await api('/api/auth/reset-password', { method: 'POST', body: { token, password } });
-      setDone(true);
-    } catch (e) {
-      setErr(e.message || t('failed'));
-    } finally {
-      setBusy(false);
+  const shops = useCollection('/api/shops', true);
+  const [selectedShopId, setSelectedShopId] = useState(null);
+
+  // Auto-select first shop or only shop
+  useEffect(() => {
+    if (!selectedShopId && shops.data.length > 0) {
+      setSelectedShopId(shops.data[0].id);
     }
-  };
+    if (selectedShopId && !shops.data.find(s => s.id === selectedShopId)) {
+      setSelectedShopId(shops.data[0]?.id || null);
+    }
+  }, [shops.data, selectedShopId]);
 
-  return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card">
-        <BrandMark sub={t('resetPassword')} />
-        {done ? (
-          <div style={{ marginTop: 24, textAlign: 'center' }}>
-            <CheckCircle size={32} color="var(--emerald)" style={{ marginBottom: 12 }} />
-            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16 }}>{t('passwordResetSuccess')}</div>
-            <button className="btn btn-primary" style={{ width: '100%' }} onClick={onDone}>{t('signIn')}</button>
-          </div>
-        ) : (
-          <form onSubmit={submit} style={{ marginTop: 18 }}>
-            <div className="field">
-              <label>{t('newPassword')}</label>
-              <div className="input-wrap">
-                <Lock size={14} className="input-icon" />
-                <input className="input input-with-icon" type="password" autoFocus placeholder={t('pwSignup')}
-                  value={password} onChange={e => { setErr(null); setPassword(e.target.value); }} />
-              </div>
-            </div>
-            <div className="field">
-              <label>{t('confirmPassword')}</label>
-              <div className="input-wrap">
-                <Lock size={14} className="input-icon" />
-                <input className="input input-with-icon" type="password" placeholder={t('confirmPassword')}
-                  value={confirm} onChange={e => { setErr(null); setConfirm(e.target.value); }} />
-              </div>
-            </div>
-            {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
-              {busy ? t('pleaseWait') : t('resetPassword')}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
+  const isOwner = user.role === 'owner';
 
-// ---------- Landing page (pre-auth) ----------
-function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
-  const { t } = useT();
-  const [showJoinInfo, setShowJoinInfo] = useState(false);
-  const features = [
-    { icon: Calendar, titleKey: 'featSchedTitle', bodyKey: 'featSchedBody' },
-    { icon: Package,  titleKey: 'featOpsTitle',   bodyKey: 'featOpsBody' },
-    { icon: Users,    titleKey: 'featTeamTitle',  bodyKey: 'featTeamBody' },
+  const tabs = [
+    { id: 'stock', label: 'Stock', icon: Package },
+    { id: 'shops', label: 'Shops', icon: Store },
+    ...(isOwner ? [
+      { id: 'team', label: 'Team', icon: Users },
+    ] : []),
+    { id: 'announcements', label: 'Announcements', icon: Megaphone },
   ];
+
   return (
-    <div className="role-screen">
-      <LangToggle large />
-      <div className="role-card" style={{ maxWidth: 560 }}>
-        <div style={{ textAlign: 'center', marginBottom: 26 }}>
-          <BrandMark sub="" />
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 26, lineHeight: 1.25, marginTop: 14, color: 'var(--emerald)' }}>
-            {t('landingHero')}
-          </h1>
-          <p style={{ color: 'var(--muted)', marginTop: 10, fontSize: 14, lineHeight: 1.5 }}>
-            {t('landingSub')}
-          </p>
+    <div className="app">
+      <div className="topbar">
+        <div>
+          <h1>StockPilot</h1>
+          <div className="topbar-sub">{business?.name || 'Your business'}</div>
         </div>
-
-        {/* Features as text list — not buttons. Read-only header section. */}
-        <div style={{ marginBottom: 22 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>
-            {t('whatYouCanDo')}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {features.map(f => {
-              const Icon = f.icon;
-              return (
-                <div key={f.titleKey} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <Icon size={18} color="var(--emerald)" style={{ flexShrink: 0, marginTop: 2 }} />
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--emerald)' }}>{t(f.titleKey)}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, lineHeight: 1.5 }}>{t(f.bodyKey)}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Primary CTA — for business owners starting trial */}
-        <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
-          <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
-        </button>
-        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
-          Then $19/month after 7-day free trial
-        </div>
-
-        {/* Small Join-team button — modal opens with full instructions on click */}
-        <button
-          type="button"
-          className="btn btn-ghost"
-          style={{
-            width: '100%', marginTop: 12, padding: '12px 16px', fontSize: 14, fontWeight: 600,
-            border: '1px solid var(--border)', color: 'var(--emerald)', background: 'transparent',
-          }}
-          onClick={() => setShowJoinInfo(true)}
-        >
-          <Users size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-          Join a team <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13, marginLeft: 4 }}>(it's free)</span>
-        </button>
-
-        <div style={{ marginTop: 22, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
-          {t('haveAccount')}{' '}
-          <button type="button"
-            style={{ background: 'none', border: 'none', color: 'var(--emerald)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12, padding: 0 }}
-            onClick={onSignIn}>
-            {t('signIn')}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-ghost" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', minHeight: 'auto', padding: '10px 14px' }} onClick={() => setShowSettings(true)} aria-label="settings">
+            <Settings size={20} />
           </button>
-        </div>
-
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: 11, color: 'var(--muted)' }}>
-          <button type="button"
-            style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 11, padding: 0 }}
-            onClick={onShowPrivacy}>
-            Privacy Policy
-          </button>
-          {' · '}© {new Date().getFullYear()} Viroxit
         </div>
       </div>
 
-      {/* Join-team info modal */}
-      {showJoinInfo && (
-        <Modal title="Join a team" onClose={() => setShowJoinInfo(false)}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <Users size={20} color="var(--emerald)" />
-            <span style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-              padding: '3px 8px', borderRadius: 999,
-              background: 'var(--emerald)', color: '#fff',
-            }}>FREE FOREVER</span>
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 14 }}>
-            Staff accounts cost nothing. Ask your manager for the 6-letter business code, then:
-          </div>
-          <ol style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.7, paddingLeft: 20, margin: '0 0 18px' }}>
-            <li>Tap the button below</li>
-            <li>Create your free account (email + password)</li>
-            <li>Pick "I work as staff" and enter the code given by the business owner</li>
-          </ol>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setShowJoinInfo(false)}>Cancel</button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => { setShowJoinInfo(false); onJoinTeam(); }}
-            >Join your team →</button>
-          </div>
-        </Modal>
+      <div className="container">
+        <TrialBanner user={user} />
+
+        <nav className="nav">
+          {tabs.map(t => (
+            <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
+              <t.icon size={18} />
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {tab === 'stock' && (
+          <StockView
+            shops={shops.data}
+            selectedShopId={selectedShopId}
+            onSelectShop={setSelectedShopId}
+            user={user}
+            onReloadShops={shops.reload}
+          />
+        )}
+        {tab === 'shops' && (
+          <ShopsView shops={shops} isOwner={isOwner} />
+        )}
+        {tab === 'team' && isOwner && (
+          <TeamView />
+        )}
+        {tab === 'announcements' && (
+          <AnnouncementsView user={user} />
+        )}
+      </div>
+
+      {showSettings && (
+        <SettingsModal
+          user={user}
+          onClose={() => setShowSettings(false)}
+          onLogout={onLogout}
+          onUserUpdate={onUserUpdate}
+        />
       )}
     </div>
   );
 }
 
-// ---------- New role selector: owner vs staff ----------
-function OnboardingRoleSelector({ user, onPickOwner, onPickStaff, onLogout }) {
-  const { t } = useT();
-  return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card" style={{ maxWidth: 520 }}>
-        <BrandMark sub={t('chooseYourPath')} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 18 }}>
-          <button className="role-card-btn" onClick={onPickOwner}
-            style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 18, border: '1px solid var(--border)', borderRadius: 14, background: 'var(--cream)', cursor: 'pointer', textAlign: 'left' }}>
-            <Building2 size={28} color="var(--emerald)" />
-            <div>
-              <div style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: 'var(--emerald)' }}>{t('iOwnBusiness')}</div>
-              <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>{t('iOwnBusinessSub')}</div>
-            </div>
-          </button>
-          <button className="role-card-btn" onClick={onPickStaff}
-            style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 18, border: '1px solid var(--border)', borderRadius: 14, background: 'var(--cream)', cursor: 'pointer', textAlign: 'left' }}>
-            <Users size={28} color="var(--gold)" />
-            <div>
-              <div style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: 'var(--emerald)' }}>{t('iWorkAsStaff')}</div>
-              <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>{t('iWorkAsStaffSub')}</div>
-            </div>
-          </button>
-        </div>
-        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}>
-          <span>{user?.email}</span>
-          <button className="btn-link" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }} onClick={onLogout}>
-            {t('signOut')}
-          </button>
-        </div>
+// ── Trial banner ──────────────────────────────────────────
+function TrialBanner({ user }) {
+  if (user.subscriptionStatus === 'active') return null;
+  const ends = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const daysLeft = ends ? Math.max(0, Math.ceil((ends - new Date()) / (24 * 60 * 60 * 1000))) : 0;
+  const expired = ends ? new Date() > ends : false;
+  if (expired) {
+    return (
+      <div className="error-banner" style={{ background: 'rgba(196,69,58,0.08)' }}>
+        <strong>Your free trial has ended.</strong> Subscribe for $10/month to keep using StockPilot.
       </div>
-    </div>
-  );
+    );
+  }
+  if (daysLeft <= 3) {
+    return (
+      <div style={{ padding: 14, background: 'rgba(214,138,28,0.08)', borderRadius: 12, border: '1px solid rgba(214,138,28,0.3)', color: '#8a5a0e', marginBottom: 16, fontSize: 15 }}>
+        <strong>{daysLeft} day{daysLeft === 1 ? '' : 's'} left in your free trial.</strong>
+      </div>
+    );
+  }
+  return null;
 }
 
-// ---------- Business owner onboarding ----------
-function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
-  const { t } = useT();
-  const [name, setName] = useState('');
-  const [type, setType] = useState('services');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
+// ═══════════════════════════════════════════════════════════
+// STOCK VIEW
+// ═══════════════════════════════════════════════════════════
+function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops }) {
+  const toast = useToast();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
+  const [modal, setModal] = useState(null); // null | 'new' | item
+  const isOwner = user.role === 'owner';
+  const perms = isOwner ? { canEditStock: true, canAddItems: true, canDeleteItems: true } : user.permissions || {};
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr(null);
-    if (!name.trim()) { setErr(t('emailRequired')); return; }
-    setBusy(true);
+  const loadStock = useCallback(() => {
+    if (!selectedShopId) { setItems([]); setLoading(false); return; }
+    setLoading(true); setError(null);
+    const url = `/api/shops/${selectedShopId}/stock${search ? `?search=${encodeURIComponent(search)}` : ''}`;
+    api(url)
+      .then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [selectedShopId, search]);
+
+  useEffect(() => { loadStock(); }, [loadStock]);
+
+  if (shops.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty">
+          <Store size={48} color="#666" style={{ margin: '0 auto' }} />
+          <h3>No shops yet</h3>
+          <p>Go to the Shops tab to add your first shop, then come back here to track stock.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedShopId) return <div className="loading">Loading shops…</div>;
+
+  const updateQty = async (item, delta) => {
+    const newQty = Math.max(0, item.qty + delta);
     try {
-      const result = await api('/api/businesses', {
-        method: 'POST',
-        body: { name: name.trim(), type },
-      });
-      if (result.token) setToken(result.token);
-      onCreated(result.user, result.business);
-    } catch (e) { setErr(e.message || t('failed')); setBusy(false); }
+      const updated = await api(`/api/stock/${item.id}/qty`, { method: 'PATCH', body: { qty: newQty } });
+      setItems(items.map(i => i.id === item.id ? updated : i));
+    } catch (e) { toast(e.message); }
+  };
+
+  const removeItem = async (item) => {
+    if (!window.confirm(`Delete "${item.name}"?`)) return;
+    try {
+      await api(`/api/stock/${item.id}`, { method: 'DELETE' });
+      toast('Item deleted');
+      loadStock();
+    } catch (e) { toast(e.message); }
   };
 
   return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card" style={{ maxWidth: 460 }}>
-        <BrandMark sub={t('setupBusiness')} />
-        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>{t('setupBusinessSub')}</p>
-        <form onSubmit={submit} style={{ marginTop: 18 }}>
-          <div className="field">
-            <label>{t('businessName')}</label>
-            <input className="input" autoFocus required value={name}
-              placeholder={t('businessNamePh')}
-              onChange={e => { setErr(null); setName(e.target.value); }} />
-          </div>
-          <div className="field">
-            <label>{t('businessTypeLabel')}</label>
-            {/* Broad work categories — every business fits exactly one. No "Other" needed. */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-              {[
-                { id: 'services', icon: '🛠️', label: 'I provide services',     sub: 'Haircuts, massage, training, consultations, repairs' },
-                { id: 'products', icon: '🛍️', label: 'I sell products',       sub: 'Food, retail, drinks, goods' },
-                { id: 'space',    icon: '🏨',  label: 'I host or rent space',  sub: 'Hotels, venues, rentals, rooms' },
-                { id: 'mix',      icon: '🔄',  label: 'I do a mix of these',   sub: 'Combination of the above' },
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setType(opt.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 14,
-                    padding: '14px 16px', borderRadius: 12,
-                    border: type === opt.id ? '2px solid var(--emerald)' : '1px solid var(--border)',
-                    background: type === opt.id ? 'var(--emerald-soft, #e8f3ee)' : 'var(--cream)',
-                    cursor: 'pointer', textAlign: 'left',
-                    transition: 'all 0.15s',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  <div style={{ fontSize: 26, flexShrink: 0 }}>{opt.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: type === opt.id ? 'var(--emerald)' : 'var(--text)' }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{opt.sub}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-          {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
-            {busy ? t('saving') : t('createBusiness')}
+    <div>
+      <ShopPicker shops={shops} selectedShopId={selectedShopId} onSelect={onSelectShop} />
+
+      <div className="search-bar">
+        <input
+          className="input"
+          placeholder="Search name, SKU, brand, category…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {perms.canAddItems && (
+          <button className="btn btn-primary" onClick={() => setModal('new')}>
+            <Plus size={20} /> Add item
           </button>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>← {t('back')}</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onLogout}>{t('signOut')}</button>
-          </div>
-        </form>
+        )}
       </div>
-    </div>
-  );
-}
 
-// ---------- Staff onboarding (join with code) ----------
-function StaffOnboarding({ onJoined, onBack, onSwitchToOwner, onLogout }) {
-  const { t } = useT();
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
+      {loading && <div className="loading">Loading…</div>}
+      {error && <div className="error-banner">{error}</div>}
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr(null);
-    if (!code.trim()) { setErr(t('invalidBusinessCode')); return; }
-    setBusy(true);
-    try {
-      const result = await api('/api/businesses/join', {
-        method: 'POST',
-        body: { code: code.trim() },
-      });
-      if (result.token) setToken(result.token);
-      onJoined(result.user, result.business);
-    } catch (e) { setErr(e.message || t('invalidBusinessCode')); setBusy(false); }
-  };
-
-  return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card" style={{ maxWidth: 460 }}>
-        <BrandMark sub={t('joinBusiness')} />
-        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>{t('joinBusinessSub')}</p>
-        <form onSubmit={submit} style={{ marginTop: 18 }}>
-          <div className="field">
-            <label>{t('businessCode')}</label>
-            <input className="input" autoFocus required value={code}
-              placeholder={t('businessCodePh')}
-              style={{ textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'monospace' }}
-              onChange={e => { setErr(null); setCode(e.target.value.toUpperCase()); }} />
+      {!loading && items.length === 0 && (
+        <div className="card">
+          <div className="empty">
+            <Package size={48} color="#666" style={{ margin: '0 auto' }} />
+            <h3>{search ? 'No items match' : 'No stock yet'}</h3>
+            <p>{search ? 'Try a different search.' : 'Add your first item to start tracking inventory.'}</p>
+            {perms.canAddItems && !search && (
+              <button className="btn btn-primary" onClick={() => setModal('new')}>
+                <Plus size={18} /> Add first item
+              </button>
+            )}
           </div>
-          {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
-            {busy ? t('saving') : t('join')}
-          </button>
-          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)', textAlign: 'center', lineHeight: 1.5 }}>
-            {t('noCodeYet')}{' '}
-            <button type="button" className="btn-link"
-              style={{ background: 'none', border: 'none', color: 'var(--emerald)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12, padding: 0 }}
-              onClick={onSwitchToOwner}>
-              {t('iOwnBusiness')}
+        </div>
+      )}
+
+      {items.map(item => {
+        const low = item.qty > 0 && item.qty <= item.threshold;
+        const out = item.qty === 0;
+        return (
+          <div key={item.id} className={`stock-row ${out ? 'out' : low ? 'low' : ''}`}>
+            <div className="list-item-main">
+              <div className="list-item-title">{item.name}</div>
+              <div className="list-item-sub">
+                {[item.category, item.brand, item.size, item.color].filter(Boolean).join(' · ') || 'No details'}
+                {item.sku && <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 13 }}>SKU: {item.sku}</span>}
+              </div>
+              {out && <span className="badge badge-danger" style={{ marginTop: 6, display: 'inline-block' }}>OUT OF STOCK</span>}
+              {low && !out && <span className="badge badge-warning" style={{ marginTop: 6, display: 'inline-block' }}>LOW STOCK</span>}
+            </div>
+            <button className="qty-btn" disabled={!perms.canEditStock || item.qty === 0} onClick={() => updateQty(item, -1)} aria-label="decrease">
+              <Minus size={18} />
             </button>
+            <div className={`stock-qty-large ${out ? 'out' : low ? 'low' : ''}`}>{item.qty}</div>
+            <button className="qty-btn" disabled={!perms.canEditStock} onClick={() => updateQty(item, 1)} aria-label="increase">
+              <Plus size={18} />
+            </button>
+            <div className="list-item-actions" style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, marginTop: 8 }}>
+              {perms.canEditStock && (
+                <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setModal(item)}>
+                  <Edit2 size={16} /> Edit
+                </button>
+              )}
+              {perms.canDeleteItems && (
+                <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14, color: '#c4453a' }} onClick={() => removeItem(item)}>
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>← {t('back')}</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onLogout}>{t('signOut')}</button>
-          </div>
-        </form>
-      </div>
+        );
+      })}
+
+      {modal && (
+        <StockModal
+          item={modal === 'new' ? null : modal}
+          shopId={selectedShopId}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); loadStock(); toast(modal === 'new' ? 'Item added' : 'Item updated'); }}
+        />
+      )}
     </div>
   );
 }
 
-// ---------- Payment required (trial expired) ----------
-function PaymentRequired({ user, onActivated, onLogout }) {
-  const { t } = useT();
+function ShopPicker({ shops, selectedShopId, onSelect }) {
+  if (shops.length === 0) return null;
+  if (shops.length === 1) {
+    return (
+      <div className="shop-picker">
+        <Store size={20} color="#1e3a5f" />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 17, fontWeight: 600 }}>{shops[0].name}</div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="field">
+      <label>Shop</label>
+      <select className="select" value={selectedShopId || ''} onChange={e => onSelect(Number(e.target.value))}>
+        {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+    </div>
+  );
+}
+
+// ── Stock modal ───────────────────────────────────────────
+function StockModal({ item, shopId, onClose, onSaved }) {
+  const [f, setF] = useState(item ? {
+    ...item,
+    qty: String(item.qty ?? ''),
+    threshold: String(item.threshold ?? ''),
+  } : {
+    name: '', category: '', size: '', color: '', sku: '', brand: '',
+    qty: '0', threshold: '5', supplier: '', notes: '',
+  });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try {
+      const payload = {
+        ...f,
+        qty: f.qty === '' ? 0 : Number(f.qty),
+        threshold: f.threshold === '' ? 0 : Number(f.threshold),
+      };
+      if (item) await api(`/api/stock/${item.id}`, { method: 'PUT', body: payload });
+      else      await api(`/api/shops/${shopId}/stock`, { method: 'POST', body: payload });
+      onSaved();
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+
+  return (
+    <Modal title={item ? 'Edit item' : 'New item'} onClose={onClose}>
+      <form onSubmit={save}>
+        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        <div className="field">
+          <label>Name</label>
+          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="e.g. Cotton T-shirt" />
+        </div>
+        <div className="field">
+          <label>Category</label>
+          <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} placeholder="e.g. Clothing, Accessories" />
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Brand</label>
+            <input className="input" value={f.brand} onChange={e => setF({ ...f, brand: e.target.value })} />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>SKU</label>
+            <input className="input" value={f.sku} onChange={e => setF({ ...f, sku: e.target.value })} placeholder="Optional" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Size</label>
+            <input className="input" value={f.size} onChange={e => setF({ ...f, size: e.target.value })} placeholder="S, M, L, etc." />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Color</label>
+            <input className="input" value={f.color} onChange={e => setF({ ...f, color: e.target.value })} placeholder="Optional" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Quantity</label>
+            <input className="input" type="number" min="0" inputMode="numeric" value={f.qty} onChange={e => setF({ ...f, qty: e.target.value })} />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Low-stock alert</label>
+            <input className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} />
+          </div>
+        </div>
+        <div className="field">
+          <label>Supplier</label>
+          <input className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} placeholder="Optional" />
+        </div>
+        <div className="field">
+          <label>Notes</label>
+          <textarea className="textarea" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} placeholder="Optional" />
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHOPS VIEW
+// ═══════════════════════════════════════════════════════════
+function ShopsView({ shops, isOwner }) {
+  const toast = useToast();
+  const [modal, setModal] = useState(null);
+
+  const remove = async (shop) => {
+    if (!window.confirm(`Delete "${shop.name}" and all its stock?`)) return;
+    try {
+      await api(`/api/shops/${shop.id}`, { method: 'DELETE' });
+      toast('Shop deleted');
+      shops.reload();
+    } catch (e) { toast(e.message); }
+  };
+
+  return (
+    <div>
+      <div className="card-header" style={{ background: 'transparent', border: 'none', padding: 0, marginBottom: 18 }}>
+        <h2 style={{ margin: 0 }}>Your shops</h2>
+        {isOwner && (
+          <button className="btn btn-primary" onClick={() => setModal('new')}>
+            <Plus size={20} /> Add shop
+          </button>
+        )}
+      </div>
+
+      {shops.loading && <div className="loading">Loading…</div>}
+      {shops.error && <div className="error-banner">{shops.error}</div>}
+
+      {!shops.loading && shops.data.length === 0 && (
+        <div className="card">
+          <div className="empty">
+            <Store size={48} color="#666" style={{ margin: '0 auto' }} />
+            <h3>No shops yet</h3>
+            <p>{isOwner ? 'Add your first shop to start tracking stock.' : 'Your manager hasn\'t added any shops yet.'}</p>
+            {isOwner && (
+              <button className="btn btn-primary" onClick={() => setModal('new')}>
+                <Plus size={18} /> Add first shop
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {shops.data.map(shop => (
+        <div key={shop.id} className="list-item">
+          <Store size={28} color="#1e3a5f" />
+          <div className="list-item-main">
+            <div className="list-item-title">{shop.name}</div>
+            {shop.address && <div className="list-item-sub">{shop.address}</div>}
+          </div>
+          {isOwner && (
+            <div className="list-item-actions">
+              <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setModal(shop)}>
+                <Edit2 size={16} /> Edit
+              </button>
+              <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14, color: '#c4453a' }} onClick={() => remove(shop)}>
+                <Trash2 size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {modal && (
+        <ShopModal
+          shop={modal === 'new' ? null : modal}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); shops.reload(); toast(modal === 'new' ? 'Shop added' : 'Shop updated'); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ShopModal({ shop, onClose, onSaved }) {
+  const [f, setF] = useState(shop || { name: '', address: '' });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try {
+      if (shop) await api(`/api/shops/${shop.id}`, { method: 'PUT', body: f });
+      else      await api('/api/shops', { method: 'POST', body: f });
+      onSaved();
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+
+  return (
+    <Modal title={shop ? 'Edit shop' : 'New shop'} onClose={onClose}>
+      <form onSubmit={save}>
+        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        <div className="field">
+          <label>Shop name</label>
+          <input className="input" required autoFocus value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="e.g. Main Store, Canggu Branch" />
+        </div>
+        <div className="field">
+          <label>Address (optional)</label>
+          <input className="input" value={f.address} onChange={e => setF({ ...f, address: e.target.value })} placeholder="Street, city" />
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TEAM VIEW (owner only)
+// ═══════════════════════════════════════════════════════════
+const PERMISSIONS_DEF = [
+  { key: 'canViewStock',         label: 'View stock' },
+  { key: 'canEditStock',         label: 'Edit stock quantities' },
+  { key: 'canAddItems',          label: 'Add new items' },
+  { key: 'canDeleteItems',       label: 'Delete items' },
+  { key: 'canViewAllShops',      label: 'View all shops' },
+  { key: 'canSendAnnouncements', label: 'Send announcements' },
+];
+
+function TeamView() {
+  const toast = useToast();
+  const staff = useCollection('/api/staff', true);
+  const invites = useCollection('/api/invites', true);
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const createInvite = async () => {
+    setBusy(true);
+    try {
+      await api('/api/invites', { method: 'POST', body: {} });
+      toast('Invite code created');
+      invites.reload();
+    } catch (e) { toast(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const copyCode = async (code) => {
+    try { await navigator.clipboard.writeText(code); toast('Code copied'); } catch {}
+  };
+
+  const revokeInvite = async (id) => {
+    try {
+      await api(`/api/invites/${id}`, { method: 'DELETE' });
+      invites.reload();
+      toast('Invite revoked');
+    } catch (e) { toast(e.message); }
+  };
+
+  const removeStaff = async (member) => {
+    if (!window.confirm(`Remove ${member.email} from your team?`)) return;
+    try {
+      await api(`/api/staff/${member.id}`, { method: 'DELETE' });
+      staff.reload();
+      toast('Staff removed');
+    } catch (e) { toast(e.message); }
+  };
+
+  const activeInvites = invites.data.filter(i => !i.usedAt && new Date(i.expiresAt) > new Date());
+  const staffOnly = staff.data.filter(m => m.role === 'staff');
+
+  return (
+    <div>
+      {/* Invite codes */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Invite codes</h2>
+          <button className="btn btn-primary" onClick={createInvite} disabled={busy}>
+            <Plus size={20} /> Generate code
+          </button>
+        </div>
+        <p style={{ fontSize: 14, color: '#666', marginTop: 0 }}>
+          Share a code with new staff. Codes expire in 24 hours and can only be used once.
+        </p>
+        {activeInvites.length === 0 && (
+          <div className="empty" style={{ padding: 24 }}>
+            <p>No active invite codes. Generate one above to invite staff.</p>
+          </div>
+        )}
+        {activeInvites.map(inv => {
+          const expiresIn = Math.max(0, Math.ceil((new Date(inv.expiresAt) - new Date()) / (60 * 60 * 1000)));
+          return (
+            <div key={inv.id} className="list-item">
+              <div className="list-item-main">
+                <div style={{ fontFamily: 'monospace', fontSize: 24, fontWeight: 700, letterSpacing: 3, color: '#1e3a5f' }}>
+                  {inv.code}
+                </div>
+                <div className="list-item-sub">Expires in {expiresIn} hour{expiresIn === 1 ? '' : 's'}</div>
+              </div>
+              <div className="list-item-actions">
+                <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => copyCode(inv.code)}>
+                  <Copy size={16} /> Copy
+                </button>
+                <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14, color: '#c4453a' }} onClick={() => revokeInvite(inv.id)}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Staff list */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Staff</h2>
+        </div>
+        {staffOnly.length === 0 && (
+          <div className="empty" style={{ padding: 24 }}>
+            <p>No staff yet. Generate an invite code above and share it with your team.</p>
+          </div>
+        )}
+        {staffOnly.map(m => (
+          <div key={m.id} className="list-item">
+            <div className="list-item-main">
+              <div className="list-item-title">{m.email}</div>
+              <div className="list-item-sub">
+                {Object.entries(m.permissions || {}).filter(([k, v]) => v).length} permission{Object.entries(m.permissions || {}).filter(([k, v]) => v).length === 1 ? '' : 's'} enabled
+              </div>
+            </div>
+            <div className="list-item-actions">
+              <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setEditingStaff(m)}>
+                <Lock size={16} /> Permissions
+              </button>
+              <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14, color: '#c4453a' }} onClick={() => removeStaff(m)}>
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {editingStaff && (
+        <PermissionsModal
+          staff={editingStaff}
+          onClose={() => setEditingStaff(null)}
+          onSaved={() => { setEditingStaff(null); staff.reload(); toast('Permissions updated'); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PermissionsModal({ staff, onClose, onSaved }) {
+  const [perms, setPerms] = useState(() => {
+    const base = {};
+    for (const p of PERMISSIONS_DEF) base[p.key] = !!(staff.permissions && staff.permissions[p.key]);
+    return base;
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const save = async () => {
+    setBusy(true); setErr(null);
+    try {
+      await api(`/api/staff/${staff.id}/permissions`, { method: 'PUT', body: perms });
+      onSaved();
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+
+  return (
+    <Modal title={`Permissions for ${staff.email}`} onClose={onClose}>
+      {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+      {PERMISSIONS_DEF.map(p => (
+        <div key={p.key} className="perm-row">
+          <span className="perm-label">{p.label}</span>
+          <div className={`toggle ${perms[p.key] ? 'on' : ''}`} onClick={() => setPerms({ ...perms, [p.key]: !perms[p.key] })} role="switch" aria-checked={perms[p.key]} />
+        </div>
+      ))}
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// ANNOUNCEMENTS VIEW
+// ═══════════════════════════════════════════════════════════
+function AnnouncementsView({ user }) {
+  const toast = useToast();
+  const announcements = useCollection('/api/announcements', true, 60000);
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+  const canSend = user.role === 'owner' || (user.permissions && user.permissions.canSendAnnouncements);
+
+  const send = async (e) => {
+    e.preventDefault();
+    if (!body.trim()) return;
+    setBusy(true);
+    try {
+      await api('/api/announcements', { method: 'POST', body: { body: body.trim() } });
+      setBody('');
+      announcements.reload();
+      toast('Announcement sent');
+    } catch (e) { toast(e.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div>
+      {canSend && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>New announcement</h2>
+          <form onSubmit={send}>
+            <div className="field">
+              <textarea className="textarea" placeholder="Tell your team something…" value={body} onChange={e => setBody(e.target.value)} required maxLength={2000} />
+            </div>
+            <button className="btn btn-primary btn-block" disabled={busy || !body.trim()} type="submit">
+              <Megaphone size={18} /> Send to team
+            </button>
+          </form>
+        </div>
+      )}
+
+      <h2 style={{ margin: '24px 0 16px' }}>Recent announcements</h2>
+      {announcements.loading && <div className="loading">Loading…</div>}
+      {!announcements.loading && announcements.data.length === 0 && (
+        <div className="card">
+          <div className="empty" style={{ padding: 24 }}>
+            <Megaphone size={36} color="#666" style={{ margin: '0 auto' }} />
+            <p>No announcements yet.</p>
+          </div>
+        </div>
+      )}
+      {announcements.data.map(a => (
+        <div key={a.id} className="card">
+          <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+            {a.authorEmail || 'Team'} · {new Date(a.createdAt).toLocaleString()}
+          </div>
+          <div style={{ fontSize: 16, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{a.body}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS MODAL
+// ═══════════════════════════════════════════════════════════
+function SettingsModal({ user, onClose, onLogout, onUserUpdate }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [delPw, setDelPw] = useState('');
+  const [delConfirm, setDelConfirm] = useState('');
+  const [delErr, setDelErr] = useState(null);
+
+  const trialEnd = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - new Date()) / (24 * 60 * 60 * 1000))) : 0;
+  const isPaid = user.subscriptionStatus === 'active';
 
   const subscribe = async () => {
-    setErr(null);
     setBusy(true);
     try {
-      const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
-        return;
-      }
-      // No checkout URL = backend Stripe missing. Don't silently auto-activate.
-      setErr('Subscription is temporarily unavailable. Please try again in a few minutes.');
-      setBusy(false);
-    } catch (e) { setErr(e.message || t('failed')); setBusy(false); }
+      const d = await api('/api/billing/subscribe', { method: 'POST', body: {} });
+      if (d.checkoutUrl) window.location.href = d.checkoutUrl;
+      else toast(d.message || 'Coming soon');
+    } catch (e) { toast(e.message); }
+    finally { setBusy(false); }
   };
-
-  return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card" style={{ maxWidth: 440 }}>
-        <BrandMark sub={t('paymentRequiredTitle')} />
-        <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <Lock size={36} color="var(--gold)" />
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 12, lineHeight: 1.5 }}>
-            {t('paymentRequiredSub')}
-          </p>
-        </div>
-        {err && <div className="error-banner" style={{ marginTop: 12 }}><AlertTriangle size={14} /> {err}</div>}
-        <button className="btn btn-primary" style={{ width: '100%', marginTop: 18, padding: '14px 16px', fontSize: 14 }}
-          disabled={busy} onClick={subscribe}>
-          <Gem size={14} style={{ marginRight: 6 }} /> {busy ? t('pleaseWait') : t('subscribeMonthly')}
-        </button>
-        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
-          {t('subscribeNote')}
-        </div>
-        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}>
-          <span>{user?.email}</span>
-          <button className="btn-link" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }} onClick={onLogout}>
-            {t('signOut')}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------- Settings drawer (subscription + switch role) ----------
-function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAccountDeleted, toast }) {
-  const { t } = useT();
-  const [busy, setBusy] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState('');
-  const [deleteErr, setDeleteErr] = useState(null);
 
   const exportData = async () => {
     setBusy(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API}/api/auth/export-data`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${API}/api/auth/export-data`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `viroxit-data-${user.id}-${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      a.href = url; a.download = `stockpilot-data-${Date.now()}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
       toast('Data exported');
-    } catch (e) { toast(e.message || 'Export failed'); }
+    } catch (e) { toast(e.message); }
     finally { setBusy(false); }
   };
 
   const deleteAccount = async () => {
-    setDeleteErr(null);
-    if (deleteConfirm !== 'DELETE') {
-      setDeleteErr('Type DELETE to confirm');
-      return;
-    }
-    if (!deletePassword) {
-      setDeleteErr('Password required');
-      return;
-    }
+    setDelErr(null);
+    if (delConfirm !== 'DELETE') { setDelErr('Type DELETE to confirm'); return; }
+    if (!delPw) { setDelErr('Password required'); return; }
     setBusy(true);
     try {
-      await api('/api/auth/account', {
-        method: 'DELETE',
-        body: { password: deletePassword, confirmation: 'DELETE' },
-      });
+      await api('/api/auth/account', { method: 'DELETE', body: { password: delPw, confirmation: 'DELETE' } });
       toast('Account deleted');
-      onAccountDeleted && onAccountDeleted();
-    } catch (e) {
-      setDeleteErr(e.message || 'Failed');
-      setBusy(false);
-    }
-  };
-
-  const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
-  const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - new Date()) / (24 * 60 * 60 * 1000))) : 0;
-  const status = user?.subscriptionStatus || 'trial';
-
-  const copyCode = async () => {
-    try { await navigator.clipboard.writeText(business?.code || ''); toast(t('copied')); } catch {}
-  };
-
-  const switchType = async () => {
-    if (!window.confirm(t('confirmSwitchAccountType'))) return;
-    setBusy(true);
-    try {
-      const { token, user: u } = await api('/api/auth/switch-onboarding', { method: 'POST', body: {} });
-      if (token) setToken(token);
-      onSwitched(u);
-      onClose();
-    } catch (e) { toast(e.message || t('failed')); setBusy(false); }
-  };
-
-  const activate = async () => {
-    setBusy(true);
-    try {
-      const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
-      } else {
-        toast('Subscription temporarily unavailable. Please try again later.');
-      }
-    } catch (e) { toast(e.message || t('failed')); }
-    finally { setBusy(false); }
+      onLogout();
+    } catch (e) { setDelErr(e.message); setBusy(false); }
   };
 
   return (
-    <Modal title={t('settings')} onClose={onClose}>
-      <div className="field">
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('email')}</div>
-        <div style={{ fontSize: 14 }}>{user?.email}</div>
+    <Modal title="Settings" onClose={onClose}>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Email</div>
+        <div style={{ fontSize: 16, fontWeight: 500 }}>{user.email}</div>
       </div>
 
-      {business && (
-        <div className="field">
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('businessName')}</div>
-          <div style={{ fontSize: 14 }}>{business.name} <span style={{ color: 'var(--muted)', fontSize: 12 }}>· {business.type}</span></div>
-        </div>
-      )}
-
-      <div className="field">
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('manageSubscription')}</div>
-        <div className="row" style={{ marginTop: 0 }}>
-          <Gem size={16} color={status === 'active' ? 'var(--emerald)' : 'var(--gold)'} />
-          <div className="grow">
-            <div className="title" style={{ fontSize: 13 }}>
-              {status === 'active' ? `${t('active')} — $19/month` : t('trialActiveBanner').replace('{n}', daysLeft)}
-            </div>
-            {status !== 'active' && trialEnd && (
-              <div className="meta" style={{ fontSize: 11 }}>
-                {t('trialActiveUntil')} {trialEnd.toLocaleDateString()}
-              </div>
-            )}
-          </div>
-          {status !== 'active' && (
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={activate}>
-              {t('subscribeMonthly')}
-            </button>
-          )}
-        </div>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Role</div>
+        <div style={{ fontSize: 16, fontWeight: 500 }}>{user.role === 'owner' ? 'Owner' : 'Staff'}</div>
       </div>
 
-      {business && user?.onboardingRole === 'owner' && (
-        <div className="field">
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('yourBusinessCode')}</div>
-          <div className="row" style={{ marginTop: 0 }}>
-            <div className="grow">
-              <div className="title" style={{ fontSize: 18, fontFamily: 'monospace', letterSpacing: 2 }}>{business.code}</div>
-              <div className="meta" style={{ fontSize: 11 }}>{t('shareWithStaff')}</div>
-            </div>
-            <button className="btn btn-ghost btn-sm" onClick={copyCode}>{t('copy')}</button>
-          </div>
+      <div style={{ marginBottom: 24, padding: 16, background: isPaid ? 'rgba(45,134,89,0.06)' : 'rgba(214,138,28,0.06)', borderRadius: 12, border: `1px solid ${isPaid ? 'rgba(45,134,89,0.2)' : 'rgba(214,138,28,0.2)'}` }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+          {isPaid ? 'Active subscription — $10/month' : `Free trial · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
         </div>
-      )}
-
-      <div className="field">
-        <button className="btn btn-ghost" style={{ width: '100%' }} disabled={busy} onClick={switchType}>
-          {t('switchAccountType')}
-        </button>
-      </div>
-
-      <div className="field">
-        <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13 }} onClick={() => {
-          // Clear both legacy global key + this user's per-user keys so tutorial replays
-          localStorage.removeItem(TOUR_DONE_KEY);
-          if (user?.id) {
-            localStorage.removeItem(`spapilot-tutorial-done-u${user.id}`);
-            localStorage.removeItem(`spapilot-slides-done-u${user.id}`);
-          }
-          onClose();
-          window.location.reload();
-        }}>
-          Restart tutorial
-        </button>
-      </div>
-
-      <div className="field" style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-          Privacy & Data
-        </div>
-        <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13, marginBottom: 8 }} disabled={busy} onClick={exportData}>
-          <Download size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-          Export my data
-        </button>
-        {!showDeleteConfirm ? (
-          <button
-            className="btn btn-ghost"
-            style={{ width: '100%', fontSize: 13, color: '#c33' }}
-            onClick={() => setShowDeleteConfirm(true)}
-          >
-            <Trash2 size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-            Delete account
+        {!isPaid && (
+          <button className="btn btn-primary btn-block" onClick={subscribe} disabled={busy} style={{ marginTop: 10 }}>
+            Subscribe — $10/month
           </button>
-        ) : (
-          <div style={{ padding: 12, background: '#fee', border: '1px solid #fbb', borderRadius: 8, marginTop: 4 }}>
-            <div style={{ fontSize: 13, color: '#900', marginBottom: 10, fontWeight: 600 }}>
-              ⚠ This permanently deletes your account and all your business data. Cannot be undone.
-            </div>
-            <input
-              type="password"
-              className="input"
-              placeholder="Your password"
-              value={deletePassword}
-              onChange={e => { setDeleteErr(null); setDeletePassword(e.target.value); }}
-              style={{ marginBottom: 8 }}
-            />
-            <input
-              type="text"
-              className="input"
-              placeholder="Type DELETE to confirm"
-              value={deleteConfirm}
-              onChange={e => { setDeleteErr(null); setDeleteConfirm(e.target.value); }}
-              style={{ marginBottom: 8 }}
-            />
-            {deleteErr && (
-              <div style={{ color: '#900', fontSize: 12, marginBottom: 8 }}>{deleteErr}</div>
-            )}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                className="btn btn-ghost btn-sm"
-                style={{ flex: 1 }}
-                disabled={busy}
-                onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteConfirm(''); setDeleteErr(null); }}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-sm"
-                style={{ flex: 1, background: '#c33', color: '#fff', border: 'none' }}
-                disabled={busy}
-                onClick={deleteAccount}
-              >
-                {busy ? 'Deleting…' : 'Delete forever'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </Modal>
-  );
-}
-
-// ---------- Offline banner ----------
-function OfflineBanner() {
-  const [offline, setOffline] = useState(typeof navigator !== 'undefined' && !navigator.onLine);
-  useEffect(() => {
-    const goOnline = () => setOffline(false);
-    const goOffline = () => setOffline(true);
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
-  if (!offline) return null;
-  return (
-    <div style={{
-      background: '#fee', borderBottom: '1px solid #fbb', color: '#a00',
-      padding: '8px 14px', fontSize: 12, textAlign: 'center', fontWeight: 600,
-    }}>
-      ⚠ You're offline — changes won't save until you reconnect
-    </div>
-  );
-}
-
-// ---------- Trial banner ----------
-function TrialBanner({ user, onUpgrade }) {
-  const { t } = useT();
-  if (!user || user.subscriptionStatus === 'active') return null;
-  const trialEnd = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
-  if (!trialEnd) return null;
-  const daysLeft = Math.max(0, Math.ceil((trialEnd - new Date()) / (24 * 60 * 60 * 1000)));
-  if (daysLeft > 3) return null; // only show when 3 or fewer days left
-  const label = daysLeft <= 0 ? t('trialEnded') : t('trialEndingSoon').replace('{n}', daysLeft);
-  return (
-    <div style={{ background: '#fef3e0', borderBottom: '1px solid #f5d8a4', padding: '8px 14px', fontSize: 12, color: 'var(--emerald)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span><AlertTriangle size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> {label}</span>
-      <button className="btn btn-primary btn-sm" onClick={onUpgrade}>{t('subscribeMonthly')}</button>
-    </div>
-  );
-}
-
-// ---------- Role selector ----------
-function RoleSelector({ user, staff, onSelected, onLogout }) {
-  const { t } = useT();
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  const [staffId, setStaffId] = useState(staff[0]?.id || null);
-  const [picking, setPicking] = useState(null);
-
-  useEffect(() => {
-    if (!staffId && staff[0]?.id) setStaffId(staff[0].id);
-  }, [staff, staffId]);
-
-  const pick = async (role) => {
-    if (role === 'staff' && !staffId) {
-      setPicking('staff'); return;
-    }
-    setBusy(true); setErr(null);
-    try {
-      const { token, user: u } = await api('/api/auth/role', {
-        method: 'POST', body: { role, staffId: role === 'staff' ? staffId : null },
-      });
-      setToken(token);
-      onSelected(u);
-    } catch (e) { setErr(e.message); setBusy(false); setPicking(null); }
-  };
-
-  const roles = [
-    { id: 'manager', label: t('manager'), sub: t('managerSub'), icon: <LayoutDashboard size={22} /> },
-    { id: 'staff',   label: t('staff'),   sub: t('staffSub'),   icon: <Leaf size={22} /> },
-  ];
-
-  return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card">
-        <BrandMark sub={t('oneLast')} />
-        {err && <div className="error-banner" style={{ marginTop: 14 }}><AlertTriangle size={14} /> {err}</div>}
-
-        {picking === 'staff' ? (
-          <div style={{ marginTop: 18 }}>
-            {staff.length === 0 ? (
-              <div className="center-muted" style={{ padding: '20px 12px', fontSize: 14, lineHeight: 1.5 }}>
-                No team members exist yet. Ask the manager to add you to the team first.
-              </div>
-            ) : (
-              <div className="field">
-                <label>{t('whichMember')}</label>
-                <select className="select" value={staffId || ''} onChange={e => setStaffId(Number(e.target.value))}>
-                  {staff.map(s => <option key={s.id} value={s.id}>{s.name} · {s.role}</option>)}
-                </select>
-              </div>
-            )}
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setPicking(null)} disabled={busy}>{t('back')}</button>
-              {staff.length > 0 && (
-                <button className="btn btn-primary" onClick={() => pick('staff')} disabled={busy || !staffId}>
-                  {busy ? t('saving') : t('continue')}
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div style={{ marginTop: 18 }}>
-            {roles.map(r => (
-              <button key={r.id} className="role-btn" onClick={() => pick(r.id)} disabled={busy} data-tour={`role-${r.id}`}>
-                <div className="icon-wrap">{r.icon}</div>
-                <div>
-                  <div className="label">{r.label}</div>
-                  <div className="sub">{r.sub}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <button className="btn btn-ghost" style={{ width: '100%', marginTop: 16 }} onClick={onLogout}>
-          <LogOut size={14} /> {t('signOut')}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ================= MANAGER VIEWS =================
-
-function ManagerDashboard({ staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
-  const { t } = useT();
-  const { labels } = useBiz();
-  const lowStock = inventory.filter(i => i.stock <= i.threshold);
-  const pending  = requests.filter(r => r.status === 'pending');
-  const [busy, setBusy] = useState(false);
-  const bookingLabel = labels.todayCount;
-
-  const reorderAll = async () => {
-    if (!lowStock.length) { toast && toast(t('noLowStock')); return; }
-    setBusy(true);
-    try {
-      await Promise.all(lowStock.map(i => api(`/api/inventory/${i.id}/order`, { method: 'POST', body: {} })));
-      toast && toast(t('reorderAllDone'));
-      onReload && onReload();
-    } catch (e) { toast && toast(e.message || t('couldNotMarkOrdered')); }
-    finally { setBusy(false); }
-  };
-
-  const stats = [
-    { v: bookings.length, l: bookingLabel,       i: <Calendar size={16} /> },
-    { v: staff.length,    l: t('activeStaff'),    i: <Users size={16} /> },
-    { v: lowStock.length, l: t('lowStock'),       i: <Package size={16} /> },
-  ];
-
-  const CHECKLIST_KEY = 'app_checklist';
-  const [checkItems, setCheckItems] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(CHECKLIST_KEY)) || []; }
-    catch { return []; }
-  });
-  const [newTask, setNewTask] = useState('');
-
-  const saveItems = (items) => {
-    setCheckItems(items);
-    localStorage.setItem(CHECKLIST_KEY, JSON.stringify(items));
-  };
-  const toggleItem = (id) => saveItems(checkItems.map(i => i.id === id ? { ...i, done: !i.done } : i));
-  const addItem = () => {
-    const text = newTask.trim();
-    if (!text) return;
-    saveItems([...checkItems, { id: Date.now(), text, done: false }]);
-    setNewTask('');
-  };
-  const removeItem = (id) => saveItems(checkItems.filter(i => i.id !== id));
-
-  return (
-    <div>
-      <div className="stats">
-        {stats.map(s => (
-          <div className="stat" key={s.l}>
-            <div className="icon-mini">{s.i}</div>
-            <div className="v">{s.v}</div>
-            <div className="l">{s.l}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <div className="card-head"><h3>{t('quickActionsBar')}</h3></div>
-        <div className="qa-grid">
-          <button className="qa-btn" onClick={reorderAll} disabled={busy || lowStock.length === 0} aria-label={t('reorderAll')}>
-            <Package size={18} />
-            <span>{t('reorderAll')}{lowStock.length > 0 ? ` (${lowStock.length})` : ''}</span>
-          </button>
-          <button className="qa-btn" onClick={() => onGoto('alerts')} aria-label={t('reviewRequests')}>
-            <Bell size={18} />
-            <span>{t('reviewRequests')}{pending.length > 0 ? ` (${pending.length})` : ''}</span>
-          </button>
-          <button className="qa-btn" onClick={() => onGoto('announcements')} aria-label={t('broadcast')}>
-            <Megaphone size={18} />
-            <span>{t('broadcast')}</span>
-          </button>
-        </div>
-      </div>
-
-      {pending.length > 0 && (
-        <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
-          <div className="card-head">
-            <h3><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-              {pending.length} {pending.length === 1 ? t('pendingRequest') : t('pendingRequests')}</h3>
-            <button className="btn btn-ghost btn-sm" onClick={() => onGoto('alerts')}>{t('review')}</button>
-          </div>
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-head"><h3>Upcoming {labels.bookingPlural}</h3>
-          <button className="btn btn-ghost btn-sm" onClick={() => onGoto('schedule')}>{t('viewAll')}</button>
-        </div>
-        {bookings.length === 0 ? (
-          <div className="center-muted" style={{ padding: '20px 0', fontSize: 14 }}>
-            No {labels.bookingPlural.toLowerCase()} yet. <button
-              onClick={() => onGoto('schedule')}
-              style={{ background: 'none', border: 'none', color: 'var(--emerald)', cursor: 'pointer', textDecoration: 'underline', fontSize: 14, padding: 0 }}
-            >Add your first one →</button>
-          </div>
-        ) : bookings.slice(0, 5).map(b => {
-          const m = staff.find(s => s.id === b.staffId);
-          return (
-            <div key={b.id} className="row">
-              <div style={{ color: 'var(--gold)', fontWeight: 700, minWidth: 48, fontFamily: 'Fraunces, serif' }}>
-                {b.time}
-              </div>
-              <div className="grow">
-                <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment} · {b.duration}min</div>
-              </div>
-              {m && <Avatar initial={m.avatar} color={m.color} size={28} />}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="card">
-        <div className="card-head"><h3>{t('checklist')}</h3></div>
-        {checkItems.length === 0 && (
-          <div className="center-muted" style={{ padding: '12px 0', fontSize: 14 }}>{t('checklistEmpty')}</div>
-        )}
-        {checkItems.map(item => (
-          <div key={item.id} className="row" style={{ cursor: 'pointer' }} onClick={() => toggleItem(item.id)}>
-            <div style={{
-              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-              border: '2px solid ' + (item.done ? 'var(--emerald)' : 'var(--line)'),
-              background: item.done ? 'var(--emerald)' : 'transparent',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {item.done && <Check size={12} color="#fff" />}
-            </div>
-            <div className="grow" style={{
-              textDecoration: item.done ? 'line-through' : 'none',
-              color: item.done ? 'var(--muted)' : 'var(--ink)',
-              fontSize: 15,
-            }}>{item.text}</div>
-            <button
-              onClick={e => { e.stopPropagation(); removeItem(item.id); }}
-              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4 }}
-              aria-label="remove"
-            ><X size={14} /></button>
-          </div>
-        ))}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <input
-            className="input"
-            value={newTask}
-            onChange={e => setNewTask(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addItem()}
-            placeholder={t('checklistAdd')}
-            style={{ flex: 1 }}
-          />
-          <button className="btn btn-sm" onClick={addItem} disabled={!newTask.trim()}
-            style={{ padding: '0 14px', background: 'var(--emerald)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <Plus size={16} />
-          </button>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-head"><h3>{t('latestAnnouncement')}</h3>
-          <button className="btn btn-ghost btn-sm" onClick={() => onGoto('announcements')}>{t('manage')}</button>
-        </div>
-        {announcements[0] ? (
-          <div>
-            <div className="title" style={{ fontFamily: 'Fraunces, serif', fontSize: 16 }}>{announcements[0].title}</div>
-            <div className="meta" style={{ marginTop: 6 }}>{announcements[0].body}</div>
-            <div className="meta" style={{ marginTop: 8, fontStyle: 'italic' }}>— {announcements[0].from}</div>
-          </div>
-        ) : <div className="center-muted">{t('noAnnouncements')}</div>}
-      </div>
-
-      {violations.length > 0 && (
-        <div className="card">
-          <h3>{t('recentSopNotes')}</h3>
-          {violations.slice(-3).reverse().map(v => {
-            const s = staff.find(st => st.id === v.staffId);
-            return (
-              <div key={v.id} className="row">
-                {s && <Avatar initial={s.avatar} color={s.color} size={28} />}
-                <div className="grow">
-                  <div className="title">{s ? s.name : `Staff #${v.staffId}`}</div>
-                  <div className="meta">{v.note || t('sopViolation')}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
-  const { labels } = useBiz();
-  const { t, lang } = useT();
-  const [modal, setModal] = useState(null);
-  const [query, setQuery] = useState('');
-  const [sortDir, setSortDir] = useState('asc');
-  const dayCounts = useMemo(() => {
-    const counts = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
-    bookings.forEach(b => {
-      if (!b.date) return;
-      const idx = new Date(b.date + 'T12:00:00').getDay();
-      const key = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][idx];
-      if (key in counts) counts[key]++;
-    });
-    return DAYS.map(d => ({ d, c: counts[d] }));
-  }, [bookings]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let out = q ? bookings.filter(b =>
-      (b.client || '').toLowerCase().includes(q) ||
-      (b.treatment || '').toLowerCase().includes(q) ||
-      (b.notes || '').toLowerCase().includes(q)
-    ) : bookings;
-    out = [...out].sort((a, b) => sortDir === 'asc' ? a.time.localeCompare(b.time) : b.time.localeCompare(a.time));
-    return out;
-  }, [bookings, query, sortDir]);
-
-  const del = async (id) => {
-    if (!window.confirm(t('deleteBooking'))) return;
-    const backup = bookings.find(b => b.id === id);
-    try {
-      await api(`/api/bookings/${id}`, { method: 'DELETE' });
-      onReload();
-      toast({
-        message: t('bookingDeleted'),
-        undoLabel: t('undo'),
-        undo: async () => {
-          try {
-            const { id: _drop, ...rest } = backup || {};
-            await api('/api/bookings', { method: 'POST', body: rest });
-            toast(t('restored')); onReload();
-          } catch (e) { toast(e.message || t('failed')); }
-        },
-      });
-    } catch (e) { toast(e.message || t('couldNotDeleteBooking')); }
-  };
-
-  const exportCsv = () => {
-    const rows = filtered.map(b => {
-      const m = staff.find(s => s.id === b.staffId);
-      return { time: b.time, client: b.client, treatment: b.treatment, duration: b.duration, therapist: m?.name || '', notes: b.notes || '' };
-    });
-    downloadCSV(`bookings-${new Date().toISOString().slice(0,10)}.csv`, rows);
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-head">
-          <h3>Today's {labels.bookingPlural}</h3>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}>
-            <Plus size={14} /> {t('add')}
-          </button>
-        </div>
-
-        <div className="search-wrap">
-          <Search size={14} className="search-icon" />
-          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
-        </div>
-        <div className="toolbar">
-          <select className="select" value={sortDir} onChange={e => setSortDir(e.target.value)} aria-label={t('sortBy')}>
-            <option value="asc">{t('timeAsc')}</option>
-            <option value="desc">{t('timeDesc')}</option>
-          </select>
-          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download size={12} /> {t('exportCsv')}
-          </button>
-        </div>
-
-        {filtered.length === 0 ? (
-          query
-            ? <div className="center-muted">{t('noResults')}</div>
-            : <EmptyState
-                icon={Calendar}
-                title={`No ${labels.bookingPlural.toLowerCase()} yet`}
-                body={`Add your first ${labels.booking.toLowerCase()} so your team knows what's coming up today.`}
-                ctaLabel={`Add ${labels.booking}`}
-                onCta={() => setModal('new')}
-              />
-        ) : filtered.map(b => {
-          const m = staff.find(s => s.id === b.staffId);
-          return (
-            <div key={b.id} className="sched-block">
-              <div className="time">{b.time}</div>
-              <div className="grow">
-                <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment} · {b.duration}min</div>
-                {m && <div className="meta" style={{ marginTop: 4 }}>{lang === 'id' ? 'dengan' : 'with'} <strong>{m.name}</strong></div>}
-                {b.allergies && <div className="note-chip" style={{ background: '#fbecec', color: 'var(--danger)' }}><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
-                {b.notes && <div className="note-chip">{t('notes')}: {b.notes}</div>}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <button className="btn-icon" onClick={() => setModal(b)} aria-label={t('edit')}><Edit2 size={14} /></button>
-                <button className="btn-icon" onClick={() => del(b.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="card">
-        <h3>{t('weekOverview')}</h3>
-        <div className="week-grid">
-          {dayCounts.map(x => (
-            <div className="week-cell" key={x.d}>
-              <div className="d">{t('days')[x.d]}</div>
-              <div className="c">{x.c}</div>
-              <div>{labels.bookingPlural.toLowerCase()}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {modal && (
-        <BookingModal
-          booking={modal === 'new' ? null : modal}
-          staff={staff}
-          services={services}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReload(); toast(modal === 'new' ? t('bookingAdded') : t('bookingUpdated')); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
-  const { t } = useT();
-  const { labels, business } = useBiz();
-  const showAllergies = ['spa', 'salon', 'clinic'].includes(business?.type || 'spa');
-  const hasStaff = staff && staff.length > 0;
-  const hasServices = services && services.length > 0;
-  const [f, setF] = useState(() => {
-    if (!booking) return {
-      time: '10:00', client: '', treatment: '', duration: 60,
-      staffId: hasStaff ? staff[0].id : null,
-      therapist: '',
-      notes: '', allergies: '', clientPhone: '', price: 0,
-    };
-    return { ...booking, therapist: booking.therapist || '' };
-  });
-
-  const pickService = (id) => {
-    const svc = services.find(s => s.id === Number(id));
-    if (!svc) return;
-    setF(prev => ({
-      ...prev,
-      treatment: svc.name,
-      duration: svc.durationMin || prev.duration,
-      price: svc.price || prev.price,
-    }));
-  };
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const save = async (e) => {
-    e.preventDefault(); setSaving(true); setErr(null);
-    try {
-      // Coerce empty-string price + ensure staffId is sent (so bookings show up in per-staff views).
-      // If staff exists but user typed a custom name in the fallback input, keep `therapist` text but
-      // also pass `staffId` if it was selected from the dropdown.
-      const body = {
-        ...f,
-        price: f.price === '' || f.price == null ? 0 : Number(f.price),
-        staffId: f.staffId || null,
-      };
-      if (booking) await api(`/api/bookings/${booking.id}`, { method: 'PUT', body });
-      else         await api('/api/bookings', { method: 'POST', body });
-      onSaved();
-    } catch (e) { setErr(e.message); setSaving(false); }
-  };
-
-  return (
-    <Modal title={booking ? `Edit ${labels.booking}` : `New ${labels.booking}`} onClose={onClose}>
-      <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{labels.client}</label>
-          <input className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} /></div>
-        {hasServices && (
-          <div className="field"><label>Pick from catalog (optional)</label>
-            <select className="select" value="" onChange={e => e.target.value && pickService(e.target.value)}>
-              <option value="">— Choose a service —</option>
-              {services.map(s => (
-                <option key={s.id} value={s.id}>{s.name} · {s.durationMin}min · ${Number(s.price).toFixed(2)}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div className="field"><label>{labels.service}</label>
-          <input className="input" required value={f.treatment} onChange={e => setF({ ...f, treatment: e.target.value })} /></div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('time')}</label>
-            <input className="input" type="time" required value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('durationMin')}</label>
-            <input className="input" type="number" min="0" inputMode="numeric" value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
-        </div>
-        {/* Staff picker — select from team if any exist, fallback to text input.
-            Both keep the booking linked correctly: select sets staffId, text input is for ad-hoc names. */}
-        <div className="field"><label>{labels.staffMember}</label>
-          {hasStaff ? (
-            <select
-              className="select"
-              value={f.staffId || ''}
-              onChange={e => {
-                const id = e.target.value ? Number(e.target.value) : null;
-                const name = staff.find(s => s.id === id)?.name || '';
-                setF({ ...f, staffId: id, therapist: name });
-              }}
-            >
-              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          ) : (
-            <input
-              className="input"
-              placeholder={`${labels.staffMember} name (no team yet)`}
-              value={f.therapist || ''}
-              onChange={e => setF({ ...f, therapist: e.target.value })}
-            />
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{labels.client} phone</label>
-            <input className="input" type="tel" placeholder="Phone number" value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
-            <input className="input" type="number" min="0" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
-        </div>
-        {/* Allergies field only relevant for spa/salon/clinic. Hide for gym/hotel/barbershop/other. */}
-        {showAllergies && (
-          <div className="field"><label>{t('allergies')}</label>
-            <input className="input" placeholder="e.g. lavender, nuts" value={f.allergies || ''} onChange={e => setF({ ...f, allergies: e.target.value })} /></div>
-        )}
-        <div className="field"><label>{t('notes')}</label>
-          <textarea className="textarea" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? t('saving') : t('save')}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-// ================= CLIENTS TAB =================
-// Derived from bookings — aggregates by client name (case-insensitive). No backend
-// schema change required. Each row = 1 unique client with totals + last visit + history.
-function ClientsTab({ bookings, staff, toast }) {
-  const { t } = useT();
-  const { labels } = useBiz();
-  const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(null); // selected client name or null
-
-  // Aggregate clients from bookings
-  const clients = useMemo(() => {
-    const map = new Map();
-    for (const b of bookings) {
-      const name = (b.client || '').trim();
-      if (!name) continue;
-      const key = name.toLowerCase();
-      const existing = map.get(key) || {
-        name, key, phone: '', visits: 0, totalSpend: 0, lastVisit: null,
-        bookings: [], allergies: '', notes: '',
-      };
-      existing.visits += 1;
-      existing.totalSpend += Number(b.price) || 0;
-      if (b.clientPhone && !existing.phone) existing.phone = b.clientPhone;
-      if (b.allergies && !existing.allergies) existing.allergies = b.allergies;
-      const date = b.date || b.time || '';
-      if (!existing.lastVisit || date > existing.lastVisit) existing.lastVisit = date;
-      existing.bookings.push(b);
-      map.set(key, existing);
-    }
-    return Array.from(map.values()).sort((a, b) => b.visits - a.visits);
-  }, [bookings]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      (c.phone || '').toLowerCase().includes(q)
-    );
-  }, [clients, query]);
-
-  const exportCsv = () => {
-    const rows = clients.map(c => ({
-      name: c.name, phone: c.phone, visits: c.visits,
-      totalSpend: c.totalSpend, lastVisit: c.lastVisit || '',
-    }));
-    downloadCSV(`${labels.clientPlural.toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`, rows);
-  };
-
-  const detail = open && clients.find(c => c.key === open);
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-head">
-          <h3>{labels.clientPlural} ({clients.length})</h3>
-        </div>
-        <div className="search-wrap">
-          <Search size={14} className="search-icon" />
-          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
-        </div>
-        <div className="toolbar">
-          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={clients.length === 0}>
-            <Download size={12} /> {t('exportCsv')}
-          </button>
-        </div>
-
-        {clients.length === 0 ? (
-          <EmptyState
-            icon={User}
-            title={`No ${labels.clientPlural.toLowerCase()} yet`}
-            body={`${labels.clientPlural} you add to ${labels.bookingPlural.toLowerCase()} will show up here automatically.`}
-          />
-        ) : filtered.length === 0 ? (
-          <div className="center-muted">{t('noResults')}</div>
-        ) : filtered.map(c => (
-          <div key={c.key} className="row" style={{ cursor: 'pointer' }} onClick={() => setOpen(c.key)}>
-            <Avatar initial={c.name[0]} color="#5b8a72" size={40} />
-            <div className="grow">
-              <div className="title">{c.name}</div>
-              <div className="meta">
-                {c.visits} {c.visits === 1 ? labels.booking.toLowerCase() : labels.bookingPlural.toLowerCase()}
-                {c.phone ? ` · ${c.phone}` : ''}
-              </div>
-              {c.allergies && (
-                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>
-                  <AlertTriangle size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />
-                  {t('allergies')}: {c.allergies}
-                </div>
-              )}
-            </div>
-            <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--muted)' }}>
-              <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>${c.totalSpend}</div>
-              <div style={{ fontSize: 11 }}>{c.lastVisit || ''}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {detail && (
-        <Modal title={detail.name} onClose={() => setOpen(null)}>
-          <div className="field">
-            <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
-              <Avatar initial={detail.name[0]} color="#5b8a72" size={56} />
-              <div>
-                <div style={{ fontFamily: 'Fraunces, serif', fontSize: 20, color: 'var(--emerald)' }}>{detail.name}</div>
-                {detail.phone && <div className="meta">{detail.phone}</div>}
-              </div>
-            </div>
-
-            <div className="stats" style={{ marginBottom: 14 }}>
-              <div className="stat"><div className="v">{detail.visits}</div><div className="l">{labels.bookingPlural}</div></div>
-              <div className="stat"><div className="v">${detail.totalSpend}</div><div className="l">{t('revenue')}</div></div>
-              <div className="stat"><div className="v">{detail.lastVisit || '—'}</div><div className="l">Last visit</div></div>
-            </div>
-
-            {detail.allergies && (
-              <div style={{ background: '#fbecec', padding: '10px 12px', borderRadius: 8, marginBottom: 14, fontSize: 13, color: 'var(--danger)' }}>
-                <AlertTriangle size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                <strong>{t('allergies')}:</strong> {detail.allergies}
-              </div>
-            )}
-
-            <h3 style={{ fontSize: 13, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '14px 0 8px' }}>
-              History
-            </h3>
-            {detail.bookings.slice().reverse().map(b => {
-              const m = staff.find(s => s.id === b.staffId);
-              return (
-                <div key={b.id} className="row">
-                  <Calendar size={16} color="var(--gold)" />
-                  <div className="grow">
-                    <div className="title">{b.treatment}</div>
-                    <div className="meta">{b.time} · {b.duration}min{m ? ` · ${m.name}` : ''}</div>
-                  </div>
-                  {b.price > 0 && <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>${b.price}</div>}
-                </div>
-              );
-            })}
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function StaffTab({ staff, violations, onReload, toast }) {
-  const { t } = useT();
-  const { labels } = useBiz();
-  const [modal, setModal] = useState(null);
-  const [query, setQuery] = useState('');
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return staff;
-    return staff.filter(s =>
-      (s.name || '').toLowerCase().includes(q) ||
-      (s.role || '').toLowerCase().includes(q)
-    );
-  }, [staff, query]);
-
-  const exportCsv = () => {
-    const rows = staff.map(s => ({
-      id: s.id, name: s.name, role: s.role,
-      birthday: s.birthday || '', schedule: (s.schedule || []).join('|'),
-      violations: violations.filter(v => v.staffId === s.id).length,
-    }));
-    downloadCSV(`staff-${new Date().toISOString().slice(0,10)}.csv`, rows);
-  };
-
-  const del = async (id) => {
-    if (!window.confirm(t('removeStaff'))) return;
-    const backup = staff.find(s => s.id === id);
-    try {
-      await api(`/api/staff/${id}`, { method: 'DELETE' });
-      onReload();
-      toast({
-        message: t('staffRemoved'),
-        undoLabel: t('undo'),
-        undo: async () => {
-          try {
-            const { id: _drop, ...rest } = backup || {};
-            await api('/api/staff', { method: 'POST', body: rest });
-            toast(t('restored')); onReload();
-          } catch (e) { toast(e.message || t('failed')); }
-        },
-      });
-    } catch (e) { toast(e.message || t('couldNotRemoveStaff')); return; }
-  };
-
-  const waLink = (phone) => {
-    const num = (phone || '').replace(/\D/g, '');
-    if (!num) return null;
-    return `https://wa.me/${num}?text=${encodeURIComponent(t('waMsg'))}`;
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-head">
-          <h3>{labels.staffPlural}</h3>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} /> {t('add')}</button>
-        </div>
-        <div className="search-wrap">
-          <Search size={14} className="search-icon" />
-          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
-        </div>
-        <div className="toolbar">
-          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={staff.length === 0}>
-            <Download size={12} /> {t('exportCsv')}
-          </button>
-        </div>
-        {filtered.length === 0 ? (
-          query
-            ? <div className="center-muted">{t('noResults')}</div>
-            : <EmptyState
-                icon={Users}
-                title={`No ${labels.staffPlural.toLowerCase()} yet`}
-                body={`Add the ${labels.staffPlural.toLowerCase()} who work with you so you can assign ${labels.bookingPlural.toLowerCase()}.`}
-                ctaLabel={`Add your first ${labels.staffMember.toLowerCase()}`}
-                onCta={() => setModal('new')}
-              />
-        ) : filtered.map(s => {
-          const vCount = violations.filter(v => v.staffId === s.id).length;
-          return (
-            <div key={s.id} className="row">
-              <Avatar initial={s.avatar} color={s.color} size={44} />
-              <div className="grow">
-                <div className="title">{s.name}</div>
-                <div className="meta">{s.role}{s.birthday ? ` · ${t('birthday').toLowerCase()} ${new Date(s.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</div>
-                <div style={{ marginTop: 4 }}>
-                  {vCount > 0 && <Badge label={`${vCount} ${vCount === 1 ? t('sopNote') : t('sopNotes')}`} type="warn" />}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {waLink(s.phone) && (
-                  <a className="btn-icon" href={waLink(s.phone)} target="_blank" rel="noreferrer" aria-label={t('whatsapp')} title={t('whatsapp')}>
-                    <PhoneCall size={14} />
-                  </a>
-                )}
-                <button className="btn-icon" onClick={() => setModal(s)} aria-label={t('edit')}><Edit2 size={14} /></button>
-                <button className="btn-icon" onClick={() => del(s.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {modal && (
-        <StaffModal
-          member={modal === 'new' ? null : modal}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReload(); toast(modal === 'new' ? t('staffAdded') : t('staffUpdated')); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function StaffModal({ member, onClose, onSaved }) {
-  const { t } = useT();
-  const [f, setF] = useState(member || {
-    name: '', role: '', avatar: '', color: COLOR_OPTIONS[0],
-    birthday: '', schedule: ['Mon','Tue','Wed','Thu','Fri'], phone: '',
-    commissionRate: 30, permissions: { ...STAFF_DEFAULT_PERMISSIONS },
-  });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const toggleDay = (d) => {
-    const has = f.schedule.includes(d);
-    setF({ ...f, schedule: has ? f.schedule.filter(x => x !== d) : [...f.schedule, d] });
-  };
-
-  const save = async (e) => {
-    e.preventDefault(); setSaving(true); setErr(null);
-    try {
-      const body = { ...f, avatar: (f.avatar || f.name[0] || '?').toUpperCase() };
-      if (member) await api(`/api/staff/${member.id}`, { method: 'PUT', body });
-      else         await api('/api/staff', { method: 'POST', body });
-      onSaved();
-    } catch (e) { setErr(e.message); setSaving(false); }
-  };
-
-  return (
-    <Modal title={member ? t('editTeamMember') : t('addTeamMember')} onClose={onClose}>
-      <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('name')}</label>
-          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
-        <div className="field"><label>{t('role')}</label>
-          <input className="input" required value={f.role} placeholder={t('rolePlaceholder')}
-            onChange={e => setF({ ...f, role: e.target.value })} /></div>
-        <div className="field"><label>{t('birthday')}</label>
-          <input className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
-        <div className="field"><label>{t('staffPhone')}</label>
-          <input className="input" type="tel" placeholder="Phone number" value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
-        <div className="field"><label>{t('avatarColor')}</label>
-          <div className="color-swatches">
-            {COLOR_OPTIONS.map(c => (
-              <div key={c} className={`swatch ${f.color === c ? 'active' : ''}`}
-                style={{ background: c }} onClick={() => setF({ ...f, color: c })} />
-            ))}
-          </div>
-        </div>
-        <div className="field"><label>{t('workingDays')}</label>
-          <div className="chip-row">
-            {DAYS.map(d => (
-              <div key={d} className={`chip ${f.schedule.includes(d) ? 'active' : ''}`} onClick={() => toggleDay(d)}>{t('days')[d]}</div>
-            ))}
-          </div>
-        </div>
-        <div className="field">
-          <label>{t('permissionsLabel')}</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
-            {PERMISSION_DEFS.map(p => {
-              const val = f.permissions ? (p.key in f.permissions ? f.permissions[p.key] : STAFF_DEFAULT_PERMISSIONS[p.key]) : STAFF_DEFAULT_PERMISSIONS[p.key];
-              return (
-                <label key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
-                  <input type="checkbox" checked={!!val}
-                    onChange={e => setF({ ...f, permissions: { ...STAFF_DEFAULT_PERMISSIONS, ...(f.permissions || {}), [p.key]: e.target.checked } })}
-                  />
-                  {t(p.labelKey)}
-                </label>
-              );
-            })}
-          </div>
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('saving') : t('save')}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-// ---------- Services Catalog ----------
-function ServicesTab({ services, onReload, toast }) {
-  const { t } = useT();
-  const [modal, setModal] = useState(null);
-
-  const grouped = useMemo(() => {
-    const groups = {};
-    for (const s of services) {
-      const c = s.category || 'General';
-      if (!groups[c]) groups[c] = [];
-      groups[c].push(s);
-    }
-    return groups;
-  }, [services]);
-
-  const delService = async (id) => {
-    if (!window.confirm('Remove this service?')) return;
-    try {
-      await api(`/api/services/${id}`, { method: 'DELETE' });
-      toast('Service removed');
-      onReload();
-    } catch (e) { toast(e.message || 'Failed'); }
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-head">
-          <h3>Service catalog</h3>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal({})}>
-            <Plus size={14} /> Add service
-          </button>
-        </div>
-        {services.length === 0 ? (
-          <EmptyState
-            icon={Sparkles}
-            title="No services yet"
-            body="Define the services you offer (e.g., 60-min massage, haircut, oil change). Add price and duration once, then pick from this list when creating bookings."
-            ctaLabel="Add service"
-            onCta={() => setModal({})}
-          />
-        ) : (
-          Object.entries(grouped).map(([cat, items]) => (
-            <div key={cat} style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>
-                {cat}
-              </div>
-              {items.map(s => (
-                <div key={s.id} className="row" style={{ marginBottom: 6 }}>
-                  <div style={{ width: 10, height: 30, borderRadius: 3, background: s.color || '#2d5a4a' }} />
-                  <div className="grow">
-                    <div className="title" style={{ fontSize: 14 }}>{s.name}</div>
-                    <div className="meta" style={{ fontSize: 11 }}>
-                      {s.durationMin} min · ${Number(s.price).toFixed(2)}
-                    </div>
-                  </div>
-                  <button className="icon-btn" onClick={() => setModal(s)} aria-label="edit">
-                    <Edit2 size={14} />
-                  </button>
-                  <button className="icon-btn" onClick={() => delService(s.id)} aria-label="delete">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ))
-        )}
-      </div>
-      {modal && (
-        <ServiceModal
-          service={modal.id ? modal : null}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReload(); toast('Saved'); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function ServiceModal({ service, onClose, onSaved }) {
-  const { t } = useT();
-  const [f, setF] = useState(service ? {
-    ...service,
-    durationMin: String(service.durationMin ?? ''),
-    price: String(service.price ?? ''),
-  } : {
-    name: '', category: 'General', durationMin: '60', price: '', color: '#2d5a4a',
-  });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const save = async (e) => {
-    e.preventDefault(); setSaving(true); setErr(null);
-    try {
-      const payload = {
-        name: f.name,
-        category: f.category,
-        durationMin: f.durationMin === '' ? 0 : Number(f.durationMin),
-        price: f.price === '' ? 0 : Number(f.price),
-        color: f.color,
-      };
-      if (service) await api(`/api/services/${service.id}`, { method: 'PUT', body: payload });
-      else         await api('/api/services', { method: 'POST', body: payload });
-      onSaved();
-    } catch (e) { setErr(e.message); setSaving(false); }
-  };
-
-  return (
-    <Modal title={service ? 'Edit service' : 'New service'} onClose={onClose}>
-      <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>Name</label>
-          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
-        <div className="field"><label>Category</label>
-          <input className="input" placeholder="e.g. Massage, Haircut, Repair" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>Duration (min)</label>
-            <input className="input" type="number" min="0" inputMode="numeric" value={f.durationMin} onChange={e => setF({ ...f, durationMin: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>Price</label>
-            <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></div>
-        </div>
-        <div className="field"><label>Color</label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {COLOR_OPTIONS.map(c => (
-              <button key={c} type="button" onClick={() => setF({ ...f, color: c })}
-                style={{
-                  width: 28, height: 28, borderRadius: 6, background: c, border: f.color === c ? '2px solid var(--ink)' : '1px solid var(--border)', cursor: 'pointer',
-                }} />
-            ))}
-          </div>
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('saving') : t('save')}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function InventoryTab({ inventory, onReload, toast }) {
-  const { t } = useT();
-  const [modal, setModal] = useState(null);
-  const [query, setQuery] = useState('');
-  const [cat, setCat] = useState('');
-
-  const categories = useMemo(() => {
-    const set = new Set(inventory.map(i => i.category).filter(Boolean));
-    return Array.from(set).sort();
-  }, [inventory]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return inventory.filter(i => {
-      if (cat && i.category !== cat) return false;
-      if (!q) return true;
-      return (i.name || '').toLowerCase().includes(q) || (i.supplier || '').toLowerCase().includes(q);
-    });
-  }, [inventory, query, cat]);
-
-  const exportCsv = () => {
-    const rows = filtered.map(i => ({
-      id: i.id, name: i.name, category: i.category, stock: i.stock,
-      threshold: i.threshold, unit: i.unit, supplier: i.supplier, lastOrder: i.lastOrder || '',
-    }));
-    downloadCSV(`inventory-${new Date().toISOString().slice(0,10)}.csv`, rows);
-  };
-
-  const adjust = async (id, delta) => {
-    try {
-      await api(`/api/inventory/${id}/stock`, { method: 'PATCH', body: { delta } });
-      onReload();
-    } catch (e) { toast(e.message || t('couldNotUpdateStock')); }
-  };
-  const markOrdered = async (id) => {
-    try {
-      await api(`/api/inventory/${id}/order`, { method: 'POST', body: {} });
-      toast(t('markedOrdered')); onReload();
-    } catch (e) { toast(e.message || t('couldNotMarkOrdered')); }
-  };
-  const del = async (id) => {
-    if (!window.confirm(t('removeItem'))) return;
-    const backup = inventory.find(i => i.id === id);
-    try {
-      await api(`/api/inventory/${id}`, { method: 'DELETE' });
-      onReload();
-      toast({
-        message: t('itemRemoved'),
-        undoLabel: t('undo'),
-        undo: async () => {
-          try {
-            const { id: _drop, ...rest } = backup || {};
-            await api('/api/inventory', { method: 'POST', body: rest });
-            toast(t('restored')); onReload();
-          } catch (e) { toast(e.message || t('failed')); }
-        },
-      });
-    } catch (e) { toast(e.message || t('couldNotRemoveItem')); }
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-head">
-          <h3>{t('inventory')}</h3>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} /> {t('add')}</button>
-        </div>
-        <div className="search-wrap">
-          <Search size={14} className="search-icon" />
-          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
-        </div>
-        <div className="toolbar">
-          <select className="select" value={cat} onChange={e => setCat(e.target.value)} aria-label={t('filterCategory')}>
-            <option value="">{t('allCategories')}</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download size={12} /> {t('exportCsv')}
-          </button>
-        </div>
-        {filtered.length === 0 ? (
-          (query || cat)
-            ? <div className="center-muted">{t('noResults')}</div>
-            : <EmptyState
-                icon={Package}
-                title={t('emptyInventoryTitle')}
-                body={t('emptyInventoryBody')}
-                ctaLabel={t('addFirstProduct')}
-                onCta={() => setModal('new')}
-              />
-        ) : filtered.map((i, idx) => {
-          const low = i.stock <= i.threshold;
-          return (
-            <div key={i.id} className="row">
-              <div className="grow">
-                <div className="title">{i.name}</div>
-                <div className="meta">{i.category} · {i.supplier}</div>
-                <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <Badge label={`${i.stock} ${i.unit}`} type={low ? 'danger' : 'success'} />
-                  {low && <Badge label={t('low')} type="warn" />}
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn-icon" onClick={() => adjust(i.id, -1)} aria-label={t('decrease')}>−</button>
-                  <button className="btn-icon" onClick={() => adjust(i.id, +1)} aria-label={t('increase')}>+</button>
-                </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => markOrdered(i.id)} {...(idx === 0 ? { 'data-tour': 'btn-mark-ordered' } : {})}>{t('ordered')}</button>
-                  <button className="btn-icon" onClick={() => setModal(i)} aria-label={t('edit')}><Edit2 size={14} /></button>
-                  <button className="btn-icon" onClick={() => del(i.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {modal && (
-        <InventoryModal
-          item={modal === 'new' ? null : modal}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReload(); toast(modal === 'new' ? t('itemAdded') : t('itemUpdated')); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function InventoryModal({ item, onClose, onSaved }) {
-  const { t } = useT();
-  // Hold numeric fields as strings so user can clear them (empty input becomes '', not 0)
-  const [f, setF] = useState(item ? {
-    ...item,
-    stock: String(item.stock ?? ''),
-    threshold: String(item.threshold ?? ''),
-  } : {
-    name: '', category: '', stock: '', threshold: '5', unit: 'pcs', supplier: '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const save = async (e) => {
-    e.preventDefault(); setSaving(true); setErr(null);
-    try {
-      const payload = {
-        ...f,
-        stock: f.stock === '' ? 0 : Number(f.stock),
-        threshold: f.threshold === '' ? 0 : Number(f.threshold),
-      };
-      if (item) await api(`/api/inventory/${item.id}`, { method: 'PUT', body: payload });
-      else       await api('/api/inventory', { method: 'POST', body: payload });
-      onSaved();
-    } catch (e) { setErr(e.message); setSaving(false); }
-  };
-
-  return (
-    <Modal title={item ? t('editItem') : t('addItem')} onClose={onClose}>
-      <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('name')}</label>
-          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('category')}</label>
-            <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('unit')}</label>
-            <input className="input" value={f.unit} onChange={e => setF({ ...f, unit: e.target.value })} /></div>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('stockLevel')}</label>
-            <input className="input" type="number" min="0" inputMode="numeric" value={f.stock} onChange={e => setF({ ...f, stock: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>{t('threshold')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>— alert when below</span></label>
-            <input className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} /></div>
-        </div>
-        <div className="field"><label>{t('supplier')}</label>
-          <input className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} /></div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('saving') : t('save')}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
-  const { t } = useT();
-  const [modal, setModal] = useState(false);     // 'violation' | 'sop' | null
-  const counts = staff.map(s => ({
-    ...s, count: violations.filter(v => v.staffId === s.id).length,
-  })).filter(s => s.count > 0).sort((a, b) => b.count - a.count);
-
-  const delViolation = async (id) => {
-    if (!window.confirm(t('removeViolation'))) return;
-    try {
-      await api(`/api/violations/${id}`, { method: 'DELETE' });
-      toast(t('noteRemoved')); onReload();
-    } catch (e) { toast(e.message || t('couldNotRemoveNote')); }
-  };
-
-  const delSop = async (id) => {
-    if (!window.confirm(t('removeSopRule'))) return;
-    try {
-      await api(`/api/sop/${id}`, { method: 'DELETE' });
-      toast(t('sopRuleRemoved')); onReloadSops && onReloadSops();
-    } catch (e) { toast(e.message || t('failed')); }
-  };
-
-  return (
-    <div>
-      {/* SOP Rules list */}
-      <div className="card">
-        <div className="card-head">
-          <h3>{t('sopTitle')}</h3>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('sop')}>
-            <Plus size={14} /> {t('addSopRule')}
-          </button>
-        </div>
-        {sops.length === 0 ? (
-          <EmptyState
-            icon={ShieldCheck}
-            title={t('emptySopTitle')}
-            body={t('emptySopBody')}
-            ctaLabel={t('addSopRule')}
-            onCta={() => setModal('sop')}
-          />
-        ) : sops.map(s => (
-          <div key={s.id} className="row">
-            <ShieldCheck size={20} color="var(--gold)" />
-            <div className="grow">
-              <div className="title">{s.title}</div>
-              {(s.category || s.description) && (
-                <div className="meta">{[s.category, s.description].filter(Boolean).join(' · ')}</div>
-              )}
-            </div>
-            <button className="btn-icon" onClick={() => delSop(s.id)} aria-label={t('delete')}>
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Log violation */}
-      <div className="card">
-        <div className="card-head">
-          <h3>{t('logSopViolation')}</h3>
-          <button className="btn btn-gold btn-sm" onClick={() => setModal('violation')} data-tour="action-sop">
-            <Plus size={14} /> {t('log')}
-          </button>
-        </div>
-        {violations.length === 0 ? (
-          <div className="center-muted">{t('noViolations')}</div>
-        ) : violations.slice().reverse().map(v => {
-          const s = staff.find(st => st.id === v.staffId);
-          const sop = sops.find(x => x.id === v.sopId);
-          return (
-            <div key={v.id} className="row">
-              {s && <Avatar initial={s.avatar} color={s.color} size={32} />}
-              <div className="grow">
-                <div className="title">{s ? s.name : '—'}</div>
-                <div className="meta">{sop ? sop.title : (v.note || '—')}{v.note && sop ? ` · ${v.note}` : ''}</div>
-                <div className="meta" style={{ fontSize: 11 }}>{new Date(v.createdAt).toLocaleString()}</div>
-              </div>
-              <button className="btn-icon" onClick={() => delViolation(v.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
-            </div>
-          );
-        })}
-      </div>
-
-      {counts.length > 0 && (
-        <div className="card">
-          <h3>{t('repeatOffenders')}</h3>
-          {counts.map(s => (
-            <div key={s.id} className="row">
-              <Avatar initial={s.avatar} color={s.color} size={32} />
-              <div className="grow"><div className="title">{s.name}</div></div>
-              <Badge label={`${s.count} ${t('notes_n')}`} type={s.count >= 3 ? 'danger' : 'warn'} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {modal === 'sop' && (
-        <SOPRuleModal
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReloadSops && onReloadSops(); toast(t('sopRuleAdded')); }}
-        />
-      )}
-      {modal === 'violation' && (
-        <ViolationModal
-          staff={staff} sops={sops}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReload(); toast(t('violationLogged')); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function SOPRuleModal({ onClose, onSaved }) {
-  const { t } = useT();
-  const [f, setF] = useState({ title: '', category: '', body: '' });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const save = async (e) => {
-    e.preventDefault();
-    if (!f.title.trim()) { setErr('Rule title required'); return; }
-    setSaving(true); setErr(null);
-    try {
-      await api('/api/sop', { method: 'POST', body: f });
-      onSaved();
-    } catch (e) { setErr(e.message); setSaving(false); }
-  };
-
-  return (
-    <Modal title={t('addSopRule')} onClose={onClose}>
-      <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} /> {err}</div>}
-        <div className="field">
-          <label>{t('sopRuleTitle')}</label>
-          <input className="input" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
-            placeholder="e.g. Arrive on time, Wear uniform…" autoFocus />
-        </div>
-        <div className="field">
-          <label>{t('category')}</label>
-          <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
-            placeholder="e.g. Punctuality, Appearance…" />
-        </div>
-        <div className="field">
-          <label>{t('sopRuleDesc')}</label>
-          <textarea className="textarea" value={f.body} onChange={e => setF({ ...f, body: e.target.value })}
-            placeholder="Extra detail…" rows={3} />
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? t('saving') : t('save')}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function ViolationModal({ staff, sops, onClose, onSaved }) {
-  const { t } = useT();
-  const [f, setF] = useState({ staffId: staff[0]?.id || '', sopId: sops[0]?.id || '', note: '' });
-  const [saving, setSaving] = useState(false); const [err, setErr] = useState(null);
-
-  const save = async (e) => {
-    e.preventDefault(); setSaving(true); setErr(null);
-    try {
-      await api('/api/violations', { method: 'POST', body: f });
-      onSaved();
-    } catch (e) { setErr(e.message); setSaving(false); }
-  };
-
-  // No SOP rules yet — prompt to add them first
-  if (!sops.length) return (
-    <Modal title={t('logSopViolation')} onClose={onClose}>
-      <div style={{ padding: '12px 0', color: 'var(--muted)', lineHeight: 1.6 }}>
-        {t('noSopsYetViolation')}
-      </div>
-      <div className="modal-actions">
-        <button className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-      </div>
-    </Modal>
-  );
-
-  return (
-    <Modal title={t('logSopViolation')} onClose={onClose}>
-      <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('staffPerson')}</label>
-          <select className="select" value={f.staffId} onChange={e => setF({ ...f, staffId: Number(e.target.value) })}>
-            {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select></div>
-        <div className="field"><label>{t('sopRule')}</label>
-          <select className="select" value={f.sopId} onChange={e => setF({ ...f, sopId: Number(e.target.value) })}>
-            {sops.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-          </select></div>
-        <div className="field"><label>{t('noteText')}</label>
-          <textarea className="textarea" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-gold" disabled={saving}>{saving ? t('saving') : t('log')}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
-  const { t } = useT();
-  const lowStock = inventory.filter(i => i.stock <= i.threshold);
-  const pending  = requests.filter(r => r.status === 'pending');
-  const [reassign, setReassign] = useState(null);
-
-  const decide = async (req, status, reassignToStaffId) => {
-    try {
-      await api(`/api/requests/${req.id}`, { method: 'PUT', body: { status, reassignToStaffId } });
-      toast(status === 'approved' ? t('requestApproved') : t('requestDeclined'));
-      onReload();
-      setReassign(null);
-    } catch (e) { toast(e.message || t('couldNotUpdateRequest')); }
-  };
-
-  const formatType = (k) => {
-    if (k === 'sick') return t('sickCall');
-    if (k === 'dayoff') return t('dayOff');
-    if (k === 'stock_request') return t('stockRequest');
-    return t('shiftSwap');
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <h3>{t('stockAlerts')} ({lowStock.length})</h3>
-        {lowStock.length === 0
-          ? <div className="success-banner"><CheckCircle size={14} /> {t('allStockHealthy')}</div>
-          : lowStock.map(i => (
-            <div key={i.id} className="row">
-              <Package size={18} color="var(--warn)" />
-              <div className="grow">
-                <div className="title">{i.name}</div>
-                <div className="meta">{i.stock} {i.unit} {t('leftLabel')} {i.threshold}</div>
-              </div>
-              <Badge label={t('reorder')} type="warn" />
-            </div>
-          ))}
-      </div>
-
-      <div className="card">
-        <h3>{t('staffRequests')} ({pending.length})</h3>
-        {pending.length === 0
-          ? <div className="success-banner"><CheckCircle size={14} /> {t('noPendingReq')}</div>
-          : pending.map(req => {
-            const s = staff.find(st => st.id === req.staffId);
-            const affected = req.type === 'sick'
-              ? bookings.filter(b => b.staffId === req.staffId && b.date === req.date)
-              : [];
-            return (
-              <div key={req.id} className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {s && <Avatar initial={s.avatar} color={s.color} size={32} />}
-                  <div className="grow">
-                    <div className="title">{formatType(req.type)} · {s ? s.name : `${t('staffPerson')} #${req.staffId}`}</div>
-                    <div className="meta">
-                      {req.type === 'stock_request'
-                        ? `${inventory.find(i => i.id === req.productId)?.name || 'Product'} · qty ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
-                        : `${req.date} · ${req.reason || t('noReason')}`}
-                    </div>
-                  </div>
-                  <Badge label={formatType(req.type)} type="pending" />
-                </div>
-                {req.type === 'sick' && affected.length > 0 && (
-                  <div style={{ background: '#fbecec', padding: '8px 10px', borderRadius: 8, fontSize: 12, color: 'var(--danger)' }}>
-                    {affected.length} {affected.length === 1 ? t('bookingNeedReassign1') : t('bookingNeedReassign')}
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                  {req.type === 'sick' && affected.length > 0 ? (
-                    <button className="btn btn-primary btn-sm" onClick={() => setReassign(req)}>{t('approveReassign')}</button>
-                  ) : (
-                    <button className="btn btn-primary btn-sm" onClick={() => decide(req, 'approved')}>{t('approve')}</button>
-                  )}
-                  <button className="btn btn-ghost btn-sm" onClick={() => decide(req, 'declined')}>{t('decline')}</button>
-                </div>
-              </div>
-            );
-          })}
-      </div>
-
-      {reassign && (
-        <ReassignModal
-          request={reassign}
-          staff={staff.filter(s => s.id !== reassign.staffId)}
-          onClose={() => setReassign(null)}
-          onSubmit={(toId) => decide(reassign, 'approved', toId)}
-        />
-      )}
-    </div>
-  );
-}
-
-function ReassignModal({ request, staff, onClose, onSubmit }) {
-  const { t } = useT();
-  const [to, setTo] = useState(staff[0]?.id || 1);
-  return (
-    <Modal title={t('reassignBookings')} onClose={onClose}>
-      <p style={{ color: 'var(--muted)', fontSize: 13 }}>
-        {t('assignBookingsTo')} <strong>{request.date}</strong> {t('to')}
-      </p>
-      <div className="field">
-        <select className="select" value={to} onChange={e => setTo(Number(e.target.value))}>
-          {staff.map(s => <option key={s.id} value={s.id}>{s.name} · {s.role}</option>)}
-        </select>
-      </div>
-      <div className="modal-actions">
-        <button className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-        <button className="btn btn-primary" onClick={() => onSubmit(to)}>{t('approveReassign')}</button>
-      </div>
-    </Modal>
-  );
-}
-
-function AnnouncementsTab({ announcements, onReload, toast, user }) {
-  const { t } = useT();
-  const [modal, setModal] = useState(false);
-  const del = async (id) => {
-    if (!window.confirm(t('deleteAnnouncement'))) return;
-    const backup = announcements.find(a => a.id === id);
-    try {
-      await api(`/api/announcements/${id}`, { method: 'DELETE' });
-      onReload();
-      toast({
-        message: t('deleted'),
-        undoLabel: t('undo'),
-        undo: async () => {
-          try {
-            const { id: _drop, createdAt, ...rest } = backup || {};
-            await api('/api/announcements', { method: 'POST', body: rest });
-            toast(t('restored')); onReload();
-          } catch (e) { toast(e.message || t('failed')); }
-        },
-      });
-    } catch (e) { toast(e.message || t('couldNotDeleteAnnouncement')); }
-  };
-  return (
-    <div>
-      <div className="card">
-        <div className="card-head">
-          <h3>{t('announcements')}</h3>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal(true)}><Megaphone size={14} /> {t('send')}</button>
-        </div>
-        {announcements.length === 0
-          ? <div className="center-muted">{t('nothingSent')}</div>
-          : announcements.map(a => (
-            <div key={a.id} className="row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="grow">
-                  <div className="title" style={{ fontFamily: 'Fraunces, serif', fontSize: 16 }}>{a.title}</div>
-                  <div className="meta">{new Date(a.createdAt).toLocaleString()} · {a.from}</div>
-                </div>
-                <button className="btn-icon" onClick={() => del(a.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
-              </div>
-              <div style={{ marginTop: 6, fontSize: 14 }}>{a.body}</div>
-            </div>
-          ))}
-      </div>
-      {modal && (
-        <AnnouncementModal
-          defaultFrom={user?.name || 'Management'}
-          onClose={() => setModal(false)}
-          onSaved={() => { setModal(false); onReload(); toast(t('announcementSent')); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function AnnouncementModal({ defaultFrom, onClose, onSaved }) {
-  const { t } = useT();
-  const [f, setF] = useState({ title: '', body: '', from: defaultFrom || 'Management' });
-  const [saving, setSaving] = useState(false); const [err, setErr] = useState(null);
-  const save = async (e) => {
-    e.preventDefault(); setSaving(true); setErr(null);
-    try {
-      await api('/api/announcements', { method: 'POST', body: f });
-      onSaved();
-    } catch (e) { setErr(e.message); setSaving(false); }
-  };
-  return (
-    <Modal title={t('newAnnouncement')} onClose={onClose}>
-      <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('title')}</label>
-          <input className="input" required value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></div>
-        <div className="field"><label>{t('message')}</label>
-          <textarea className="textarea" required value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></div>
-        <div className="field"><label>{t('from')}</label>
-          <input className="input" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            <Send size={14} /> {saving ? t('sending') : t('send')}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-// ================= STAFF VIEWS =================
-
-function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast }) {
-  const { t } = useT();
-  const me = staff.find(s => s.id === staffId);
-  const myBookings = bookings.filter(b => b.staffId === staffId);
-  const [sop] = useState(() => sops[Math.floor(Math.random() * sops.length)] || null);
-  const [sickModal, setSickModal] = useState(false);
-
-  if (!me) return <div className="center-muted">{t('loadingProfile')}</div>;
-
-  return (
-    <div>
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <Avatar initial={me.avatar} color={me.color} size={54} />
-        <div>
-          <div style={{ fontFamily: 'Fraunces, serif', fontSize: 20, color: 'var(--emerald)' }}>
-            {t('goodMorning')}, {me.name.split(' ')[0]}
-          </div>
-          <div className="meta">{me.role} · {myBookings.length} {t('sessionsToday')}</div>
-        </div>
-      </div>
-
-      {onSubmitRequest && (
-        <>
-          <button
-            className="btn btn-ghost"
-            style={{ width: '100%', justifyContent: 'center', borderColor: 'var(--danger)', color: 'var(--danger)' }}
-            onClick={() => setSickModal(true)}
-            aria-label={t('callOutSick')}
-          >
-            <PhoneCall size={14} /> {t('callOutSick')}
-          </button>
-          {sickModal && (
-            <RequestModal
-              type="sick"
-              staffId={staffId}
-              staff={staff}
-              onClose={() => setSickModal(false)}
-              onSubmit={async (data) => {
-                try {
-                  await onSubmitRequest(data);
-                  setSickModal(false);
-                  toast && toast(t('sickCallToday'));
-                } catch (e) { toast && toast(e.message || t('couldNotSubmitRequest')); }
-              }}
-            />
-          )}
-        </>
-      )}
-
-      {sop && (
-        <div className="card" style={{ borderLeft: '3px solid var(--gold)' }}>
-          <div className="card-head"><h3><ShieldCheck size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} /> {t('todaySopReminder')}</h3></div>
-          <div className="title">{sop.title}</div>
-          <div className="meta" style={{ marginTop: 4 }}>{sop.description}</div>
-        </div>
-      )}
-
-      <div className="card">
-        <h3>{t('yourSessions')}</h3>
-        {myBookings.length === 0
-          ? <div className="center-muted">{t('noSessions')}</div>
-          : myBookings.map(b => (
-            <div key={b.id} className="sched-block">
-              <div className="time">{b.time}</div>
-              <div className="grow">
-                <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment} · {b.duration}min</div>
-                {b.allergies && (
-                  <div className="note-chip" style={{ background: '#fbecec', color: 'var(--danger)' }}>
-                    <AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                    {t('allergies')}: {b.allergies}
-                  </div>
-                )}
-                {b.notes && <div className="note-chip">{t('noteLabel')} {b.notes}</div>}
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
-
-function StaffScheduleView({ staff, bookings, staffId }) {
-  const { t, lang } = useT();
-  const mine = bookings.filter(b => b.staffId === staffId);
-  const me = staff.find(s => s.id === staffId);
-  const others = staff.filter(s => s.id !== staffId);
-  const workDays = me?.schedule || [];
-  const dayDict = TRANSLATIONS[lang]?.days || TRANSLATIONS.en.days;
-
-  return (
-    <div>
-      <div className="card">
-        <h3>{t('myWeek')}</h3>
-        <div className="week-grid">
-          {DAYS.map(d => (
-            <div className="week-cell" key={d} style={{
-              background: workDays.includes(d) ? 'var(--emerald-soft)' : '#fff',
-            }}>
-              <div className="d">{dayDict[d] || d}</div>
-              <div className="c">{workDays.includes(d) ? t('on') : t('off')}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>{t('todaysSessions')}</h3>
-        {mine.length === 0 ? <div className="center-muted">{t('noSessionsToday')}</div> : mine.map(b => (
-          <div key={b.id} className="sched-block">
-            <div className="time">{b.time}</div>
-            <div className="grow">
-              <div className="title">{b.client}</div>
-              <div className="meta">{b.treatment} · {b.duration}min</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <h3>{t('theTeam')}</h3>
-        {others.map(s => (
-          <div key={s.id} className="row">
-            <Avatar initial={s.avatar} color={s.color} size={32} />
-            <div className="grow">
-              <div className="title">{s.name}</div>
-              <div className="meta">{s.role} · {s.schedule?.map(d => dayDict[d] || d).join(', ') || '—'}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function StaffInboxView({ announcements, staffId, staff, requests, inventory, onSubmitRequest, toast }) {
-  const { t } = useT();
-  const [mode, setMode] = useState(null);
-  const [stockItem, setStockItem] = useState(null);
-  const mine = requests.filter(r => r.staffId === staffId);
-  const me = staff.find(s => s.id === staffId);
-  const perms = { ...STAFF_DEFAULT_PERMISSIONS, ...(me?.permissions || {}) };
-  const lowStock = (inventory || []).filter(i => i.stock <= i.threshold);
-
-  return (
-    <div>
-      {(perms.canRequestTimeOff || perms.canSwapShifts || perms.canRequestStock) && (
-        <div className="card">
-          <div className="card-head"><h3>{t('quickActions')}</h3></div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('sick')}><PhoneCall size={14} /> {t('sick')}</button>}
-            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('dayoff')}><CalendarOff size={14} /> {t('dayOffShort')}</button>}
-            {perms.canSwapShifts && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('swap')}><Repeat size={14} /> {t('swap')}</button>}
-            {perms.canRequestStock && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('stock_request')}><Package size={14} /> {t('requestStock')}</button>}
-          </div>
-        </div>
-      )}
-
-      {perms.canRequestStock && lowStock.length > 0 && (
-        <div className="card" style={{ borderLeft: '3px solid var(--warn)' }}>
-          <div className="card-head">
-            <h3><Package size={16} style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--warn)' }} />{t('stockAlerts')} ({lowStock.length})</h3>
-          </div>
-          {lowStock.map(i => (
-            <div key={i.id} className="row">
-              <Package size={18} color="var(--warn)" />
-              <div className="grow">
-                <div className="title">{i.name}</div>
-                <div className="meta">{i.stock} {i.unit} {t('leftLabel')} {i.threshold}</div>
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => setStockItem(i)}>{t('requestStock')}</button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="card">
-        <h3>{t('announcements')}</h3>
-        {announcements.length === 0 ? <div className="center-muted">{t('noAnnouncements')}</div> : announcements.map(a => (
-          <div key={a.id} className="row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <div className="title" style={{ fontFamily: 'Fraunces, serif', fontSize: 16 }}>{a.title}</div>
-            <div className="meta">{new Date(a.createdAt).toLocaleString()} · {a.from}</div>
-            <div style={{ marginTop: 4, fontSize: 14 }}>{a.body}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <h3>{t('myRequests')}</h3>
-        {mine.length === 0 ? <div className="center-muted">{t('noRequestsSubmitted')}</div> : mine.map(r => (
-          <div key={r.id} className="row">
-            <div className="grow">
-              <div className="title">{r.type === 'sick' ? t('sickCall') : r.type === 'dayoff' ? t('dayOff') : r.type === 'stock_request' ? t('stockRequest') : t('shiftSwap')}</div>
-              <div className="meta">
-                {r.type === 'stock_request'
-                  ? `${(inventory || []).find(i => i.id === r.productId)?.name || 'Product'} · qty ${r.quantity}`
-                  : `${r.date || '—'} · ${r.reason || '—'}`}
-              </div>
-            </div>
-            <Badge label={r.status} type={r.status === 'approved' ? 'success' : r.status === 'declined' ? 'danger' : 'pending'} />
-          </div>
-        ))}
-      </div>
-
-      {mode && mode !== 'stock_request' && (
-        <RequestModal
-          type={mode}
-          staffId={staffId}
-          staff={staff}
-          onClose={() => setMode(null)}
-          onSubmit={async (data) => {
-            try {
-              await onSubmitRequest(data);
-              setMode(null); toast(t('requestSubmitted'));
-            } catch (e) { toast(e.message || t('couldNotSubmitRequest')); }
-          }}
-        />
-      )}
-      {(mode === 'stock_request' || stockItem) && (
-        <StockRequestModal
-          staffId={staffId}
-          inventory={inventory || []}
-          initialProductId={stockItem?.id}
-          onClose={() => { setMode(null); setStockItem(null); }}
-          onSubmit={async (data) => {
-            try {
-              await onSubmitRequest(data);
-              setMode(null); setStockItem(null); toast(t('stockRequestSubmitted'));
-            } catch (e) { toast(e.message || t('couldNotSubmitRequest')); }
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
-  const { t } = useT();
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const [f, setF] = useState({
-    type, staffId, date: type === 'sick' ? todayISO : '', reason: '', swapWith: '', swapDay: '',
-  });
-  const [err, setErr] = useState(null);
-  const titleMap = { sick: t('callInSick'), dayoff: t('requestDayOff'), swap: t('requestSwap') };
-  const others = staff.filter(s => s.id !== staffId);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (type === 'sick' && !f.reason.trim()) {
-      setErr(t('sickReasonRequired'));
-      return;
-    }
-    setErr(null);
-    onSubmit(f);
-  };
-
-  return (
-    <Modal title={titleMap[type]} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
-        {/* Policy notice for sick calls */}
-        {type === 'sick' && (
-          <div style={{
-            background: '#fff8ec', border: '1px solid var(--gold)',
-            borderRadius: 10, padding: '10px 14px', marginBottom: 14,
-            fontSize: 13, color: 'var(--ink)', lineHeight: 1.5,
-          }}>
-            ⏰ {t('sickCallNotice')}
-          </div>
-        )}
-        {err && <div className="error-banner"><AlertTriangle size={14} /> {err}</div>}
-        <div className="field"><label>{t('date')}</label>
-          <input className="input" type="date" required value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
-        {type === 'swap' && (
-          <>
-            <div className="field"><label>{t('swapWith')}</label>
-              <select className="select" value={f.swapWith} onChange={e => setF({ ...f, swapWith: e.target.value })}>
-                <option value="">{t('selectColleague')}</option>
-                {others.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select></div>
-            <div className="field"><label>{t('theirDay')}</label>
-              <input className="input" type="date" value={f.swapDay} onChange={e => setF({ ...f, swapDay: e.target.value })} /></div>
-          </>
-        )}
-        <div className="field">
-          <label>{type === 'sick' ? t('reason') : t('noteOptional')}</label>
-          <textarea
-            className="textarea"
-            value={f.reason}
-            onChange={e => { setErr(null); setF({ ...f, reason: e.target.value }); }}
-            placeholder={type === 'sick' ? 'e.g. Fever, food poisoning, injury…' : ''}
-            rows={type === 'sick' ? 3 : 2}
-          />
-          {type === 'sick' && (
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Required</div>
-          )}
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary"><Send size={14} /> {t('submit')}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSubmit }) {
-  const { t } = useT();
-  const [f, setF] = useState({
-    type: 'stock_request',
-    staffId,
-    productId: initialProductId || inventory[0]?.id || '',
-    quantity: 1,
-    reason: '',
-  });
-
-  return (
-    <Modal title={t('requestStock')} onClose={onClose}>
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...f, productId: Number(f.productId) }); }}>
-        <div className="field">
-          <label>{t('product')}</label>
-          <select className="select" value={f.productId} onChange={e => setF({ ...f, productId: e.target.value })}>
-            {inventory.length === 0
-              ? <option value="">No items</option>
-              : inventory.map(i => (
-                <option key={i.id} value={i.id}>
-                  {i.name} ({i.stock} {i.unit} left)
-                </option>
-              ))}
-          </select>
-        </div>
-        <div className="field">
-          <label>{t('quantityLabel')}</label>
-          <input className="input" type="number" min="1" required value={f.quantity}
-            onChange={e => setF({ ...f, quantity: Number(e.target.value) })} />
-        </div>
-        <div className="field">
-          <label>{t('noteOptional')}</label>
-          <textarea className="textarea" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={inventory.length === 0}>
-            <Send size={14} /> {t('submit')}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout }) {
-  const { t, lang } = useT();
-  const me = staff.find(s => s.id === staffId);
-  if (!me) return null;
-  const myV = violations.filter(v => v.staffId === staffId);
-  const sessionsThisWeek = bookings.filter(b => b.staffId === staffId).length;
-  const locale = lang === 'id' ? 'id-ID' : 'en-US';
-
-  return (
-    <div>
-      <div className="card" style={{ textAlign: 'center' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-          <Avatar initial={me.avatar} color={me.color} size={84} />
-        </div>
-        <div style={{ fontFamily: 'Fraunces, serif', fontSize: 24, color: 'var(--emerald)' }}>{me.name}</div>
-        <div className="meta">{me.role}</div>
-        {me.birthday && <div className="meta" style={{ marginTop: 4 }}>{t('birthdayLabel')} {new Date(me.birthday).toLocaleDateString(locale, { month: 'long', day: 'numeric' })}</div>}
-      </div>
-
-      <div className="stats">
-        <div className="stat"><div className="v">{sessionsThisWeek}</div><div className="l">{t('sessionsTodayStat')}</div></div>
-        <div className="stat"><div className="v">{me.schedule?.length || 0}</div><div className="l">{t('daysWeek')}</div></div>
-        <div className="stat"><div className="v">{myV.length}</div><div className="l">{t('sopNotes')}</div></div>
-      </div>
-
-      <div className="card">
-        <h3>{t('mySopNotes')}</h3>
-        {myV.length === 0
-          ? <div className="success-banner"><CheckCircle size={14} /> {t('cleanRecord')}</div>
-          : myV.map(v => {
-            const sop = sops.find(s => s.id === v.sopId);
-            return (
-              <div key={v.id} className="row">
-                <AlertTriangle size={16} color="var(--warn)" />
-                <div className="grow">
-                  <div className="title">{sop ? sop.title : '—'}</div>
-                  <div className="meta">{v.note || '—'} · {new Date(v.createdAt).toLocaleDateString(locale)}</div>
-                </div>
-              </div>
-            );
-          })}
-      </div>
-
-      {onLogout && (
-        <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={onLogout}>
-          <LogOut size={14} /> {t('signOut')}
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ================= OWNER VIEW =================
-function OwnerView({ staff, bookings, inventory, requests, violations, announcements }) {
-  const { t, lang } = useT();
-  const { labels } = useBiz();
-  const lowStock = inventory.filter(i => i.stock <= i.threshold);
-  const totalRevenue = bookings.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
-  const avgPerDay = Math.round(totalRevenue / 7);
-  const fmt = (n) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US').format(n);
-  const currency = lang === 'id' ? 'IDR ' : '$';
-
-  // Per-staff totals + commission.
-  const perStaff = staff.map(s => {
-    const mine = bookings.filter(b => b.staffId === s.id);
-    const rev = mine.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
-    const rate = Number(s.commissionRate ?? 30) / 100;
-    return { ...s, sessions: mine.length, revenue: rev, commission: Math.round(rev * rate) };
-  }).sort((a, b) => b.revenue - a.revenue);
-  const top = perStaff[0];
-
-  return (
-    <div>
-      <div className="stats">
-        <div className="stat"><div className="v">{bookings.length}</div><div className="l">{labels.todayCount}</div></div>
-        <div className="stat"><div className="v">{staff.length}</div><div className="l">{labels.staffPlural}</div></div>
-        <div className="stat"><div className="v">{violations.length}</div><div className="l">{t('sopNotesStat')}</div></div>
-      </div>
-
-      <div className="card">
-        <div className="card-head"><h3>{t('thisWeek')}</h3></div>
-        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">{currency}{fmt(totalRevenue)}</div></div></div>
-        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">{currency}{fmt(avgPerDay)}</div></div></div>
-        <div className="row"><CheckCircle size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{bookings.length} {labels.bookingPlural.toLowerCase()}</div></div></div>
-        {top && top.revenue > 0 && (
-          <div className="row">
-            <Avatar initial={top.avatar} color={top.color} size={32} />
-            <div className="grow"><div className="title">{t('topTherapist')}</div><div className="meta">{top.name} · {currency}{fmt(top.revenue)}</div></div>
-          </div>
         )}
       </div>
 
-      <div className="card">
-        <h3>{t('snapshot')}</h3>
-        <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('lowStockItems')}</div><div className="meta">{lowStock.length} {t('flagged')}</div></div></div>
-        <div className="row"><Bell size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('pendingRequestsSnap')}</div><div className="meta">{requests.filter(r => r.status === 'pending').length}</div></div></div>
-        <div className="row"><Megaphone size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('announcementsSent')}</div><div className="meta">{announcements.length}</div></div></div>
-      </div>
-
-      <div className="card">
-        <h3>{t('team')} · {t('commission')}</h3>
-        {perStaff.map(s => (
-          <div key={s.id} className="row">
-            <Avatar initial={s.avatar} color={s.color} size={32} />
-            <div className="grow">
-              <div className="title">{s.name}</div>
-              <div className="meta">{s.sessions} {labels.bookingPlural.toLowerCase()} · {currency}{fmt(s.revenue)}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--emerald)' }}>{currency}{fmt(s.commission)}</div>
-              <div className="meta" style={{ fontSize: 11 }}>{t('estEarnings')}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ================= NAV =================
-const MANAGER_NAV = [
-  { id: 'dashboard',     labelKey: 'home',          icon: LayoutDashboard },
-  { id: 'schedule',      labelKey: 'schedule',      icon: Calendar },
-  { id: 'services',      labelKey: 'services',      icon: Sparkles },
-  { id: 'clients',       labelKey: 'clients',       icon: User },
-  { id: 'staff',         labelKey: 'staff',         icon: Users },
-  { id: 'inventory',     labelKey: 'stock',         icon: Package },
-  { id: 'alerts',        labelKey: 'alerts',        icon: Bell },
-  { id: 'sop',           labelKey: 'sop',           icon: ShieldCheck },
-  { id: 'announcements', labelKey: 'send',          icon: Megaphone },
-];
-const STAFF_NAV = [
-  { id: 'today',     labelKey: 'today',    icon: Home },
-  { id: 'schedule',  labelKey: 'schedule', icon: Calendar },
-  { id: 'inventory', labelKey: 'stock',    icon: Package, requiresPerm: 'canEditStock' },
-  { id: 'inbox',     labelKey: 'inbox',    icon: Inbox },
-  { id: 'profile',   labelKey: 'profile',  icon: User },
-];
-const OWNER_NAV = [
-  { id: 'overview', labelKey: 'home', icon: Gem },
-];
-
-// ================= TOUR OVERLAY (data-tour DOM targeting) =================
-// ================= WELCOME SLIDESHOW =================
-// Runs once for every new account on first dashboard load. Five slides: app intro,
-// scope ("works for any service biz"), three capability slides, then "let's go".
-// User taps Next or swipes through. Skip available throughout.
-const SLIDES = [
-  {
-    icon: '👋',
-    title: 'Welcome aboard',
-    body: "We're going to make running your business much easier. This will only take 30 seconds.",
-  },
-  {
-    icon: '🌐',
-    title: 'Built for any service business',
-    body: 'Spas, salons, gyms, clinics, restaurants, hotels, cafés, repair shops, freelancers — and many more. If you take bookings or manage a team, this app fits.',
-  },
-  {
-    icon: '📅',
-    title: 'Smart scheduling',
-    body: 'Bookings, shifts, swaps, and reassignments — all in one calendar. When someone calls in sick, you can reassign their day in two taps.',
-  },
-  {
-    icon: '👥',
-    title: 'Your team, organized',
-    body: 'Time-off, sick calls, and shift swaps come through as requests you can approve or decline. No more "did you see my text?"',
-  },
-  {
-    icon: '📦',
-    title: 'Never run out of stock',
-    body: 'Track supplies, products, or equipment. Get alerts before you run low. One tap to mark items reordered.',
-  },
-  {
-    icon: '✨',
-    title: "Let's set up yours",
-    body: "Tap the button below — we'll show you where everything is.",
-  },
-];
-
-function WelcomeSlideshow({ onDone }) {
-  const [step, setStep] = useState(0);
-  const slide = SLIDES[step];
-  const isLast = step === SLIDES.length - 1;
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9990,
-      background: 'rgba(28, 28, 30, 0.92)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 20,
-    }}>
-      <div style={{
-        background: 'var(--cream)', borderRadius: 18,
-        maxWidth: 400, width: '100%',
-        padding: '32px 24px 22px',
-        boxShadow: '0 12px 60px rgba(0,0,0,0.4)',
-        textAlign: 'center',
-        animation: 'fadein 0.3s ease',
-      }}>
-        {/* Skip top-right */}
-        <button
-          onClick={onDone}
-          style={{
-            position: 'absolute', top: 22, right: 26,
-            background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)',
-            border: 'none', borderRadius: 18, padding: '5px 12px',
-            fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >Skip</button>
-
-        <div style={{ fontSize: 56, marginBottom: 18 }}>{slide.icon}</div>
-        <h2 style={{
-          fontFamily: 'Fraunces, serif', fontSize: 24, fontWeight: 600,
-          color: 'var(--emerald)', margin: 0, lineHeight: 1.2,
-        }}>{slide.title}</h2>
-        <p style={{
-          color: 'var(--ink)', fontSize: 14, lineHeight: 1.6,
-          marginTop: 14, marginBottom: 26,
-        }}>{slide.body}</p>
-
-        {/* Progress dots */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 22 }}>
-          {SLIDES.map((_, i) => (
-            <div key={i} style={{
-              width: i === step ? 22 : 7, height: 7, borderRadius: 4,
-              background: i <= step ? 'var(--emerald)' : 'var(--line)',
-              transition: 'all 0.25s',
-            }} />
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          {step > 0 && (
-            <button
-              onClick={() => setStep(step - 1)}
-              style={{
-                flex: 1, padding: '12px 16px', borderRadius: 10,
-                border: '1px solid var(--border)', background: 'transparent',
-                cursor: 'pointer', fontFamily: 'inherit', fontSize: 14,
-                color: 'var(--muted)',
-              }}
-            >← Back</button>
-          )}
-          <button
-            onClick={() => isLast ? onDone() : setStep(step + 1)}
-            style={{
-              flex: 2, padding: '14px 16px', borderRadius: 10,
-              border: 'none', background: 'var(--emerald)', color: '#fff',
-              cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 600,
-            }}
-          >
-            {isLast ? "Show me around →" : 'Next →'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ================= PRIVACY POLICY =================
-function PrivacyPolicyScreen({ onBack }) {
-  return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px', fontFamily: 'system-ui', lineHeight: 1.7, color: '#333' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2d5a4a', fontSize: 14, marginBottom: 24, padding: 0 }}>
-        ← Back
+      <button className="btn btn-ghost btn-block" onClick={exportData} disabled={busy} style={{ marginBottom: 10 }}>
+        Export my data
       </button>
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Privacy Policy</h1>
-      <p style={{ color: '#888', fontSize: 13, marginBottom: 32 }}>Last updated: {new Date().getFullYear()}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>1. Who We Are</h2>
-      <p>Viroxit ("we", "us", "our") provides business operations management software for service businesses. This policy explains how we handle your data.</p>
+      <button className="btn btn-ghost btn-block" onClick={onLogout} style={{ marginBottom: 24 }}>
+        <LogOut size={18} /> Sign out
+      </button>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>2. What We Collect</h2>
-      <ul>
-        <li><strong>Account data:</strong> Email address and password (hashed — we never store plain-text passwords)</li>
-        <li><strong>Business data:</strong> Staff, bookings, inventory, SOPs, and announcements you create inside the app</li>
-        <li><strong>Usage data:</strong> Basic server logs (request paths, timestamps) for debugging and security</li>
-      </ul>
-      <p>We do not collect payment card details directly. Payments are handled by Stripe.</p>
-
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>3. How We Use It</h2>
-      <ul>
-        <li>Provide and improve the Viroxit service</li>
-        <li>Send password reset emails (only when you request them)</li>
-        <li>Detect and prevent security threats</li>
-        <li>Communicate service updates</li>
-      </ul>
-      <p>We do not sell your data. We do not share it with third parties except as required to operate the service (e.g., hosting provider, email delivery).</p>
-
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>4. Data Storage</h2>
-      <p>Your data is stored on secure servers. Passwords are hashed using bcrypt. Connections use HTTPS. We retain your data for as long as your account is active.</p>
-
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>5. Your Rights</h2>
-      <ul>
-        <li><strong>Access:</strong> You can request a copy of your data at any time</li>
-        <li><strong>Deletion:</strong> You can request account deletion by emailing us</li>
-        <li><strong>Correction:</strong> You can update your account information in the app</li>
-      </ul>
-      <p>To exercise these rights, contact us at the email below.</p>
-
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>6. Cookies</h2>
-      <p>We use a single session token stored in your browser's local storage for authentication. No third-party tracking cookies.</p>
-
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>7. Children</h2>
-      <p>Viroxit is not directed at children under 13. We do not knowingly collect data from children.</p>
-
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>8. Changes</h2>
-      <p>We may update this policy. Continued use after changes means acceptance. We will notify users of material changes by email.</p>
-
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>9. Contact</h2>
-      <p>Questions? Email us at: <a href="mailto:privacy@viroxit.org" style={{ color: '#2d5a4a' }}>privacy@viroxit.org</a></p>
-
-      <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #eee', fontSize: 12, color: '#aaa' }}>
-        © {new Date().getFullYear()} Viroxit. All rights reserved.
-      </div>
-    </div>
-  );
-}
-
-function TourOverlay({ onDone }) {
-  // Filter tour steps to only include tabs visible for this business type.
-  // (gym hides SOP, etc — pointing at hidden tabs would hang the tour.)
-  const { hiddenTabs } = useBiz();
-  const visibleSteps = useMemo(
-    () => TOUR_STEPS.filter(s => !hiddenTabs.includes(s.targetId.replace(/^tab-/, ''))),
-    [hiddenTabs]
-  );
-  const [step, setStep] = useState(0);
-  const [rect, setRect] = useState(null);
-  // Tracks whether we've attempted to measure for the current step. Prevents the
-  // dark-flash glitch where the overlay covered the whole screen for a beat
-  // before the spotlight cutout was positioned.
-  const [triedMeasure, setTriedMeasure] = useState(false);
-  const stepRef = useRef(step);
-  stepRef.current = step;
-
-  // Measure target element position live
-  const measure = useCallback(() => {
-    const target = visibleSteps[stepRef.current];
-    if (!target) { setRect(null); setTriedMeasure(true); return; }
-    const el = document.querySelector(`[data-tour="${target.targetId}"]`);
-    setRect(el ? el.getBoundingClientRect() : null);
-    setTriedMeasure(true);
-  }, [visibleSteps]);
-
-  // Recompute on step change, resize, scroll. Reset rect on step change so we
-  // don't briefly show the previous step's spotlight on the new step.
-  useEffect(() => {
-    setRect(null);
-    setTriedMeasure(false);
-    // 250ms gives the just-mounted DOM (post-slideshow or post-tab-switch) time to settle.
-    const tid = setTimeout(measure, 250);
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, true);
-    return () => {
-      clearTimeout(tid);
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('scroll', measure, true);
-    };
-  }, [step, measure]);
-
-  // Listen for clicks on the current target to advance
-  useEffect(() => {
-    const target = visibleSteps[stepRef.current];
-    if (!target) return;
-    const { targetId } = target;
-    const handler = (e) => {
-      if (e.target.closest(`[data-tour="${targetId}"]`)) {
-        setTimeout(() => {
-          const next = stepRef.current + 1;
-          if (next < visibleSteps.length) setStep(next);
-          else onDone();
-        }, 150);
-      }
-    };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
-  }, [step, onDone, visibleSteps]);
-
-  const currentStep = visibleSteps[step];
-  const PAD = 10;
-  const GOLD = '#b8956a';
-
-  // Compute arrow + tooltip positions from rect
-  let arrowLeft = 0, arrowTop = 0, arrowRotate = 0;
-  let tipLeft = 0, tipTop = 0;
-
-  if (rect) {
-    const cx = rect.left + rect.width / 2;
-    // Always position above the element (pointing down at it)
-    arrowLeft = cx - 20;
-    arrowTop  = rect.top - 58;
-    arrowRotate = 0; // SVG arrow points down by default
-    // Tooltip above the arrow
-    tipLeft = Math.min(Math.max(cx - 120, 8), window.innerWidth - 248);
-    tipTop  = rect.top - 58 - 68;
-  }
-
-  return (
-    <>
-      {/* Spotlight cutout: box-shadow creates dark vignette, transparent hole reveals target.
-          Only render the dark fallback after we've actually tried to measure — avoids the
-          full-screen dark flash glitch on initial mount. */}
-      {rect && (
-        <div style={{
-          position: 'fixed',
-          left: rect.left - PAD, top: rect.top - PAD,
-          width: rect.width + PAD * 2, height: rect.height + PAD * 2,
-          borderRadius: 14,
-          background: 'transparent',
-          boxShadow: '0 0 0 9999px rgba(0,0,0,0.72)',
-          zIndex: 9990,
-          pointerEvents: 'none',
-          transition: 'all 0.2s ease',
-        }} />
-      )}
-      {!rect && triedMeasure && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9990, pointerEvents: 'none' }} />
-      )}
-
-      {/* Bouncing SVG arrow pointing at target */}
-      {rect && (
-        <div style={{
-          position: 'fixed', zIndex: 9995, pointerEvents: 'none',
-          left: arrowLeft, top: arrowTop,
-          animation: 'tour-bounce 0.85s ease-in-out infinite',
-          transform: `rotate(${arrowRotate}deg)`,
-        }}>
-          <svg width="40" height="52" viewBox="0 0 40 52">
-            <line x1="20" y1="2" x2="20" y2="38" stroke={GOLD} strokeWidth="3.5" strokeLinecap="round" />
-            <polyline points="8,28 20,44 32,28" fill="none" stroke={GOLD} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      )}
-
-      {/* Tooltip */}
-      {rect && (
-        <div style={{
-          position: 'fixed', zIndex: 9996, pointerEvents: 'none',
-          left: tipLeft, top: Math.max(tipTop, 8),
-          background: '#1c1c1e',
-          color: '#f5f0e8',
-          fontFamily: 'Fraunces, Georgia, serif',
-          fontSize: 15, lineHeight: 1.55,
-          padding: '12px 16px',
-          borderRadius: 14,
-          maxWidth: 240,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          {currentStep.message}
-        </div>
-      )}
-
-      {/* No target found — fallback card. Only show after we've tried, to avoid initial flash. */}
-      {!rect && triedMeasure && currentStep && (
-        <div style={{
-          position: 'fixed', top: '40%', left: '50%', transform: 'translate(-50%,-50%)',
-          zIndex: 9996, background: '#1c1c1e', color: '#f5f0e8',
-          fontFamily: 'Fraunces, Georgia, serif',
-          padding: '20px 28px', borderRadius: 18,
-          maxWidth: 300, fontSize: 15, textAlign: 'center',
-          boxShadow: '0 12px 48px rgba(0,0,0,0.5)',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          <div style={{ marginBottom: 16, lineHeight: 1.6 }}>
-            Navigate to find: <strong style={{ color: GOLD }}>{currentStep.message.toLowerCase()}</strong>
+      <div style={{ paddingTop: 18, borderTop: '1px solid #e0e4eb' }}>
+        {!showDelete ? (
+          <button className="btn btn-ghost btn-block" style={{ color: '#c4453a' }} onClick={() => setShowDelete(true)}>
+            <Trash2 size={18} /> Delete account
+          </button>
+        ) : (
+          <div style={{ padding: 14, background: 'rgba(196,69,58,0.06)', borderRadius: 12, border: '1px solid rgba(196,69,58,0.3)' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#c4453a', marginBottom: 10 }}>
+              This permanently deletes your account and all data. Cannot be undone.
+            </div>
+            <input className="input" type="password" placeholder="Password" value={delPw} onChange={e => { setDelErr(null); setDelPw(e.target.value); }} style={{ marginBottom: 8 }} />
+            <input className="input" type="text" placeholder="Type DELETE" value={delConfirm} onChange={e => { setDelErr(null); setDelConfirm(e.target.value); }} style={{ marginBottom: 8 }} />
+            {delErr && <div style={{ color: '#c4453a', fontSize: 13, marginBottom: 8 }}>{delErr}</div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowDelete(false); setDelPw(''); setDelConfirm(''); setDelErr(null); }}>Cancel</button>
+              <button className="btn btn-danger" style={{ flex: 1 }} disabled={busy} onClick={deleteAccount}>{busy ? 'Deleting…' : 'Delete'}</button>
+            </div>
           </div>
-          <button
-            onClick={() => { const n = step + 1; if (n < visibleSteps.length) setStep(n); else onDone(); }}
-            style={{
-              background: GOLD, color: '#fff', border: 'none', borderRadius: 10,
-              padding: '9px 20px', cursor: 'pointer',
-              fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
-            }}
-          >Skip this step →</button>
-        </div>
-      )}
-
-      {/* Skip tour button */}
-      <button
-        onClick={onDone}
-        style={{
-          position: 'fixed', top: 14, right: 14, zIndex: 9999,
-          background: 'rgba(28,28,30,0.9)', color: 'rgba(255,255,255,0.8)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          borderRadius: 20, padding: '6px 14px', fontSize: 13,
-          cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em',
-        }}
-      >Skip tour</button>
-
-      {/* Step progress dots */}
-      <div style={{
-        position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
-        zIndex: 9999, display: 'flex', gap: 7, pointerEvents: 'none',
-      }}>
-        {visibleSteps.map((_, i) => (
-          <div key={i} style={{
-            width: i === step ? 22 : 7, height: 7, borderRadius: 4,
-            background: i === step ? GOLD : 'rgba(255,255,255,0.3)',
-            transition: 'all 0.25s',
-          }} />
-        ))}
+        )}
       </div>
-    </>
+    </Modal>
   );
 }
 
-
-// ================= APP =================
+// ═══════════════════════════════════════════════════════════
+// APP ROOT
+// ═══════════════════════════════════════════════════════════
 function AppInner() {
-  const { t } = useT();
   const [user, setUser] = useState(null);
-  const [authChecking, setAuthChecking] = useState(true);
-  const [role, setRole] = useState(null);
-  const [tab, setTab] = useState('dashboard');
-  const [toastMsg, setToastMsg] = useState(null);
-  const toast = (m) => setToastMsg(m);
-  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset_token') || null);
-  const [authMode, setAuthMode] = useState(null); // null | 'login' | 'signup'
-  const [signupIntent, setSignupIntent] = useState(null); // null | 'owner' | 'staff' — drives post-signup onboarding
-  const [onboardingChoice, setOnboardingChoice] = useState(null); // null | 'owner' | 'staff'
   const [business, setBusiness] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [tourDone, setTourDone] = useState(false);
-  // Re-evaluate tour + slideshow completion when user changes (per-user keys).
-  // Stored as functions so deps can be the user object itself without lint warnings.
-  useEffect(() => {
-    if (!user) { setTourDone(false); return; }
-    setTourDone(localStorage.getItem(tourKeyFor(user)) === 'true');
-  }, [user]);
-  const [slidesDone, setSlidesDone] = useState(false);
-  useEffect(() => {
-    if (!user) { setSlidesDone(false); return; }
-    setSlidesDone(localStorage.getItem(`spapilot-slides-done-u${user.id}`) === 'true');
-  }, [user]);
+  const [checking, setChecking] = useState(true);
+  const [authMode, setAuthMode] = useState(null); // null | 'landing' | 'signup' | 'join' | 'signin'
 
-  const authed = !!user;
-  const onboarded = !!(user?.role && user?.businessType && user?.businessId);
-  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(() => {
-    const path = window.location.pathname;
-    return path === '/privacy' || path === '/privacy-policy';
-  });
-
-  const staff         = useCollection('/api/staff',         authed);
-  const bookings      = useCollection('/api/bookings',      onboarded);
-  const inventory     = useCollection('/api/inventory',     onboarded, 120000);
-  const requests      = useCollection('/api/requests',      onboarded, 60000);
-  const announcements = useCollection('/api/announcements', onboarded, 120000);
-  const violations    = useCollection('/api/violations',    onboarded);
-  const sops          = useCollection('/api/sop',           onboarded);
-  const services      = useCollection('/api/services',      onboarded);
-
-  const reloadAll = () => {
-    staff.reload(); bookings.reload(); inventory.reload();
-    requests.reload(); announcements.reload(); violations.reload();
-    sops.reload(); services.reload();
-  };
-
-  const submitRequest = async (data) => {
-    await api('/api/requests', { method: 'POST', body: data });
-    requests.reload();
-  };
-
-  // On mount: restore session if token present.
   useEffect(() => {
     const token = getToken();
-    if (!token) { setAuthChecking(false); return; }
+    if (!token) { setChecking(false); setAuthMode('landing'); return; }
     api('/api/auth/me')
-      .then(u => { setUser(u); setAuthChecking(false); })
-      .catch(() => { setToken(null); setAuthChecking(false); });
+      .then(d => { setUser(d.user); setBusiness(d.business); setChecking(false); })
+      .catch(() => { setToken(null); setChecking(false); setAuthMode('landing'); });
   }, []);
 
-  // Listen for 401s from other requests — fully reset session state.
   useEffect(() => {
-    const handler = () => {
-      setUser(null); setRole(null); setBusiness(null); setOnboardingChoice(null);
-      setAuthMode(null);
-    };
+    const handler = () => { setUser(null); setBusiness(null); setAuthMode('landing'); };
     window.addEventListener('app:unauth', handler);
     return () => window.removeEventListener('app:unauth', handler);
   }, []);
-
-  // When user logs in: managers pick a role; non-managers go straight to staff view.
-  useEffect(() => {
-    if (!user) { setRole(null); return; }
-    if (user.role === 'staff') setRole('staff');
-    else if (user.role === 'manager') setRole('manager');
-  }, [user]);
-
-  // Tab reset when role changes.
-  useEffect(() => {
-    if (role === 'manager') setTab('dashboard');
-    if (role === 'staff')   setTab('today');
-    if (role === 'owner')   setTab('overview');
-  }, [role]);
 
   const logout = async () => {
     try { await api('/api/auth/logout', { method: 'POST', body: {} }); } catch {}
     setToken(null);
     setUser(null);
-    setRole(null);
     setBusiness(null);
-    setOnboardingChoice(null);
-    setAuthMode(null);
+    setAuthMode('landing');
   };
 
-  // Load business when user has businessId
-  useEffect(() => {
-    if (!user?.businessId) { setBusiness(null); return; }
-    api('/api/businesses/me').then(setBusiness).catch(() => setBusiness(null));
-  }, [user?.businessId]);
-
-  // Trial / payment status
-  const trialEndDate = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
-  const trialExpired = trialEndDate ? new Date() > trialEndDate : false;
-  const isPaid = user?.subscriptionStatus === 'active';
-  const needsPayment = authed && trialExpired && !isPaid;
-
-  if (showPrivacyPolicy) return (
-    <PrivacyPolicyScreen onBack={() => setShowPrivacyPolicy(false)} />
-  );
-
-  if (resetToken) return (
-    <ResetPasswordScreen token={resetToken} onDone={() => {
-      setResetToken(null);
-      const url = new URL(window.location.href);
-      url.searchParams.delete('reset_token');
-      window.history.replaceState({}, '', url.toString());
-    }} />
-  );
-
-  if (authChecking) {
+  if (checking) {
     return (
-      <div className="role-screen">
-        <div className="center-muted">
-          <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite' }} />
+      <div className="auth-screen">
+        <div className="loading">
+          <RefreshCw size={28} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
         </div>
       </div>
     );
   }
 
   if (!user) {
-    if (!authMode) {
-      return <LandingPage
-        onStartTrial={() => { setSignupIntent('owner'); setAuthMode('signup'); }}
-        onSignIn={() => setAuthMode('login')}
-        onJoinTeam={() => { setSignupIntent('staff'); setAuthMode('signup'); }}
-        onShowPrivacy={() => setShowPrivacyPolicy(true)}
-      />;
-    }
-    return <AuthScreen
-      onAuthed={(u) => {
-        setUser(u);
-        setAuthMode(null);
-        // If user came in via "Join your team", skip the role-picker screen
-        if (signupIntent === 'staff' && !u.businessId) setOnboardingChoice('staff');
-        if (signupIntent === 'owner' && !u.businessId) setOnboardingChoice('owner');
-        setSignupIntent(null);
-      }}
-      initialMode={authMode}
-      onBack={() => { setAuthMode(null); setSignupIntent(null); }}
+    if (authMode === 'signup') return <SignupOwnerScreen onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} />;
+    if (authMode === 'join')   return <JoinTeamScreen   onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} />;
+    if (authMode === 'signin') return <SignInScreen     onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} />;
+    return <LandingScreen
+      onStart={() => setAuthMode('signup')}
+      onSignIn={() => setAuthMode('signin')}
+      onJoinTeam={() => setAuthMode('join')}
     />;
   }
 
-  if (needsPayment) return (
-    <PaymentRequired user={user} onActivated={setUser} onLogout={logout} />
-  );
-
-  if (!user.businessId) {
-    if (!onboardingChoice) {
-      return <OnboardingRoleSelector
-        user={user}
-        onPickOwner={() => setOnboardingChoice('owner')}
-        onPickStaff={() => setOnboardingChoice('staff')}
-        onLogout={logout}
-      />;
-    }
-    if (onboardingChoice === 'owner') {
-      return <BusinessOwnerOnboarding
-        onCreated={(u, b) => { setUser(u); setBusiness(b); setOnboardingChoice(null); setRole(u.role || 'manager'); }}
-        onBack={() => setOnboardingChoice(null)}
-        onLogout={logout}
-      />;
-    }
-    if (onboardingChoice === 'staff') {
-      return <StaffOnboarding
-        onJoined={(u, b) => { setUser(u); setBusiness(b); setOnboardingChoice(null); setRole(u.role || 'staff'); }}
-        onBack={() => setOnboardingChoice(null)}
-        onSwitchToOwner={() => setOnboardingChoice('owner')}
-        onLogout={logout}
-      />;
-    }
-  }
-
-  if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} />;
-
-  const currentStaffId = user.staffId || user.id;
-
-  const currentStaffMember = role === 'staff' ? staff.data.find(s => s.id === currentStaffId) : null;
-  const staffPerms = { ...STAFF_DEFAULT_PERMISSIONS, ...(currentStaffMember?.permissions || {}) };
-  const filteredStaffNav = STAFF_NAV.filter(item => {
-    if (item.id === 'schedule') return staffPerms.canViewSchedule;
-    if (item.requiresPerm) return staffPerms[item.requiresPerm];
-    return true;
-  });
-  // Filter manager nav by biz-type defaults (gym hides SOP, etc.).
-  const bizType = business?.type || 'spa';
-  const hiddenTabs = BIZ_HIDDEN_TABS[bizType] || [];
-  const filteredManagerNav = MANAGER_NAV.filter(item => !hiddenTabs.includes(item.id));
-  const nav = role === 'manager' ? filteredManagerNav : role === 'staff' ? filteredStaffNav : OWNER_NAV;
-  const lowStockCount = useMemo(
-    () => inventory.data.filter(i => i.stock <= i.threshold).length,
-    [inventory.data]
-  );
-  const pendingCount = useMemo(
-    () => requests.data.filter(r => r.status === 'pending').length,
-    [requests.data]
-  );
-  const alertBadge = lowStockCount + pendingCount;
-
-  const anyLoading = staff.loading || bookings.loading || inventory.loading
-    || requests.loading || announcements.loading || violations.loading || sops.loading || services.loading;
-  const anyError = staff.error || bookings.error || inventory.error
-    || requests.error || announcements.error || violations.error || sops.error || services.error;
-
-  const navItem = nav.find(n => n.id === tab);
-  const pageTitle = navItem ? t(navItem.labelKey) : tab;
-
-  return (
-    <BizProvider business={business}>
-    <div className="shell">
-      <OfflineBanner />
-      <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
-      <header className="topbar">
-        <div>
-          <div className="brand">{business?.name || <span style={{ color: 'var(--gold)' }}>●</span>}</div>
-          <div className="sub">{t(role)} · {(user.email || '').split('@')[0]}</div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <LangToggle />
-          {user.role === 'manager' && (
-            <button className="switch" onClick={() => setRole(null)} aria-label="switch role">
-              {t('switch')}
-            </button>
-          )}
-          <button className="switch" onClick={() => setShowSettings(true)} aria-label="settings">
-            {t('settings')}
-          </button>
-          <button className="switch" onClick={logout} aria-label="sign out">
-            <LogOut size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> {t('signOut')}
-          </button>
-        </div>
-      </header>
-      {showSettings && (
-        <SettingsDrawer
-          user={user}
-          business={business}
-          onClose={() => setShowSettings(false)}
-          onSwitched={(u) => { setUser(u); setRole(null); setOnboardingChoice(null); }}
-          onActivated={setUser}
-          onAccountDeleted={() => {
-            setToken(null);
-            setUser(null);
-            setRole(null);
-            setBusiness(null);
-            setOnboardingChoice(null);
-            setAuthMode(null);
-            setShowSettings(false);
-          }}
-          toast={toast}
-        />
-      )}
-
-      <main className="page fade" key={tab}>
-        <div className="page-title">{pageTitle}</div>
-
-        <LoadState loading={anyLoading} error={anyError} reload={reloadAll}>
-          {role === 'manager' && (
-            <>
-              {tab === 'dashboard' && (
-                <ManagerDashboard
-                  staff={staff.data} bookings={bookings.data} inventory={inventory.data}
-                  requests={requests.data} announcements={announcements.data} violations={violations.data}
-                  onGoto={setTab} onReload={inventory.reload} toast={toast}
-                />
-              )}
-              {tab === 'schedule' && (
-                <ScheduleTab bookings={bookings.data} staff={staff.data} services={services.data} onReload={bookings.reload} toast={toast} />
-              )}
-              {tab === 'clients' && (
-                <ClientsTab bookings={bookings.data} staff={staff.data} toast={toast} />
-              )}
-              {tab === 'staff' && (
-                <StaffTab staff={staff.data} violations={violations.data} onReload={staff.reload} toast={toast} />
-              )}
-              {tab === 'inventory' && (
-                <InventoryTab inventory={inventory.data} onReload={inventory.reload} toast={toast} />
-              )}
-              {tab === 'services' && (
-                <ServicesTab services={services.data} onReload={services.reload} toast={toast} />
-              )}
-              {tab === 'alerts' && (
-                <AlertsTab
-                  inventory={inventory.data} requests={requests.data} staff={staff.data} bookings={bookings.data}
-                  onReload={() => { requests.reload(); bookings.reload(); inventory.reload(); }} toast={toast}
-                />
-              )}
-              {tab === 'sop' && (
-                <SOPTab sops={sops.data} staff={staff.data} violations={violations.data}
-                  onReload={violations.reload} onReloadSops={sops.reload} toast={toast} />
-              )}
-              {tab === 'announcements' && (
-                <AnnouncementsTab announcements={announcements.data} onReload={announcements.reload} toast={toast} user={user} />
-              )}
-            </>
-          )}
-
-          {role === 'staff' && (
-            <>
-              {tab === 'today' && (
-                <StaffTodayView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} sops={sops.data}
-                  onSubmitRequest={submitRequest} toast={toast} />
-              )}
-              {tab === 'schedule' && staffPerms.canViewSchedule && (
-                <StaffScheduleView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} />
-              )}
-              {tab === 'inventory' && staffPerms.canEditStock && (
-                <InventoryTab inventory={inventory.data} onReload={inventory.reload} toast={toast} />
-              )}
-              {tab === 'inbox' && (
-                <StaffInboxView
-                  announcements={announcements.data} staffId={currentStaffId} staff={staff.data}
-                  requests={requests.data} inventory={inventory.data} onSubmitRequest={submitRequest} toast={toast}
-                />
-              )}
-              {tab === 'profile' && (
-                <StaffProfileView staff={staff.data} staffId={currentStaffId}
-                  violations={violations.data} sops={sops.data} bookings={bookings.data}
-                  onLogout={logout} />
-              )}
-            </>
-          )}
-
-          {role === 'owner' && (
-            <OwnerView
-              staff={staff.data} bookings={bookings.data} inventory={inventory.data}
-              requests={requests.data} violations={violations.data} announcements={announcements.data}
-            />
-          )}
-        </LoadState>
-      </main>
-
-      <nav className="bottom-nav">
-        {nav.map(item => {
-          const Icon = item.icon;
-          const active = tab === item.id;
-          const badge = item.id === 'alerts' ? alertBadge : 0;
-          return (
-            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${active ? 'active' : ''}`} data-tour={`tab-${item.id}`}>
-              <Icon size={22} />
-              <span>{t(item.labelKey)}</span>
-              {active && <span className="dot" />}
-              {badge > 0 && <span className="badge-dot">{badge}</span>}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Welcome slideshow runs first (feature overview), then DOM-targeting tour. */}
-      {!slidesDone && !tourDone && (
-        <WelcomeSlideshow onDone={() => {
-          setSlidesDone(true);
-          if (user?.id) localStorage.setItem(`spapilot-slides-done-u${user.id}`, 'true');
-        }} />
-      )}
-      {slidesDone && !tourDone && (
-        <TourOverlay onDone={async () => {
-          setTourDone(true);
-          localStorage.setItem(tourKeyFor(user), 'true');
-          try { await api('/api/auth/complete-tutorial', { method: 'POST', body: {} }); } catch {}
-        }} />
-      )}
-
-      <Toast payload={toastMsg} onDone={() => setToastMsg(null)} />
-    </div>
-    </BizProvider>
-  );
+  return <MainApp user={user} business={business} onLogout={logout} onUserUpdate={setUser} />;
 }
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <LangProvider>
+      <ToastProvider>
         <AppInner />
-      </LangProvider>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }
