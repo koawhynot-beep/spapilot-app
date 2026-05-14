@@ -555,7 +555,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
       <div className="search-bar">
         <input
           className="input"
-          placeholder="Search name, SKU, brand, category…"
+          placeholder="Search name, fabric, print, color, size, brand…"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -592,8 +592,12 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
             <div className="list-item-main">
               <div className="list-item-title">{item.name}</div>
               <div className="list-item-sub">
-                {[item.category, item.brand, item.size, item.color].filter(Boolean).join(' · ') || 'No details'}
+                {[item.category, item.fabric, item.print, item.size, item.color, item.brand].filter(Boolean).join(' · ') || 'No details'}
                 {item.sku && <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 13 }}>SKU: {item.sku}</span>}
+              </div>
+              <div className="list-item-sub" style={{ fontSize: 12, marginTop: 4 }}>
+                {item.createdAt && <>Stocked: {new Date(item.createdAt).toLocaleDateString()}</>}
+                {item.lastSoldAt && <> · Last sold: {new Date(item.lastSoldAt).toLocaleDateString()}</>}
               </div>
               {out && <span className="badge badge-danger" style={{ marginTop: 6, display: 'inline-block' }}>OUT OF STOCK</span>}
               {low && !out && <span className="badge badge-warning" style={{ marginTop: 6, display: 'inline-block' }}>LOW STOCK</span>}
@@ -662,7 +666,7 @@ function StockModal({ item, shopId, onClose, onSaved }) {
     qty: String(item.qty ?? ''),
     threshold: String(item.threshold ?? ''),
   } : {
-    name: '', category: '', size: '', color: '', sku: '', brand: '',
+    name: '', category: '', fabric: '', print: '', size: '', color: '', sku: '', brand: '',
     qty: '0', threshold: '5', supplier: '', notes: '',
   });
   const [busy, setBusy] = useState(false);
@@ -693,16 +697,16 @@ function StockModal({ item, shopId, onClose, onSaved }) {
         </div>
         <div className="field">
           <label>Category</label>
-          <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} placeholder="e.g. Clothing, Accessories" />
+          <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} placeholder="e.g. Dress, Top, Pants" />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Brand</label>
-            <input className="input" value={f.brand} onChange={e => setF({ ...f, brand: e.target.value })} />
+            <label>Fabric</label>
+            <input className="input" value={f.fabric} onChange={e => setF({ ...f, fabric: e.target.value })} placeholder="e.g. Cotton, Silk" />
           </div>
           <div className="field" style={{ flex: 1 }}>
-            <label>SKU</label>
-            <input className="input" value={f.sku} onChange={e => setF({ ...f, sku: e.target.value })} placeholder="Optional" />
+            <label>Print / Pattern</label>
+            <input className="input" value={f.print} onChange={e => setF({ ...f, print: e.target.value })} placeholder="e.g. Floral, Plain" />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -713,6 +717,16 @@ function StockModal({ item, shopId, onClose, onSaved }) {
           <div className="field" style={{ flex: 1 }}>
             <label>Color</label>
             <input className="input" value={f.color} onChange={e => setF({ ...f, color: e.target.value })} placeholder="Optional" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Brand</label>
+            <input className="input" value={f.brand} onChange={e => setF({ ...f, brand: e.target.value })} placeholder="Optional" />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>SKU</label>
+            <input className="input" value={f.sku} onChange={e => setF({ ...f, sku: e.target.value })} placeholder="Optional" />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
