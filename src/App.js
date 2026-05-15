@@ -3,6 +3,7 @@ import {
   Package, Store, Users, ShieldCheck, LogOut, Plus, Trash2, Edit2,
   Search, RefreshCw, Check, X, AlertTriangle, Copy, Megaphone, Settings,
   ChevronRight, ChevronLeft, Eye, EyeOff, Minus, ArrowLeft, Lock,
+  Calendar, FolderOpen, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import './App.css';
 
@@ -502,7 +503,9 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
-  const [modal, setModal] = useState(null); // null | 'new' | item
+  const [modal, setModal] = useState(null);      // null | 'new' | item
+  const [logModal, setLogModal] = useState(null); // null | item
+  const [browseOpen, setBrowseOpen] = useState(false);
   const isOwner = user.role === 'owner';
   const perms = isOwner ? { canEditStock: true, canAddItems: true, canDeleteItems: true } : user.permissions || {};
 
@@ -559,12 +562,23 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+        <button className="btn btn-ghost" onClick={() => setBrowseOpen(true)} title="Browse by category, color, print, etc.">
+          <FolderOpen size={20} /> Browse
+        </button>
         {perms.canAddItems && (
           <button className="btn btn-primary" onClick={() => setModal('new')}>
             <Plus size={20} /> Add item
           </button>
         )}
       </div>
+      {search && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '8px 14px', background: '#e8eef5', borderRadius: 10, fontSize: 14 }}>
+          <span>Filtered: <strong>{search}</strong></span>
+          <button onClick={() => setSearch('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#1e3a5f', fontWeight: 600, cursor: 'pointer' }}>
+            <X size={16} style={{ verticalAlign: 'middle' }} /> Clear
+          </button>
+        </div>
+      )}
 
       {loading && <div className="loading">Loading…</div>}
       {error && <div className="error-banner">{error}</div>}
@@ -609,7 +623,12 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
             <button className="qty-btn" disabled={!perms.canEditStock} onClick={() => updateQty(item, 1)} aria-label="increase">
               <Plus size={18} />
             </button>
-            <div className="list-item-actions" style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, marginTop: 8 }}>
+            <div className="list-item-actions" style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              {perms.canEditStock && (
+                <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setLogModal(item)}>
+                  <Calendar size={16} /> Log entry
+                </button>
+              )}
               {perms.canEditStock && (
                 <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setModal(item)}>
                   <Edit2 size={16} /> Edit
@@ -631,6 +650,22 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           shopId={selectedShopId}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); loadStock(); toast(modal === 'new' ? 'Item added' : 'Item updated'); }}
+        />
+      )}
+
+      {logModal && (
+        <MovementModal
+          item={logModal}
+          onClose={() => setLogModal(null)}
+          onSaved={() => { setLogModal(null); loadStock(); toast('Entry saved'); }}
+        />
+      )}
+
+      {browseOpen && (
+        <CategoryBrowser
+          items={items}
+          onPick={(value) => { setSearch(value); setBrowseOpen(false); }}
+          onClose={() => setBrowseOpen(false)}
         />
       )}
     </div>
@@ -752,6 +787,172 @@ function StockModal({ item, shopId, onClose, onSaved }) {
           <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+// ── Movement modal: log stock-in / stock-out with date ─────
+function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
+  const todayISO = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const [type, setType] = useState(defaultType);
+  const [qty, setQty] = useState('1');
+  const [date, setDate] = useState(todayISO());
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  useEffect(() => {
+    api(`/api/stock/${item.id}/movements`)
+      .then(d => { setHistory(Array.isArray(d) ? d : []); setLoadingHistory(false); })
+      .catch(() => setLoadingHistory(false));
+  }, [item.id]);
+
+  const save = async (e) => {
+    e.preventDefault();
+    const n = Number(qty);
+    if (!Number.isInteger(n) || n < 1) { setErr('Quantity must be at least 1'); return; }
+    setBusy(true); setErr(null);
+    try {
+      const occurredAt = new Date(`${date}T12:00:00`).toISOString();
+      await api(`/api/stock/${item.id}/movements`, {
+        method: 'POST',
+        body: { type, qty: n, occurredAt, note },
+      });
+      onSaved();
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+
+  return (
+    <Modal title={`Log entry — ${item.name}`} onClose={onClose}>
+      <form onSubmit={save}>
+        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        <div className="field">
+          <label>Type</label>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" className={`btn ${type === 'in' ? 'btn-primary' : 'btn-ghost'}`} style={{ flex: 1 }} onClick={() => setType('in')}>
+              <TrendingUp size={18} /> Stock added
+            </button>
+            <button type="button" className={`btn ${type === 'out' ? 'btn-primary' : 'btn-ghost'}`} style={{ flex: 1 }} onClick={() => setType('out')}>
+              <TrendingDown size={18} /> Sold
+            </button>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>How many?</label>
+            <input className="input" type="number" min="1" inputMode="numeric" value={qty} onChange={e => setQty(e.target.value)} required />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Date</label>
+            <input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+          </div>
+        </div>
+        <div className="field">
+          <label>Note (optional)</label>
+          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. customer name, invoice #" />
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save entry'}</button>
+        </div>
+      </form>
+
+      <div style={{ marginTop: 24, borderTop: '1px solid #e0e4eb', paddingTop: 16 }}>
+        <h3 style={{ fontSize: 16, marginTop: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <History size={18} /> Recent history
+        </h3>
+        {loadingHistory && <div style={{ color: '#666', fontSize: 14 }}>Loading…</div>}
+        {!loadingHistory && history.length === 0 && <div style={{ color: '#666', fontSize: 14 }}>No movements yet.</div>}
+        {!loadingHistory && history.slice(0, 10).map(m => (
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f0f2f5', fontSize: 14 }}>
+            {m.type === 'in' && <TrendingUp size={16} color="#2d8659" />}
+            {m.type === 'out' && <TrendingDown size={16} color="#c4453a" />}
+            {m.type === 'adjust' && <Edit2 size={16} color="#666" />}
+            <span style={{ fontWeight: 600, minWidth: 60 }}>
+              {m.type === 'in' ? '+' : m.type === 'out' ? '−' : '='}{Math.abs(m.qtyChange)}
+            </span>
+            <span style={{ color: '#666' }}>{new Date(m.occurredAt).toLocaleDateString()}</span>
+            <span style={{ color: '#999', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.note}</span>
+            <span style={{ color: '#666', fontSize: 12 }}>→ {m.qtyAfter}</span>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+// ── Category browser: group items by a field ──────────────
+function CategoryBrowser({ items, onPick, onClose }) {
+  const [groupBy, setGroupBy] = useState('color');
+  const fields = [
+    { key: 'category', label: 'Category' },
+    { key: 'fabric', label: 'Fabric' },
+    { key: 'print', label: 'Print / Pattern' },
+    { key: 'color', label: 'Color' },
+    { key: 'size', label: 'Size' },
+    { key: 'brand', label: 'Brand' },
+  ];
+
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const it of items) {
+      const v = (it[groupBy] || '').trim();
+      const key = v || '(blank)';
+      if (!map.has(key)) map.set(key, { value: v, itemCount: 0, totalQty: 0 });
+      const g = map.get(key);
+      g.itemCount += 1;
+      g.totalQty += it.qty || 0;
+    }
+    return Array.from(map.entries())
+      .map(([label, g]) => ({ label, ...g }))
+      .sort((a, b) => b.itemCount - a.itemCount || a.label.localeCompare(b.label));
+  }, [items, groupBy]);
+
+  return (
+    <Modal title="Browse by group" onClose={onClose}>
+      <div className="field">
+        <label>Group by</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {fields.map(f => (
+            <button
+              key={f.key}
+              type="button"
+              className={`btn ${groupBy === f.key ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ padding: '10px 14px', fontSize: 14, minHeight: 'auto' }}
+              onClick={() => setGroupBy(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ maxHeight: 400, overflowY: 'auto', marginTop: 8 }}>
+        {groups.length === 0 && <div className="empty" style={{ padding: 24 }}>No items yet.</div>}
+        {groups.map(g => (
+          <button
+            key={g.label}
+            type="button"
+            onClick={() => onPick(g.value)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 16px', marginBottom: 8, border: '1px solid #e0e4eb',
+              borderRadius: 12, background: 'white', cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 600 }}>{g.label}</div>
+              <div style={{ fontSize: 13, color: '#666' }}>{g.itemCount} item{g.itemCount === 1 ? '' : 's'}</div>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#1e3a5f' }}>{g.totalQty}</div>
+          </button>
+        ))}
+      </div>
     </Modal>
   );
 }
