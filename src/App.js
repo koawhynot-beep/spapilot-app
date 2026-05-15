@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, Component, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, Component } from 'react';
 import {
   Package, Store, Users, ShieldCheck, LogOut, Plus, Trash2, Edit2,
   Search, RefreshCw, Check, X, AlertTriangle, Copy, Megaphone, Settings,
   ChevronRight, ChevronLeft, Eye, EyeOff, Minus, ArrowLeft, Lock,
-  Calendar, FolderOpen, History, TrendingUp, TrendingDown,
+  Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
+  GripVertical,
 } from 'lucide-react';
 import './App.css';
 
@@ -505,20 +506,118 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);      // null | 'new' | item
   const [logModal, setLogModal] = useState(null); // null | item
-  const [browseOpen, setBrowseOpen] = useState(false);
+  const [groupModalItem, setGroupModalItem] = useState(null); // item being moved
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState('all'); // 'all' | 'none' | numeric id (as string)
+  const [dragId, setDragId] = useState(null);
+  const [overId, setOverId] = useState(null);
   const isOwner = user.role === 'owner';
   const perms = isOwner ? { canEditStock: true, canAddItems: true, canDeleteItems: true } : user.permissions || {};
+
+  const loadGroups = useCallback(() => {
+    if (!selectedShopId) { setGroups([]); return; }
+    api(`/api/shops/${selectedShopId}/groups`)
+      .then(d => setGroups(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, [selectedShopId]);
+
+  useEffect(() => { loadGroups(); }, [loadGroups]);
+
+  // Reset to "all" if currently-selected group disappears (e.g. shop switch)
+  useEffect(() => {
+    if (selectedGroup === 'all' || selectedGroup === 'none') return;
+    if (!groups.find(g => String(g.id) === String(selectedGroup))) {
+      setSelectedGroup('all');
+    }
+  }, [groups, selectedGroup]);
 
   const loadStock = useCallback(() => {
     if (!selectedShopId) { setItems([]); setLoading(false); return; }
     setLoading(true); setError(null);
-    const url = `/api/shops/${selectedShopId}/stock${search ? `?search=${encodeURIComponent(search)}` : ''}`;
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (selectedGroup !== 'all') params.set('group', selectedGroup);
+    const qs = params.toString();
+    const url = `/api/shops/${selectedShopId}/stock${qs ? `?${qs}` : ''}`;
     api(url)
       .then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
-  }, [selectedShopId, search]);
+  }, [selectedShopId, search, selectedGroup]);
 
   useEffect(() => { loadStock(); }, [loadStock]);
+
+  const addGroup = async () => {
+    const name = window.prompt('New group name (e.g. Dress, Pant, Summer)');
+    if (!name || !name.trim()) return;
+    try {
+      const g = await api(`/api/shops/${selectedShopId}/groups`, { method: 'POST', body: { name: name.trim() } });
+      setGroups([...groups, g]);
+      setSelectedGroup(String(g.id));
+      toast('Group added');
+    } catch (e) { toast(e.message); }
+  };
+
+  const deleteGroup = async (group) => {
+    if (!window.confirm(`Delete group "${group.name}"? Items in it stay but become ungrouped.`)) return;
+    try {
+      await api(`/api/groups/${group.id}`, { method: 'DELETE' });
+      setGroups(groups.filter(g => g.id !== group.id));
+      if (String(selectedGroup) === String(group.id)) setSelectedGroup('all');
+      toast('Group deleted');
+      loadStock();
+    } catch (e) { toast(e.message); }
+  };
+
+  const moveItemToGroup = async (item, groupId) => {
+    try {
+      const updated = await api(`/api/stock/${item.id}/group`, { method: 'PATCH', body: { groupId } });
+      setItems(items.map(i => i.id === item.id ? updated : i));
+      setGroupModalItem(null);
+      toast(groupId ? 'Moved to group' : 'Removed from group');
+      // If a filter is active, the item may now be filtered out — reload to sync
+      if (selectedGroup !== 'all') loadStock();
+    } catch (e) { toast(e.message); }
+  };
+
+  // ── Drag-and-drop reorder ─────────────────────────────────
+  const onDragStartRow = (id) => (e) => {
+    if (!perms.canEditStock) { e.preventDefault(); return; }
+    setDragId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', String(id)); } catch {}
+  };
+  const onDragOverRow = (id) => (e) => {
+    if (!dragId || dragId === id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setOverId(id);
+  };
+  const onDragLeaveRow = (id) => () => {
+    if (overId === id) setOverId(null);
+  };
+  const onDropRow = (targetId) => async (e) => {
+    e.preventDefault();
+    const src = dragId;
+    setDragId(null); setOverId(null);
+    if (!src || src === targetId) return;
+    const srcIdx = items.findIndex(i => i.id === src);
+    const tgtIdx = items.findIndex(i => i.id === targetId);
+    if (srcIdx < 0 || tgtIdx < 0) return;
+    const next = [...items];
+    const [moved] = next.splice(srcIdx, 1);
+    next.splice(tgtIdx, 0, moved);
+    setItems(next);
+    try {
+      await api(`/api/shops/${selectedShopId}/stock/reorder`, {
+        method: 'PATCH',
+        body: { orderedIds: next.map(i => i.id) },
+      });
+    } catch (e) {
+      toast(e.message);
+      loadStock();
+    }
+  };
+  const onDragEndRow = () => { setDragId(null); setOverId(null); };
 
   if (shops.length === 0) {
     return (
@@ -551,6 +650,8 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
     } catch (e) { toast(e.message); }
   };
 
+  const currentGroup = groups.find(g => String(g.id) === String(selectedGroup));
+
   return (
     <div>
       <ShopPicker shops={shops} selectedShopId={selectedShopId} onSelect={onSelectShop} />
@@ -562,15 +663,55 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <button className="btn btn-ghost" onClick={() => setBrowseOpen(true)} title="Browse by category, color, print, etc.">
-          <FolderOpen size={20} /> Browse
-        </button>
         {perms.canAddItems && (
           <button className="btn btn-primary" onClick={() => setModal('new')}>
             <Plus size={20} /> Add item
           </button>
         )}
       </div>
+
+      <div className="group-chips">
+        <button
+          type="button"
+          className={`chip ${selectedGroup === 'all' ? 'chip-active' : ''}`}
+          onClick={() => setSelectedGroup('all')}
+        >
+          All
+        </button>
+        <button
+          type="button"
+          className={`chip ${selectedGroup === 'none' ? 'chip-active' : ''}`}
+          onClick={() => setSelectedGroup('none')}
+        >
+          Ungrouped
+        </button>
+        {groups.map(g => (
+          <button
+            key={g.id}
+            type="button"
+            className={`chip ${String(selectedGroup) === String(g.id) ? 'chip-active' : ''}`}
+            onClick={() => setSelectedGroup(String(g.id))}
+          >
+            {g.name}
+          </button>
+        ))}
+        {perms.canAddItems && (
+          <button type="button" className="chip chip-add" onClick={addGroup}>
+            <FolderPlus size={14} /> New group
+          </button>
+        )}
+        {currentGroup && perms.canDeleteItems && (
+          <button
+            type="button"
+            className="chip chip-danger"
+            onClick={() => deleteGroup(currentGroup)}
+            title={`Delete group "${currentGroup.name}"`}
+          >
+            <Trash2 size={14} /> Delete "{currentGroup.name}"
+          </button>
+        )}
+      </div>
+
       {search && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '8px 14px', background: '#e8eef5', borderRadius: 10, fontSize: 14 }}>
           <span>Filtered: <strong>{search}</strong></span>
@@ -601,8 +742,29 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
       {items.map(item => {
         const low = item.qty > 0 && item.qty <= item.threshold;
         const out = item.qty === 0;
+        const itemGroup = groups.find(g => g.id === item.groupId);
+        const isDragging = dragId === item.id;
+        const isOver = overId === item.id && dragId !== null && dragId !== item.id;
         return (
-          <div key={item.id} className={`stock-row ${out ? 'out' : low ? 'low' : ''}`}>
+          <div
+            key={item.id}
+            className={`stock-row ${out ? 'out' : low ? 'low' : ''} ${isDragging ? 'dragging' : ''} ${isOver ? 'drag-over' : ''}`}
+            onDragOver={onDragOverRow(item.id)}
+            onDragLeave={onDragLeaveRow(item.id)}
+            onDrop={onDropRow(item.id)}
+          >
+            {perms.canEditStock && (
+              <div
+                className="drag-handle"
+                draggable
+                onDragStart={onDragStartRow(item.id)}
+                onDragEnd={onDragEndRow}
+                title="Drag to reorder"
+                aria-label="Drag to reorder"
+              >
+                <GripVertical size={20} />
+              </div>
+            )}
             <div className="list-item-main">
               <div className="list-item-title">{item.name}</div>
               <div className="list-item-sub">
@@ -613,6 +775,11 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
                 {item.createdAt && <>Stocked: {new Date(item.createdAt).toLocaleDateString()}</>}
                 {item.lastSoldAt && <> · Last sold: {new Date(item.lastSoldAt).toLocaleDateString()}</>}
               </div>
+              {itemGroup && (
+                <div style={{ marginTop: 6 }}>
+                  <span className="group-tag"><FolderOpen size={12} /> {itemGroup.name}</span>
+                </div>
+              )}
               {out && <span className="badge badge-danger" style={{ marginTop: 6, display: 'inline-block' }}>OUT OF STOCK</span>}
               {low && !out && <span className="badge badge-warning" style={{ marginTop: 6, display: 'inline-block' }}>LOW STOCK</span>}
             </div>
@@ -627,6 +794,11 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
               {perms.canEditStock && (
                 <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setLogModal(item)}>
                   <Calendar size={16} /> Log entry
+                </button>
+              )}
+              {perms.canEditStock && (
+                <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setGroupModalItem(item)}>
+                  <FolderOpen size={16} /> {itemGroup ? 'Move group' : 'Add to group'}
                 </button>
               )}
               {perms.canEditStock && (
@@ -661,14 +833,84 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         />
       )}
 
-      {browseOpen && (
-        <CategoryBrowser
-          items={items}
-          onPick={(value) => { setSearch(value); setBrowseOpen(false); }}
-          onClose={() => setBrowseOpen(false)}
+      {groupModalItem && (
+        <MoveToGroupModal
+          item={groupModalItem}
+          groups={groups}
+          onClose={() => setGroupModalItem(null)}
+          onPick={(groupId) => moveItemToGroup(groupModalItem, groupId)}
+          onAddGroup={async (name) => {
+            try {
+              const g = await api(`/api/shops/${selectedShopId}/groups`, { method: 'POST', body: { name } });
+              setGroups([...groups, g]);
+              return g;
+            } catch (e) { toast(e.message); return null; }
+          }}
         />
       )}
     </div>
+  );
+}
+
+// ── Move-to-group modal ───────────────────────────────────
+function MoveToGroupModal({ item, groups, onClose, onPick, onAddGroup }) {
+  const [newName, setNewName] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const createAndAssign = async () => {
+    const n = newName.trim();
+    if (!n) return;
+    setBusy(true);
+    const g = await onAddGroup(n);
+    if (g) {
+      await onPick(g.id);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Modal title={`Move "${item.name}"`} onClose={onClose}>
+      <div style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 12 }}>
+        <button
+          type="button"
+          className="btn btn-ghost btn-block"
+          style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+          onClick={() => onPick(null)}
+        >
+          <X size={16} /> No group (remove from current)
+        </button>
+        {groups.length === 0 && (
+          <div style={{ color: '#666', padding: 8, fontSize: 14 }}>No groups yet. Create one below.</div>
+        )}
+        {groups.map(g => (
+          <button
+            key={g.id}
+            type="button"
+            className={`btn ${item.groupId === g.id ? 'btn-primary' : 'btn-ghost'} btn-block`}
+            style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+            onClick={() => onPick(g.id)}
+          >
+            <FolderOpen size={16} /> {g.name}
+            {item.groupId === g.id && <Check size={16} style={{ marginLeft: 'auto' }} />}
+          </button>
+        ))}
+      </div>
+      <div style={{ borderTop: '1px solid #e0e4eb', paddingTop: 14 }}>
+        <label style={{ display: 'block', fontSize: 14, color: '#666', marginBottom: 6 }}>Or create a new group</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            className="input"
+            placeholder="Group name"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            style={{ flex: 1 }}
+          />
+          <button className="btn btn-primary" disabled={busy || !newName.trim()} onClick={createAndAssign}>
+            <FolderPlus size={16} /> Create
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -881,76 +1123,6 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
             <span style={{ color: '#999', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.note}</span>
             <span style={{ color: '#666', fontSize: 12 }}>→ {m.qtyAfter}</span>
           </div>
-        ))}
-      </div>
-    </Modal>
-  );
-}
-
-// ── Category browser: group items by a field ──────────────
-function CategoryBrowser({ items, onPick, onClose }) {
-  const [groupBy, setGroupBy] = useState('color');
-  const fields = [
-    { key: 'category', label: 'Category' },
-    { key: 'fabric', label: 'Fabric' },
-    { key: 'print', label: 'Print / Pattern' },
-    { key: 'color', label: 'Color' },
-    { key: 'size', label: 'Size' },
-    { key: 'brand', label: 'Brand' },
-  ];
-
-  const groups = useMemo(() => {
-    const map = new Map();
-    for (const it of items) {
-      const v = (it[groupBy] || '').trim();
-      const key = v || '(blank)';
-      if (!map.has(key)) map.set(key, { value: v, itemCount: 0, totalQty: 0 });
-      const g = map.get(key);
-      g.itemCount += 1;
-      g.totalQty += it.qty || 0;
-    }
-    return Array.from(map.entries())
-      .map(([label, g]) => ({ label, ...g }))
-      .sort((a, b) => b.itemCount - a.itemCount || a.label.localeCompare(b.label));
-  }, [items, groupBy]);
-
-  return (
-    <Modal title="Browse by group" onClose={onClose}>
-      <div className="field">
-        <label>Group by</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {fields.map(f => (
-            <button
-              key={f.key}
-              type="button"
-              className={`btn ${groupBy === f.key ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ padding: '10px 14px', fontSize: 14, minHeight: 'auto' }}
-              onClick={() => setGroupBy(f.key)}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{ maxHeight: 400, overflowY: 'auto', marginTop: 8 }}>
-        {groups.length === 0 && <div className="empty" style={{ padding: 24 }}>No items yet.</div>}
-        {groups.map(g => (
-          <button
-            key={g.label}
-            type="button"
-            onClick={() => onPick(g.value)}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 16px', marginBottom: 8, border: '1px solid #e0e4eb',
-              borderRadius: 12, background: 'white', cursor: 'pointer', textAlign: 'left',
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 600 }}>{g.label}</div>
-              <div style={{ fontSize: 13, color: '#666' }}>{g.itemCount} item{g.itemCount === 1 ? '' : 's'}</div>
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#1e3a5f' }}>{g.totalQty}</div>
-          </button>
         ))}
       </div>
     </Modal>
