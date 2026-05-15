@@ -415,6 +415,22 @@
   font-size: 16px;
 }
 
+/* 6-digit code input */
+.code-input {
+  text-align: center;
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 12px;
+  padding: 18px;
+  color: var(--primary);
+}
+.code-input::placeholder {
+  color: #ccc;
+  letter-spacing: 12px;
+  font-weight: 400;
+}
+
 /* Verify email banner */
 .verify-banner {
   display: flex;
