@@ -422,81 +422,55 @@
   grid-template-columns: 1fr auto auto auto;
   gap: 12px;
   align-items: center;
-  padding: 16px 16px 16px 40px;
+  padding: 16px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 10px;
-  transition: box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
 }
 .stock-row.low { border-color: var(--warning); background: rgba(214,138,28,0.04); }
 .stock-row.out { border-color: var(--danger); background: rgba(196,69,58,0.04); }
-.stock-row.dragging { opacity: 0.4; }
+
+/* Whole-row drag */
+.stock-row.draggable { cursor: grab; }
+.stock-row.draggable:active { cursor: grabbing; }
+.stock-row.dragging {
+  opacity: 0.35;
+  transform: scale(0.98);
+}
 .stock-row.drag-over {
-  box-shadow: 0 -3px 0 0 var(--primary, #1e3a5f);
+  border-color: var(--primary, #1e3a5f);
+  box-shadow:
+    0 -5px 0 0 var(--primary, #1e3a5f),
+    0 4px 14px rgba(30,58,95,0.18);
+}
+/* Buttons inside row keep pointer cursor (not grab) */
+.stock-row .btn,
+.stock-row .qty-btn,
+.stock-row button {
+  cursor: pointer;
+}
+.stock-row.draggable:active .btn,
+.stock-row.draggable:active .qty-btn,
+.stock-row.draggable:active button {
+  cursor: pointer;
 }
 
-/* Drag handle */
-.stock-row .drag-handle {
-  position: absolute;
-  top: 14px;
-  left: 8px;
-  width: 24px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  color: #888;
-  opacity: 0.55;
-  user-select: none;
-  touch-action: none;
-}
-.stock-row .drag-handle:hover { opacity: 1; }
-.stock-row .drag-handle:active { cursor: grabbing; }
-
-/* Group chips */
-.group-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
-  padding: 4px 0;
-}
-.group-chips .chip {
+/* Groups selector button */
+.group-selector-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1.5px solid var(--border);
   background: white;
-  font-size: 14px;
+  border-radius: 999px;
+  font-size: 15px;
   font-weight: 600;
-  color: #444;
-  cursor: pointer;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
-.group-chips .chip:hover { border-color: var(--primary, #1e3a5f); color: var(--primary, #1e3a5f); }
-.group-chips .chip.chip-active {
-  background: var(--primary, #1e3a5f);
-  border-color: var(--primary, #1e3a5f);
-  color: white;
-}
-.group-chips .chip-add {
-  border-style: dashed;
-  color: #1e3a5f;
-}
-.group-chips .chip-danger {
-  border-color: rgba(196,69,58,0.4);
-  color: #c4453a;
-  background: rgba(196,69,58,0.04);
-}
-.group-chips .chip-danger:hover {
-  background: rgba(196,69,58,0.1);
-  border-color: #c4453a;
-  color: #c4453a;
-}
+.group-selector-btn:hover { border-color: var(--primary, #1e3a5f); }
+.group-selector-btn strong { color: var(--primary, #1e3a5f); }
 
 /* Group tag on stock row */
 .group-tag {

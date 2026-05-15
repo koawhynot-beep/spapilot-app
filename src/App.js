@@ -4,7 +4,6 @@ import {
   Search, RefreshCw, Check, X, AlertTriangle, Copy, Megaphone, Settings,
   ChevronRight, ChevronLeft, Eye, EyeOff, Minus, ArrowLeft, Lock,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
-  GripVertical,
 } from 'lucide-react';
 import './App.css';
 
@@ -508,7 +507,8 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   const [logModal, setLogModal] = useState(null); // null | item
   const [groupModalItem, setGroupModalItem] = useState(null); // item being moved
   const [groups, setGroups] = useState([]);
-  const [selectedGroup, setSelectedGroup] = useState('all'); // 'all' | 'none' | numeric id (as string)
+  const [selectedGroup, setSelectedGroup] = useState('all'); // 'all' | numeric id (as string)
+  const [groupSelectorOpen, setGroupSelectorOpen] = useState(false);
   const [dragId, setDragId] = useState(null);
   const [overId, setOverId] = useState(null);
   const isOwner = user.role === 'owner';
@@ -525,7 +525,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
 
   // Reset to "all" if currently-selected group disappears (e.g. shop switch)
   useEffect(() => {
-    if (selectedGroup === 'all' || selectedGroup === 'none') return;
+    if (selectedGroup === 'all') return;
     if (!groups.find(g => String(g.id) === String(selectedGroup))) {
       setSelectedGroup('all');
     }
@@ -545,28 +545,6 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   }, [selectedShopId, search, selectedGroup]);
 
   useEffect(() => { loadStock(); }, [loadStock]);
-
-  const addGroup = async () => {
-    const name = window.prompt('New group name (e.g. Dress, Pant, Summer)');
-    if (!name || !name.trim()) return;
-    try {
-      const g = await api(`/api/shops/${selectedShopId}/groups`, { method: 'POST', body: { name: name.trim() } });
-      setGroups([...groups, g]);
-      setSelectedGroup(String(g.id));
-      toast('Group added');
-    } catch (e) { toast(e.message); }
-  };
-
-  const deleteGroup = async (group) => {
-    if (!window.confirm(`Delete group "${group.name}"? Items in it stay but become ungrouped.`)) return;
-    try {
-      await api(`/api/groups/${group.id}`, { method: 'DELETE' });
-      setGroups(groups.filter(g => g.id !== group.id));
-      if (String(selectedGroup) === String(group.id)) setSelectedGroup('all');
-      toast('Group deleted');
-      loadStock();
-    } catch (e) { toast(e.message); }
-  };
 
   const moveItemToGroup = async (item, groupId) => {
     try {
@@ -670,46 +648,17 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         )}
       </div>
 
-      <div className="group-chips">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <button
           type="button"
-          className={`chip ${selectedGroup === 'all' ? 'chip-active' : ''}`}
-          onClick={() => setSelectedGroup('all')}
+          className="btn btn-ghost group-selector-btn"
+          onClick={() => setGroupSelectorOpen(true)}
         >
-          All
+          <FolderOpen size={18} />
+          <span>Groups:&nbsp;</span>
+          <strong>{currentGroup ? currentGroup.name : 'All'}</strong>
+          <ChevronRight size={16} style={{ transform: 'rotate(90deg)', marginLeft: 4, opacity: 0.6 }} />
         </button>
-        <button
-          type="button"
-          className={`chip ${selectedGroup === 'none' ? 'chip-active' : ''}`}
-          onClick={() => setSelectedGroup('none')}
-        >
-          Ungrouped
-        </button>
-        {groups.map(g => (
-          <button
-            key={g.id}
-            type="button"
-            className={`chip ${String(selectedGroup) === String(g.id) ? 'chip-active' : ''}`}
-            onClick={() => setSelectedGroup(String(g.id))}
-          >
-            {g.name}
-          </button>
-        ))}
-        {perms.canAddItems && (
-          <button type="button" className="chip chip-add" onClick={addGroup}>
-            <FolderPlus size={14} /> New group
-          </button>
-        )}
-        {currentGroup && perms.canDeleteItems && (
-          <button
-            type="button"
-            className="chip chip-danger"
-            onClick={() => deleteGroup(currentGroup)}
-            title={`Delete group "${currentGroup.name}"`}
-          >
-            <Trash2 size={14} /> Delete "{currentGroup.name}"
-          </button>
-        )}
       </div>
 
       {search && (
@@ -748,23 +697,15 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         return (
           <div
             key={item.id}
-            className={`stock-row ${out ? 'out' : low ? 'low' : ''} ${isDragging ? 'dragging' : ''} ${isOver ? 'drag-over' : ''}`}
+            className={`stock-row ${out ? 'out' : low ? 'low' : ''} ${isDragging ? 'dragging' : ''} ${isOver ? 'drag-over' : ''} ${perms.canEditStock ? 'draggable' : ''}`}
+            draggable={perms.canEditStock}
+            onDragStart={onDragStartRow(item.id)}
+            onDragEnd={onDragEndRow}
             onDragOver={onDragOverRow(item.id)}
             onDragLeave={onDragLeaveRow(item.id)}
             onDrop={onDropRow(item.id)}
+            title={perms.canEditStock ? 'Drag to reorder' : undefined}
           >
-            {perms.canEditStock && (
-              <div
-                className="drag-handle"
-                draggable
-                onDragStart={onDragStartRow(item.id)}
-                onDragEnd={onDragEndRow}
-                title="Drag to reorder"
-                aria-label="Drag to reorder"
-              >
-                <GripVertical size={20} />
-              </div>
-            )}
             <div className="list-item-main">
               <div className="list-item-title">{item.name}</div>
               <div className="list-item-sub">
@@ -848,7 +789,123 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           }}
         />
       )}
+
+      {groupSelectorOpen && (
+        <GroupSelectorModal
+          groups={groups}
+          selectedGroup={selectedGroup}
+          canDelete={perms.canDeleteItems}
+          canAdd={perms.canAddItems}
+          onPick={(g) => { setSelectedGroup(g); setGroupSelectorOpen(false); }}
+          onAdd={async (name) => {
+            try {
+              const g = await api(`/api/shops/${selectedShopId}/groups`, { method: 'POST', body: { name } });
+              setGroups([...groups, g]);
+              return g;
+            } catch (e) { toast(e.message); return null; }
+          }}
+          onDelete={async (group) => {
+            if (!window.confirm(`Delete group "${group.name}"? Items in it stay but become ungrouped.`)) return;
+            try {
+              await api(`/api/groups/${group.id}`, { method: 'DELETE' });
+              setGroups(groups.filter(g => g.id !== group.id));
+              if (String(selectedGroup) === String(group.id)) setSelectedGroup('all');
+              toast('Group deleted');
+              loadStock();
+            } catch (e) { toast(e.message); }
+          }}
+          onClose={() => setGroupSelectorOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+// ── Group selector modal (browse / pick / create / delete) ──
+function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, onAdd, onDelete, onClose }) {
+  const [newName, setNewName] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const create = async () => {
+    const n = newName.trim();
+    if (!n) return;
+    setBusy(true);
+    const g = await onAdd(n);
+    setBusy(false);
+    if (g) {
+      setNewName('');
+      onPick(String(g.id));
+    }
+  };
+
+  return (
+    <Modal title="Groups" onClose={onClose}>
+      <div style={{ maxHeight: 360, overflowY: 'auto', marginBottom: 14, paddingRight: 4 }}>
+        <button
+          type="button"
+          className={`btn ${selectedGroup === 'all' ? 'btn-primary' : 'btn-ghost'} btn-block`}
+          style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+          onClick={() => onPick('all')}
+        >
+          <FolderOpen size={16} /> All
+          {selectedGroup === 'all' && <Check size={16} style={{ marginLeft: 'auto' }} />}
+        </button>
+
+        {groups.length === 0 && (
+          <div style={{ color: '#666', fontSize: 14, padding: '12px 8px', textAlign: 'center' }}>
+            No groups yet. Create one below.
+          </div>
+        )}
+
+        {groups.map(g => {
+          const active = String(selectedGroup) === String(g.id);
+          return (
+            <div key={g.id} style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <button
+                type="button"
+                className={`btn ${active ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ flex: 1, justifyContent: 'flex-start' }}
+                onClick={() => onPick(String(g.id))}
+              >
+                <FolderOpen size={16} /> {g.name}
+                {active && <Check size={16} style={{ marginLeft: 'auto' }} />}
+              </button>
+              {canDelete && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ minHeight: 'auto', padding: '10px 14px', color: '#c4453a' }}
+                  onClick={() => onDelete(g)}
+                  aria-label={`delete ${g.name}`}
+                  title={`Delete "${g.name}"`}
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {canAdd && (
+        <div style={{ borderTop: '1px solid #e0e4eb', paddingTop: 14 }}>
+          <label style={{ display: 'block', fontSize: 14, color: '#666', marginBottom: 6 }}>New group</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              className="input"
+              placeholder="e.g. Dress, Pant, Summer"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); create(); } }}
+              style={{ flex: 1 }}
+            />
+            <button type="button" className="btn btn-primary" disabled={busy || !newName.trim()} onClick={create}>
+              <FolderPlus size={16} /> Create
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 
