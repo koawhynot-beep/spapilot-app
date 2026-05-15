@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Component } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Component } from 'react';
 import {
   Package, Store, Users, ShieldCheck, LogOut, Plus, Trash2, Edit2,
   Search, RefreshCw, Check, X, AlertTriangle, Copy, Megaphone, Settings,
@@ -511,6 +511,10 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   const [groupSelectorOpen, setGroupSelectorOpen] = useState(false);
   const [dragId, setDragId] = useState(null);
   const [overId, setOverId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'low' | 'out'
+  const [sortBy, setSortBy] = useState('default'); // 'default'|'name'|'qty-asc'|'qty-desc'|'recent'|'sold'
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [reorderOpen, setReorderOpen] = useState(false);
   const isOwner = user.role === 'owner';
   const perms = isOwner ? { canEditStock: true, canAddItems: true, canDeleteItems: true } : user.permissions || {};
 
@@ -597,6 +601,40 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   };
   const onDragEndRow = () => { setDragId(null); setOverId(null); };
 
+  // ── Filter + sort (client-side over the loaded items) ────
+  const displayedItems = useMemo(() => {
+    let arr = items;
+    if (statusFilter === 'low') {
+      arr = arr.filter(i => i.qty > 0 && i.qty <= i.threshold);
+    } else if (statusFilter === 'out') {
+      arr = arr.filter(i => i.qty === 0);
+    }
+    if (sortBy !== 'default') {
+      arr = [...arr];
+      if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name));
+      else if (sortBy === 'qty-asc') arr.sort((a, b) => a.qty - b.qty);
+      else if (sortBy === 'qty-desc') arr.sort((a, b) => b.qty - a.qty);
+      else if (sortBy === 'recent') arr.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      else if (sortBy === 'sold') arr.sort((a, b) => new Date(b.lastSoldAt || 0) - new Date(a.lastSoldAt || 0));
+    }
+    return arr;
+  }, [items, statusFilter, sortBy]);
+
+  // ── Aggregate summary for visible shop scope ─────────────
+  const summary = useMemo(() => {
+    let totalItems = 0, totalUnits = 0, totalValue = 0, lowCount = 0, outCount = 0;
+    for (const i of items) {
+      totalItems += 1;
+      totalUnits += i.qty || 0;
+      totalValue += (i.qty || 0) * (Number(i.price) || 0);
+      if (i.qty === 0) outCount += 1;
+      else if (i.qty <= i.threshold) lowCount += 1;
+    }
+    return { totalItems, totalUnits, totalValue, lowCount, outCount };
+  }, [items]);
+
+  const dragEnabled = perms.canEditStock && sortBy === 'default' && statusFilter === 'all';
+
   if (shops.length === 0) {
     return (
       <div className="card">
@@ -659,6 +697,86 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           <strong>{currentGroup ? currentGroup.name : 'All'}</strong>
           <ChevronRight size={16} style={{ transform: 'rotate(90deg)', marginLeft: 4, opacity: 0.6 }} />
         </button>
+        {(summary.lowCount + summary.outCount) > 0 && (
+          <button
+            type="button"
+            className="btn btn-ghost reorder-btn"
+            onClick={() => setReorderOpen(true)}
+            title="See items that need restocking"
+          >
+            <AlertTriangle size={18} />
+            Reorder list
+            <span className="reorder-badge">{summary.lowCount + summary.outCount}</span>
+          </button>
+        )}
+      </div>
+
+      <div className="stock-summary">
+        <div className="stat">
+          <div className="stat-num">{summary.totalItems}</div>
+          <div className="stat-label">items</div>
+        </div>
+        <div className="stat">
+          <div className="stat-num">{summary.totalUnits.toLocaleString()}</div>
+          <div className="stat-label">units</div>
+        </div>
+        {summary.totalValue > 0 && (
+          <div className="stat">
+            <div className="stat-num">{summary.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+            <div className="stat-label">total value</div>
+          </div>
+        )}
+        {summary.lowCount > 0 && (
+          <div className="stat stat-warning">
+            <div className="stat-num">{summary.lowCount}</div>
+            <div className="stat-label">low stock</div>
+          </div>
+        )}
+        {summary.outCount > 0 && (
+          <div className="stat stat-danger">
+            <div className="stat-num">{summary.outCount}</div>
+            <div className="stat-label">out of stock</div>
+          </div>
+        )}
+      </div>
+
+      <div className="stock-controls">
+        <div className="filter-segment" role="tablist" aria-label="stock filter">
+          <button
+            type="button"
+            className={`seg-btn ${statusFilter === 'all' ? 'seg-active' : ''}`}
+            onClick={() => setStatusFilter('all')}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={`seg-btn ${statusFilter === 'low' ? 'seg-active seg-warning' : ''}`}
+            onClick={() => setStatusFilter('low')}
+          >
+            Low {summary.lowCount > 0 && <span className="seg-count">{summary.lowCount}</span>}
+          </button>
+          <button
+            type="button"
+            className={`seg-btn ${statusFilter === 'out' ? 'seg-active seg-danger' : ''}`}
+            onClick={() => setStatusFilter('out')}
+          >
+            Out {summary.outCount > 0 && <span className="seg-count">{summary.outCount}</span>}
+          </button>
+        </div>
+        <select
+          className="sort-select"
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          aria-label="sort"
+        >
+          <option value="default">Sort: Custom (drag)</option>
+          <option value="name">Sort: Name A-Z</option>
+          <option value="qty-asc">Sort: Quantity (low first)</option>
+          <option value="qty-desc">Sort: Quantity (high first)</option>
+          <option value="recent">Sort: Recently added</option>
+          <option value="sold">Sort: Recently sold</option>
+        </select>
       </div>
 
       {search && (
@@ -673,13 +791,13 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
       {loading && <div className="loading">Loading…</div>}
       {error && <div className="error-banner">{error}</div>}
 
-      {!loading && items.length === 0 && (
+      {!loading && displayedItems.length === 0 && (
         <div className="card">
           <div className="empty">
             <Package size={48} color="#666" style={{ margin: '0 auto' }} />
-            <h3>{search ? 'No items match' : 'No stock yet'}</h3>
-            <p>{search ? 'Try a different search.' : 'Add your first item to start tracking inventory.'}</p>
-            {perms.canAddItems && !search && (
+            <h3>{search ? 'No items match' : statusFilter !== 'all' ? `No ${statusFilter === 'low' ? 'low-stock' : 'out-of-stock'} items` : 'No stock yet'}</h3>
+            <p>{search ? 'Try a different search.' : statusFilter !== 'all' ? 'Switch back to All to see everything.' : 'Add your first item to start tracking inventory.'}</p>
+            {perms.canAddItems && !search && statusFilter === 'all' && (
               <button className="btn btn-primary" onClick={() => setModal('new')}>
                 <Plus size={18} /> Add first item
               </button>
@@ -688,7 +806,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         </div>
       )}
 
-      {items.map(item => {
+      {displayedItems.map(item => {
         const low = item.qty > 0 && item.qty <= item.threshold;
         const out = item.qty === 0;
         const itemGroup = groups.find(g => g.id === item.groupId);
@@ -697,21 +815,45 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         return (
           <div
             key={item.id}
-            className={`stock-row ${out ? 'out' : low ? 'low' : ''} ${isDragging ? 'dragging' : ''} ${isOver ? 'drag-over' : ''} ${perms.canEditStock ? 'draggable' : ''}`}
-            draggable={perms.canEditStock}
-            onDragStart={onDragStartRow(item.id)}
-            onDragEnd={onDragEndRow}
-            onDragOver={onDragOverRow(item.id)}
-            onDragLeave={onDragLeaveRow(item.id)}
-            onDrop={onDropRow(item.id)}
-            title={perms.canEditStock ? 'Drag to reorder' : undefined}
+            className={`stock-row ${out ? 'out' : low ? 'low' : ''} ${isDragging ? 'dragging' : ''} ${isOver ? 'drag-over' : ''} ${dragEnabled ? 'draggable' : ''}`}
+            draggable={dragEnabled}
+            onDragStart={dragEnabled ? onDragStartRow(item.id) : undefined}
+            onDragEnd={dragEnabled ? onDragEndRow : undefined}
+            onDragOver={dragEnabled ? onDragOverRow(item.id) : undefined}
+            onDragLeave={dragEnabled ? onDragLeaveRow(item.id) : undefined}
+            onDrop={dragEnabled ? onDropRow(item.id) : undefined}
+            title={dragEnabled ? 'Drag to reorder' : undefined}
           >
-            <div className="list-item-main">
+            <div className="list-item-main row-main">
+              {item.imageUrl && (
+                <button
+                  type="button"
+                  className="row-thumb-btn"
+                  onClick={(e) => { e.stopPropagation(); setLightboxUrl(item.imageUrl); }}
+                  aria-label="View photo"
+                  draggable={false}
+                >
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="row-thumb"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    draggable={false}
+                  />
+                </button>
+              )}
+              <div className="row-text">
               <div className="list-item-title">{item.name}</div>
               <div className="list-item-sub">
                 {[item.category, item.fabric, item.print, item.size, item.color, item.brand].filter(Boolean).join(' · ') || 'No details'}
                 {item.sku && <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 13 }}>SKU: {item.sku}</span>}
               </div>
+              {Number(item.price) > 0 && (
+                <div className="list-item-sub" style={{ fontSize: 13, marginTop: 4, fontWeight: 600, color: 'var(--primary)' }}>
+                  {Number(item.price).toLocaleString(undefined, { maximumFractionDigits: 2 })} per unit
+                  {item.qty > 0 && <span style={{ color: '#666', fontWeight: 400 }}> · total {(item.qty * Number(item.price)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
+                </div>
+              )}
               <div className="list-item-sub" style={{ fontSize: 12, marginTop: 4 }}>
                 {item.createdAt && <>Stocked: {new Date(item.createdAt).toLocaleDateString()}</>}
                 {item.lastSoldAt && <> · Last sold: {new Date(item.lastSoldAt).toLocaleDateString()}</>}
@@ -723,6 +865,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
               )}
               {out && <span className="badge badge-danger" style={{ marginTop: 6, display: 'inline-block' }}>OUT OF STOCK</span>}
               {low && !out && <span className="badge badge-warning" style={{ marginTop: 6, display: 'inline-block' }}>LOW STOCK</span>}
+              </div>
             </div>
             <button className="qty-btn" disabled={!perms.canEditStock || item.qty === 0} onClick={() => updateQty(item, -1)} aria-label="decrease">
               <Minus size={18} />
@@ -790,6 +933,17 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         />
       )}
 
+      {lightboxUrl && (
+        <Lightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+      )}
+
+      {reorderOpen && (
+        <ReorderReportModal
+          items={items}
+          onClose={() => setReorderOpen(false)}
+        />
+      )}
+
       {groupSelectorOpen && (
         <GroupSelectorModal
           groups={groups}
@@ -821,6 +975,122 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   );
 }
 
+// ── Lightbox: full-image view ─────────────────────────────
+function Lightbox({ url, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="lightbox-backdrop" onClick={onClose}>
+      <button
+        type="button"
+        className="lightbox-close"
+        onClick={onClose}
+        aria-label="close"
+      >
+        <X size={28} />
+      </button>
+      <img
+        src={url}
+        alt="full"
+        className="lightbox-img"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+// ── Reorder report: items needing restock, grouped by supplier ──
+function ReorderReportModal({ items, onClose }) {
+  const needsReorder = useMemo(() => {
+    return items.filter(i => i.qty === 0 || i.qty <= i.threshold);
+  }, [items]);
+
+  const bySupplier = useMemo(() => {
+    const map = new Map();
+    for (const it of needsReorder) {
+      const key = (it.supplier || '').trim() || '(No supplier)';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(it);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [needsReorder]);
+
+  const copyList = async () => {
+    const lines = [];
+    for (const [supplier, group] of bySupplier) {
+      lines.push(`== ${supplier} ==`);
+      for (const it of group) {
+        const need = Math.max(it.threshold * 2 - it.qty, it.threshold);
+        const details = [it.category, it.fabric, it.print, it.size, it.color].filter(Boolean).join(' / ');
+        lines.push(`- ${it.name}${details ? ' (' + details + ')' : ''} — have ${it.qty}, need ~${need}`);
+      }
+      lines.push('');
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+    } catch {}
+  };
+
+  return (
+    <Modal title={`Reorder list — ${needsReorder.length} item${needsReorder.length === 1 ? '' : 's'}`} onClose={onClose}>
+      {needsReorder.length === 0 ? (
+        <div className="empty" style={{ padding: 24 }}>
+          <Check size={48} color="#2d8659" style={{ margin: '0 auto' }} />
+          <h3>Nothing to reorder</h3>
+          <p>All stock is above the low-stock alert level.</p>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 16px', fontSize: 14 }} onClick={copyList}>
+              <Copy size={16} /> Copy list
+            </button>
+          </div>
+          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+            {bySupplier.map(([supplier, group]) => (
+              <div key={supplier} style={{ marginBottom: 18 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--primary)', marginBottom: 8, padding: '6px 10px', background: 'var(--primary-light)', borderRadius: 8 }}>
+                  {supplier} <span style={{ color: '#666', fontWeight: 400 }}>· {group.length} item{group.length === 1 ? '' : 's'}</span>
+                </div>
+                {group.map(it => {
+                  const need = Math.max(it.threshold * 2 - it.qty, it.threshold);
+                  const out = it.qty === 0;
+                  return (
+                    <div key={it.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 12px', marginBottom: 6,
+                      border: `1px solid ${out ? 'rgba(196,69,58,0.3)' : 'rgba(214,138,28,0.3)'}`,
+                      borderRadius: 10, background: 'white',
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{it.name}</div>
+                        <div style={{ fontSize: 12, color: '#666' }}>
+                          {[it.category, it.fabric, it.print, it.size, it.color].filter(Boolean).join(' · ') || '—'}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 12, color: '#666' }}>Have</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: out ? '#c4453a' : '#d68a1c' }}>{it.qty}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', minWidth: 60 }}>
+                        <div style={{ fontSize: 12, color: '#666' }}>Order</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>~{need}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 // ── Group selector modal (browse / pick / create / delete) ──
 function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, onAdd, onDelete, onClose }) {
   const [newName, setNewName] = useState('');
@@ -840,19 +1110,19 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
 
   return (
     <Modal title="Groups" onClose={onClose}>
-      <div style={{ maxHeight: 360, overflowY: 'auto', marginBottom: 14, paddingRight: 4 }}>
+      <div className="group-pick-list">
         <button
           type="button"
-          className={`btn ${selectedGroup === 'all' ? 'btn-primary' : 'btn-ghost'} btn-block`}
-          style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+          className={`group-pick ${selectedGroup === 'all' ? 'group-pick-active' : ''}`}
           onClick={() => onPick('all')}
         >
-          <FolderOpen size={16} /> All
-          {selectedGroup === 'all' && <Check size={16} style={{ marginLeft: 'auto' }} />}
+          <FolderOpen size={18} />
+          <span className="group-pick-name">All items</span>
+          {selectedGroup === 'all' && <Check size={20} className="group-pick-check" />}
         </button>
 
         {groups.length === 0 && (
-          <div style={{ color: '#666', fontSize: 14, padding: '12px 8px', textAlign: 'center' }}>
+          <div style={{ color: '#666', fontSize: 14, padding: '14px 8px', textAlign: 'center' }}>
             No groups yet. Create one below.
           </div>
         )}
@@ -860,26 +1130,25 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
         {groups.map(g => {
           const active = String(selectedGroup) === String(g.id);
           return (
-            <div key={g.id} style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <div key={g.id} className="group-pick-row">
               <button
                 type="button"
-                className={`btn ${active ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ flex: 1, justifyContent: 'flex-start' }}
+                className={`group-pick ${active ? 'group-pick-active' : ''}`}
                 onClick={() => onPick(String(g.id))}
               >
-                <FolderOpen size={16} /> {g.name}
-                {active && <Check size={16} style={{ marginLeft: 'auto' }} />}
+                <FolderOpen size={18} />
+                <span className="group-pick-name">{g.name}</span>
+                {active && <Check size={20} className="group-pick-check" />}
               </button>
               {canDelete && (
                 <button
                   type="button"
-                  className="btn btn-ghost"
-                  style={{ minHeight: 'auto', padding: '10px 14px', color: '#c4453a' }}
+                  className="group-pick-delete"
                   onClick={() => onDelete(g)}
                   aria-label={`delete ${g.name}`}
                   title={`Delete "${g.name}"`}
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={18} />
                 </button>
               )}
             </div>
@@ -888,8 +1157,8 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
       </div>
 
       {canAdd && (
-        <div style={{ borderTop: '1px solid #e0e4eb', paddingTop: 14 }}>
-          <label style={{ display: 'block', fontSize: 14, color: '#666', marginBottom: 6 }}>New group</label>
+        <div className="group-pick-add">
+          <label>New group</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               className="input"
@@ -899,8 +1168,8 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); create(); } }}
               style={{ flex: 1 }}
             />
-            <button type="button" className="btn btn-primary" disabled={busy || !newName.trim()} onClick={create}>
-              <FolderPlus size={16} /> Create
+            <button type="button" className="btn btn-primary group-create-btn" disabled={busy || !newName.trim()} onClick={create}>
+              <FolderPlus size={18} /> Create
             </button>
           </div>
         </div>
@@ -999,9 +1268,12 @@ function StockModal({ item, shopId, onClose, onSaved }) {
     ...item,
     qty: String(item.qty ?? ''),
     threshold: String(item.threshold ?? ''),
+    price: item.price ? String(item.price) : '',
+    imageUrl: item.imageUrl || '',
   } : {
     name: '', category: '', fabric: '', print: '', size: '', color: '', sku: '', brand: '',
     qty: '0', threshold: '5', supplier: '', notes: '',
+    price: '', imageUrl: '',
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -1014,6 +1286,8 @@ function StockModal({ item, shopId, onClose, onSaved }) {
         ...f,
         qty: f.qty === '' ? 0 : Number(f.qty),
         threshold: f.threshold === '' ? 0 : Number(f.threshold),
+        price: f.price === '' ? 0 : Number(f.price),
+        imageUrl: (f.imageUrl || '').trim(),
       };
       if (item) await api(`/api/stock/${item.id}`, { method: 'PUT', body: payload });
       else      await api(`/api/shops/${shopId}/stock`, { method: 'POST', body: payload });
@@ -1028,6 +1302,27 @@ function StockModal({ item, shopId, onClose, onSaved }) {
         <div className="field">
           <label>Name</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="e.g. Cotton T-shirt" />
+        </div>
+        <div className="field">
+          <label>Photo URL (optional)</label>
+          <input
+            className="input"
+            type="url"
+            value={f.imageUrl}
+            onChange={e => setF({ ...f, imageUrl: e.target.value })}
+            placeholder="https://… (paste a picture link)"
+          />
+          {f.imageUrl && (
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <img
+                src={f.imageUrl}
+                alt="preview"
+                style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)' }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <span style={{ fontSize: 13, color: '#666' }}>Preview</span>
+            </div>
+          )}
         </div>
         <div className="field">
           <label>Category</label>
@@ -1072,6 +1367,19 @@ function StockModal({ item, shopId, onClose, onSaved }) {
             <label>Low-stock alert</label>
             <input className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} />
           </div>
+        </div>
+        <div className="field">
+          <label>Price per unit (optional)</label>
+          <input
+            className="input"
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            value={f.price}
+            onChange={e => setF({ ...f, price: e.target.value })}
+            placeholder="0"
+          />
         </div>
         <div className="field">
           <label>Supplier</label>
