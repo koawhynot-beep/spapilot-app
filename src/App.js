@@ -4,6 +4,7 @@ import {
   Search, RefreshCw, Check, X, AlertTriangle, Copy, Megaphone, Settings,
   ChevronRight, ChevronLeft, Eye, EyeOff, Minus, ArrowLeft, Lock,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
+  Mail,
 } from 'lucide-react';
 import './App.css';
 
@@ -327,7 +328,7 @@ function JoinTeamScreen({ onAuthed, onBack }) {
 // ═══════════════════════════════════════════════════════════
 // SIGN IN
 // ═══════════════════════════════════════════════════════════
-function SignInScreen({ onAuthed, onBack }) {
+function SignInScreen({ onAuthed, onBack, onForgot }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -376,7 +377,203 @@ function SignInScreen({ onAuthed, onBack }) {
           <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <button
+              type="button"
+              onClick={onForgot}
+              style={{ background: 'none', border: 'none', color: '#1e3a5f', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'underline', padding: 0 }}
+            >
+              Forgot password?
+            </button>
+          </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORGOT PASSWORD
+// ═══════════════════════════════════════════════════════════
+function ForgotPasswordScreen({ onBack }) {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null); setBusy(true);
+    try {
+      await api('/api/auth/forgot-password', { method: 'POST', body: { email: email.trim().toLowerCase() } });
+      setSent(true);
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+
+  if (sent) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-card">
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'inline-flex', width: 72, height: 72, borderRadius: '50%', background: 'rgba(45,134,89,0.1)', color: '#2d8659', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Mail size={36} />
+            </div>
+            <h1 style={{ fontSize: 26, margin: '0 0 8px' }}>Check your email</h1>
+            <p style={{ color: '#666', lineHeight: 1.5 }}>
+              If an account exists for <strong>{email}</strong>, we just sent a password reset link. The link expires in 1 hour.
+            </p>
+          </div>
+          <button className="btn btn-primary btn-block" onClick={onBack}>
+            <ArrowLeft size={18} /> Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={onBack}>
+          <ArrowLeft size={18} /> Back
+        </button>
+        <div className="brand">
+          <h1>Forgot password</h1>
+          <p>Enter your email and we'll send a reset link.</p>
+        </div>
+        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>Email</label>
+            <input className="input" type="email" required autoFocus placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+          </div>
+          <button className="btn btn-primary btn-block btn-large" disabled={busy || !email} type="submit">
+            {busy ? 'Sending…' : 'Send reset link'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESET PASSWORD (from email link with ?token=)
+// ═══════════════════════════════════════════════════════════
+function ResetPasswordScreen({ token, onDone }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    if (password.length < 8) { setErr('Password must be at least 8 characters'); return; }
+    if (password !== confirm) { setErr('Passwords do not match'); return; }
+    setBusy(true);
+    try {
+      await api('/api/auth/reset-password', { method: 'POST', body: { token, password } });
+      setSuccess(true);
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+
+  if (success) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-card">
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'inline-flex', width: 72, height: 72, borderRadius: '50%', background: 'rgba(45,134,89,0.1)', color: '#2d8659', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Check size={36} />
+            </div>
+            <h1 style={{ fontSize: 26, margin: '0 0 8px' }}>Password updated</h1>
+            <p style={{ color: '#666' }}>You can now sign in with your new password.</p>
+          </div>
+          <button className="btn btn-primary btn-block btn-large" onClick={onDone}>
+            Sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <div className="brand">
+          <h1>Reset password</h1>
+          <p>Choose a new password for your account.</p>
+        </div>
+        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>New password</label>
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showPw ? 'text' : 'password'} required minLength={8} autoFocus placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 50 }} />
+              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 8 }}>
+                {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+          <div className="field">
+            <label>Confirm password</label>
+            <input className="input" type={showPw ? 'text' : 'password'} required minLength={8} placeholder="Type it again" value={confirm} onChange={e => setConfirm(e.target.value)} />
+          </div>
+          <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
+            {busy ? 'Updating…' : 'Update password'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// VERIFY EMAIL (from email link with ?token=)
+// ═══════════════════════════════════════════════════════════
+function VerifyEmailScreen({ token, onDone }) {
+  const [state, setState] = useState('verifying'); // 'verifying' | 'success' | 'error'
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    api('/api/auth/verify-email', { method: 'POST', body: { token } })
+      .then(() => { if (alive) setState('success'); })
+      .catch(e => { if (alive) { setErr(e.message); setState('error'); } });
+    return () => { alive = false; };
+  }, [token]);
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card" style={{ textAlign: 'center' }}>
+        {state === 'verifying' && (
+          <>
+            <RefreshCw size={36} style={{ animation: 'spin 1s linear infinite', color: '#1e3a5f' }} />
+            <h2 style={{ marginTop: 16 }}>Verifying your email…</h2>
+          </>
+        )}
+        {state === 'success' && (
+          <>
+            <div style={{ display: 'inline-flex', width: 72, height: 72, borderRadius: '50%', background: 'rgba(45,134,89,0.1)', color: '#2d8659', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Check size={36} />
+            </div>
+            <h2 style={{ margin: '0 0 8px' }}>Email verified</h2>
+            <p style={{ color: '#666', marginBottom: 24 }}>Your email is now confirmed. You're all set.</p>
+            <button className="btn btn-primary btn-block btn-large" onClick={onDone}>Continue</button>
+          </>
+        )}
+        {state === 'error' && (
+          <>
+            <div style={{ display: 'inline-flex', width: 72, height: 72, borderRadius: '50%', background: 'rgba(196,69,58,0.1)', color: '#c4453a', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <AlertTriangle size={36} />
+            </div>
+            <h2 style={{ margin: '0 0 8px' }}>Couldn't verify</h2>
+            <p style={{ color: '#666', marginBottom: 24 }}>{err || 'The verification link is invalid or expired.'}</p>
+            <button className="btn btn-primary btn-block" onClick={onDone}>Continue</button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -428,6 +625,7 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
       </div>
 
       <div className="container">
+        <VerifyEmailBanner user={user} onUserUpdate={onUserUpdate} />
         <TrialBanner user={user} />
 
         <nav className="nav">
@@ -467,6 +665,48 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
           onUserUpdate={onUserUpdate}
         />
       )}
+    </div>
+  );
+}
+
+// ── Verify-email banner ───────────────────────────────────
+function VerifyEmailBanner({ user, onUserUpdate }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  if (user.emailVerified) return null;
+
+  const resend = async () => {
+    setBusy(true);
+    try {
+      const d = await api('/api/auth/send-verification', { method: 'POST', body: {} });
+      if (d?.alreadyVerified && onUserUpdate) {
+        onUserUpdate({ ...user, emailVerified: true });
+        toast('Email already verified');
+      } else {
+        setSent(true);
+        toast('Verification email sent');
+      }
+    } catch (e) { toast(e.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="verify-banner">
+      <Mail size={20} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <strong>Verify your email</strong>
+        <span style={{ opacity: 0.85 }}> · Check {user.email} for the link.</span>
+      </div>
+      <button
+        type="button"
+        onClick={resend}
+        disabled={busy || sent}
+        className="verify-banner-btn"
+      >
+        {busy ? 'Sending…' : sent ? 'Sent' : 'Resend'}
+      </button>
     </div>
   );
 }
@@ -1952,7 +2192,26 @@ function AppInner() {
   const [user, setUser] = useState(null);
   const [business, setBusiness] = useState(null);
   const [checking, setChecking] = useState(true);
-  const [authMode, setAuthMode] = useState(null); // null | 'landing' | 'signup' | 'join' | 'signin'
+  const [authMode, setAuthMode] = useState(null); // null | 'landing' | 'signup' | 'join' | 'signin' | 'forgot'
+  const [urlAction, setUrlAction] = useState(null); // { type: 'verify'|'reset', token: string }
+
+  // Parse URL once on load for ?action=verify|reset&token=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const token = params.get('token');
+    if ((action === 'verify' || action === 'reset') && token) {
+      setUrlAction({ type: action, token });
+    }
+  }, []);
+
+  const clearUrlAction = useCallback(() => {
+    setUrlAction(null);
+    // Clean URL without reloading
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -1986,10 +2245,25 @@ function AppInner() {
     );
   }
 
+  // URL actions take precedence over everything else
+  if (urlAction?.type === 'reset') {
+    return <ResetPasswordScreen token={urlAction.token} onDone={() => { clearUrlAction(); setAuthMode('signin'); }} />;
+  }
+  if (urlAction?.type === 'verify') {
+    return <VerifyEmailScreen token={urlAction.token} onDone={() => {
+      clearUrlAction();
+      // If a logged-in user just verified, refresh their profile so the banner goes away
+      if (user) {
+        api('/api/auth/me').then(d => { setUser(d.user); setBusiness(d.business); }).catch(() => {});
+      }
+    }} />;
+  }
+
   if (!user) {
     if (authMode === 'signup') return <SignupOwnerScreen onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} />;
     if (authMode === 'join')   return <JoinTeamScreen   onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} />;
-    if (authMode === 'signin') return <SignInScreen     onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} />;
+    if (authMode === 'signin') return <SignInScreen     onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} onForgot={() => setAuthMode('forgot')} />;
+    if (authMode === 'forgot') return <ForgotPasswordScreen onBack={() => setAuthMode('signin')} />;
     return <LandingScreen
       onStart={() => setAuthMode('signup')}
       onSignIn={() => setAuthMode('signin')}
