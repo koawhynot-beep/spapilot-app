@@ -402,12 +402,20 @@
   padding: 18px 22px 12px;
   background: var(--cream-soft);
   border-bottom: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   position: sticky; top: 0; z-index: 1;
 }
 .modal-head h3 { margin: 0; color: var(--emerald); font-size: 20px; }
 .modal-body { padding: 16px 22px 22px; overflow-y: auto; flex: 1; }
 .modal h3 { margin: 0 0 14px; color: var(--emerald); font-size: 20px; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 16px; padding-top: 12px;
+  position: sticky; bottom: 0;
+  background: var(--cream-soft);
+  border-top: 1px solid var(--line);
+  /* Keep Save/Cancel reachable when iOS keyboard covers bottom */
+}
 .modal-close {
   background: transparent; border: none; padding: 0; cursor: pointer;
   min-width: 44px; min-height: 44px;
@@ -466,6 +474,34 @@
   .page { padding: 16px 14px 110px; }
   .page-title { font-size: 22px; }
 }
+@media (max-width: 360px) {
+  /* iPhone SE: stat values overflow at 22px in 3-col; switch to 2-col */
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .stat .v { font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+/* Respect prefers-reduced-motion (WCAG 2.3.3) — disable transitions/animations */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
+  }
+}
+/* Hover styles guarded so touch devices don't see sticky hover states after tap */
+@media (not (hover: hover)) {
+  .role-btn:hover { transform: none; box-shadow: none; }
+  .qa-btn:hover:not(:disabled) { border-color: var(--line); }
+  .btn-icon:hover, .icon-btn:hover { color: var(--muted); border-color: var(--line); }
+  .topbar .switch:hover { border-color: var(--line); color: var(--ink); }
+}
+/* Skip link for keyboard users (WCAG 2.4.1) */
+.skip-link {
+  position: absolute; top: -40px; left: 8px; z-index: 1000;
+  background: var(--emerald); color: #fff;
+  padding: 8px 14px; border-radius: 8px; font-size: 13px;
+  text-decoration: none; font-weight: 600;
+}
+.skip-link:focus { top: 8px; }
 @media (min-width: 720px) {
   .topbar { padding: 20px 36px; }
   .page { padding: 28px 28px 40px; }
@@ -499,28 +535,28 @@
 .week-cell .d { font-family: 'Fraunces', serif; font-size: 16px; color: var(--emerald); }
 .week-cell .c { margin-top: 4px; font-weight: 600; color: var(--gold); }
 
-.color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.color-swatches { display: flex; gap: 10px; flex-wrap: wrap; }
 .swatch {
-  width: 32px; height: 32px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   border: 2px solid transparent; cursor: pointer;
   padding: 0;
   transition: transform 0.15s, border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.swatch:hover { transform: scale(1.05); }
-.swatch.active { border-color: var(--ink); transform: scale(1.1); }
+@media (hover: hover) { .swatch:hover { transform: scale(1.05); } }
+.swatch.active { border-color: var(--ink); transform: scale(1.08); }
 .swatch:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
 .divider {
   height: 1px; background: var(--line); margin: 14px 0;
 }
 
-.chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.chip-row { display: flex; gap: 8px; row-gap: 10px; flex-wrap: wrap; margin-top: 6px; }
 .chip {
   padding: 10px 14px; border-radius: 999px;
   border: 1px solid var(--line); background: #fff;
-  font-size: 13px; color: var(--muted);
-  cursor: pointer; min-height: 36px;
+  font-size: 13px; color: var(--ink);
+  cursor: pointer; min-height: 44px;
   display: inline-flex; align-items: center;
   transition: all 0.15s;
 }

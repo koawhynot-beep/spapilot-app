@@ -142,7 +142,7 @@ const TRANSLATIONS = {
     category: 'Category', stockLevel: 'Stock', threshold: 'Low Stock Alert', unit: 'Unit', supplier: 'Supplier',
     sopTitle: 'Standard Operating Procedures',
     logSopViolation: 'Log SOP Violation', log: 'Log',
-    noViolations: 'No violations logged.', repeatOffenders: 'Repeat Offenders',
+    noViolations: 'No notes logged.', repeatOffenders: 'Needs Follow-up',
     notes_n: 'notes', notes_1: 'note',
     removeViolation: 'Remove this violation note?', noteRemoved: 'Note removed',
     couldNotRemoveNote: 'Could not remove note', violationLogged: 'Violation logged',
@@ -236,6 +236,23 @@ const TRANSLATIONS = {
     removeServiceConfirm: 'Remove this {item}?',
     staffNameNoTeamPh: '{role} name (no team yet)',
     activePlanLabel: 'Active — $19/month',
+    skipToMain: 'Skip to main content',
+    slide1Title: 'Welcome aboard',
+    slide1Body: "We're going to make running your business much easier. This will only take 30 seconds.",
+    slide2Title: 'Built for any service business',
+    slide2Body: 'Spas, salons, gyms, clinics, restaurants, hotels, cafés, repair shops, freelancers — and many more. If you take bookings or manage a team, this app fits.',
+    slide3Title: 'Smart scheduling',
+    slide3Body: 'Bookings, shifts, swaps, and reassignments — all in one calendar. When someone calls in sick, you can reassign their day in two taps.',
+    slide4Title: 'Your team, organized',
+    slide4Body: 'Time-off, sick calls, and shift swaps come through as requests you can approve or decline. No more "did you see my text?"',
+    slide5Title: 'Never run out of stock',
+    slide5Body: 'Track supplies, products, or equipment. Get alerts before you run low. One tap to mark items reordered.',
+    slide6Title: "Let's set up yours",
+    slide6Body: "Tap the button below — we'll show you where everything is.",
+    slideshowNext: 'Next →',
+    slideshowBack: '← Back',
+    slideshowFinish: 'Show me around →',
+    slideshowSkip: 'Skip',
     emptyScheduleTitle: 'No {plural} on {date}',
     emptyScheduleBody: 'Add a {item} so your team knows what’s coming up.',
     emptyClientsTitle: 'No {plural} yet',
@@ -427,7 +444,7 @@ const TRANSLATIONS = {
     category: 'Kategori', stockLevel: 'Stok', threshold: 'Peringatan Stok Rendah', unit: 'Unit', supplier: 'Pemasok',
     sopTitle: 'Prosedur Operasi Standar',
     logSopViolation: 'Catat Pelanggaran SOP', log: 'Catat',
-    noViolations: 'Tidak ada pelanggaran tercatat.', repeatOffenders: 'Pelanggar Berulang',
+    noViolations: 'Belum ada catatan.', repeatOffenders: 'Perlu Tindak Lanjut',
     notes_n: 'catatan', notes_1: 'catatan',
     removeViolation: 'Hapus catatan pelanggaran ini?', noteRemoved: 'Catatan dihapus',
     couldNotRemoveNote: 'Tidak dapat menghapus catatan', violationLogged: 'Pelanggaran dicatat',
@@ -521,6 +538,23 @@ const TRANSLATIONS = {
     removeServiceConfirm: 'Hapus {item} ini?',
     staffNameNoTeamPh: '{role} nama (belum ada tim)',
     activePlanLabel: 'Aktif — $19/bulan',
+    skipToMain: 'Lewati ke konten utama',
+    slide1Title: 'Selamat datang',
+    slide1Body: 'Kami akan membuat pengelolaan bisnis Anda jauh lebih mudah. Hanya butuh 30 detik.',
+    slide2Title: 'Dibuat untuk semua bisnis jasa',
+    slide2Body: 'Spa, salon, gym, klinik, restoran, hotel, kafe, bengkel, freelancer — dan banyak lagi. Jika Anda menerima pemesanan atau mengelola tim, aplikasi ini cocok.',
+    slide3Title: 'Penjadwalan cerdas',
+    slide3Body: 'Pemesanan, shift, tukar, dan pengalihan — semua dalam satu kalender. Saat ada yang sakit, Anda bisa mengalihkan hari mereka dalam dua ketukan.',
+    slide4Title: 'Tim Anda, terorganisir',
+    slide4Body: 'Cuti, lapor sakit, dan tukar shift masuk sebagai permintaan yang bisa Anda setujui atau tolak. Tidak ada lagi "kamu lihat pesanku?"',
+    slide5Title: 'Jangan kehabisan stok',
+    slide5Body: 'Lacak persediaan, produk, atau peralatan. Dapatkan peringatan sebelum stok menipis. Satu ketukan untuk menandai item sudah dipesan ulang.',
+    slide6Title: 'Mari atur milik Anda',
+    slide6Body: 'Ketuk tombol di bawah — kami akan tunjukkan di mana semuanya berada.',
+    slideshowNext: 'Lanjut →',
+    slideshowBack: '← Kembali',
+    slideshowFinish: 'Tunjukkan padaku →',
+    slideshowSkip: 'Lewati',
     emptyScheduleTitle: 'Tidak ada {plural} pada {date}',
     emptyScheduleBody: 'Tambahkan {item} agar tim Anda tahu yang akan datang.',
     emptyClientsTitle: 'Belum ada {plural}',
@@ -720,6 +754,10 @@ function LangProvider({ children }) {
     const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
     return dict[k] !== undefined ? dict[k] : (TRANSLATIONS.en[k] || k);
   }, [lang]);
+  // Sync document.documentElement.lang so screen readers pronounce content correctly.
+  useEffect(() => {
+    if (typeof document !== 'undefined') document.documentElement.lang = lang === 'id' ? 'id' : 'en';
+  }, [lang]);
   const value = useMemo(() => ({ lang, t, setLang }), [lang, t, setLang]);
   return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
 }
@@ -894,12 +932,71 @@ function LoadState({ loading, error, reload, children }) {
   const { t } = useT();
   if (loading) return <Skeleton count={4} />;
   if (error) return (
-    <div className="error-banner">
+    <div role="alert" aria-live="assertive" className="error-banner">
       <AlertTriangle size={16} /> {error}
       {reload && <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={reload}>{t('retry')}</button>}
     </div>
   );
   return children;
+}
+
+// ConfirmDialog — styled, themed, i18n-friendly replacement for window.confirm().
+// Singleton renderer mounted at root via window.__spapilotConfirm. Usage:
+//   await spapilotConfirm({ title, body, confirmLabel, danger }) -> Promise<boolean>
+const ConfirmContext = createContext(null);
+let _resolver = null;
+function ConfirmProvider({ children }) {
+  const [state, setState] = useState(null);
+  const open = useCallback((opts) => {
+    return new Promise((resolve) => {
+      _resolver = resolve;
+      setState(opts || {});
+    });
+  }, []);
+  const close = useCallback((result) => {
+    if (_resolver) { _resolver(result); _resolver = null; }
+    setState(null);
+  }, []);
+  // Make available as a global function for non-component contexts (e.g., async handlers)
+  useEffect(() => {
+    window.__spapilotConfirm = open;
+    return () => { if (window.__spapilotConfirm === open) delete window.__spapilotConfirm; };
+  }, [open]);
+  return (
+    <ConfirmContext.Provider value={open}>
+      {children}
+      {state && (
+        <Modal title={state.title || ''} onClose={() => close(false)}>
+          {state.body && (
+            <div style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.5, marginBottom: 16 }}>
+              {state.body}
+            </div>
+          )}
+          <div className="modal-actions">
+            <button className="btn btn-ghost" onClick={() => close(false)}>
+              {state.cancelLabel || 'Cancel'}
+            </button>
+            <button
+              className="btn btn-primary"
+              style={state.danger ? { background: 'var(--danger)', color: '#fff' } : undefined}
+              onClick={() => close(true)}
+              autoFocus
+            >
+              {state.confirmLabel || 'Confirm'}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </ConfirmContext.Provider>
+  );
+}
+// Hook for components (currently unused — appConfirm helper used instead — kept for future direct use).
+// eslint-disable-next-line no-unused-vars
+const useConfirm = () => useContext(ConfirmContext) || ((opts) => Promise.resolve(window.confirm((opts && (opts.title || opts.body)) || 'Confirm?')));
+// App-level confirm helper for use outside React tree (rare). Routes through ConfirmProvider when mounted.
+function appConfirm(opts) {
+  if (typeof window !== 'undefined' && window.__spapilotConfirm) return window.__spapilotConfirm(opts);
+  return Promise.resolve(window.confirm((opts && (opts.title || opts.body)) || 'Confirm?'));
 }
 
 function Modal({ title, onClose, children }) {
@@ -929,15 +1026,26 @@ function Modal({ title, onClose, children }) {
 function Toast({ payload, onDone }) {
   const msg = typeof payload === 'string' ? payload : payload?.message;
   const action = typeof payload === 'object' && payload ? payload : null;
+  const [paused, setPaused] = useState(false);
   useEffect(() => {
     if (!msg) return;
-    const ttl = action?.undo ? 10000 : 2400;
+    if (paused) return;
+    // WCAG 2.2.1: bumped from 2.4s -> 5s; undo variant stays 10s. Pause on hover/focus.
+    const ttl = action?.undo ? 10000 : 5000;
     const t = setTimeout(onDone, ttl);
     return () => clearTimeout(t);
-  }, [msg, action, onDone]);
+  }, [msg, action, onDone, paused]);
   if (!msg) return null;
   return (
-    <div className="toast" role="status" aria-live="polite">
+    <div
+      className="toast"
+      role="status"
+      aria-live="polite"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
       <span>{msg}</span>
       {action?.undo && (
         <button
@@ -946,6 +1054,12 @@ function Toast({ payload, onDone }) {
           aria-label={action.undoLabel || 'Undo'}
         >{action.undoLabel || 'Undo'}</button>
       )}
+      <button
+        className="toast-close"
+        onClick={onDone}
+        aria-label="Close"
+        style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', padding: 4, marginLeft: 4, fontSize: 16, lineHeight: 1 }}
+      >×</button>
     </div>
   );
 }
@@ -1169,7 +1283,7 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
               </div>
             )}
             {err && (
-              <div className="error-banner" style={{ marginTop: 4 }}>
+              <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}>
                 <AlertTriangle size={14} /> {err}
               </div>
             )}
@@ -1255,7 +1369,7 @@ function ResetPasswordScreen({ token, onDone }) {
                   value={confirm} onChange={e => { setErr(null); setConfirm(e.target.value); }} />
               </div>
             </div>
-            {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+            {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
               {busy ? t('pleaseWait') : t('resetPassword')}
             </button>
@@ -1490,7 +1604,7 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
               ))}
             </div>
           </div>
-          {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+          {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
             {busy ? t('saving') : t('createBusiness')}
           </button>
@@ -1540,7 +1654,7 @@ function StaffOnboarding({ onJoined, onBack, onSwitchToOwner, onLogout }) {
               style={{ textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'monospace' }}
               onChange={e => { setErr(null); setCode(e.target.value.toUpperCase()); }} />
           </div>
-          {err && <div className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+          {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
             {busy ? t('saving') : t('join')}
           </button>
@@ -1563,7 +1677,7 @@ function StaffOnboarding({ onJoined, onBack, onSwitchToOwner, onLogout }) {
 }
 
 // ---------- Payment required (trial expired) ----------
-function PaymentRequired({ user, onActivated, onLogout }) {
+function PaymentRequired({ user, onLogout }) {
   const { t } = useT();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -1594,7 +1708,7 @@ function PaymentRequired({ user, onActivated, onLogout }) {
             {t('paymentRequiredSub')}
           </p>
         </div>
-        {err && <div className="error-banner" style={{ marginTop: 12 }}><AlertTriangle size={14} /> {err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 12 }}><AlertTriangle size={14} /> {err}</div>}
         <button className="btn btn-primary" style={{ width: '100%', marginTop: 18, padding: '14px 16px', fontSize: 14 }}
           disabled={busy} onClick={subscribe}>
           <Gem size={14} style={{ marginRight: 6 }} /> {busy ? t('pleaseWait') : t('subscribeMonthly')}
@@ -1614,7 +1728,7 @@ function PaymentRequired({ user, onActivated, onLogout }) {
 }
 
 // ---------- Settings drawer (subscription + switch role) ----------
-function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAccountDeleted, toast }) {
+function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted, toast }) {
   const { t } = useT();
   const [busy, setBusy] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1677,7 +1791,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
   };
 
   const switchType = async () => {
-    if (!window.confirm(t('confirmSwitchAccountType'))) return;
+    if (!(await appConfirm({ title: t('switchAccountType'), body: t('confirmSwitchAccountType'), confirmLabel: t('continue'), cancelLabel: t('cancel') }))) return;
     setBusy(true);
     try {
       const { token, user: u } = await api('/api/auth/switch-onboarding', { method: 'POST', body: {} });
@@ -1692,6 +1806,18 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
     try {
       const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
       if (checkoutUrl) {
+        // C1 security fix: validate Stripe URL origin before redirect to prevent open-redirect.
+        try {
+          const u = new URL(checkoutUrl, window.location.origin);
+          const allowed = ['checkout.stripe.com', 'billing.stripe.com'];
+          if (!allowed.includes(u.hostname)) {
+            toast(t('subscriptionUnavailable'));
+            return;
+          }
+        } catch {
+          toast(t('subscriptionUnavailable'));
+          return;
+        }
         window.location.href = checkoutUrl;
       } else {
         toast(t('subscriptionUnavailable'));
@@ -1942,7 +2068,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
       <LangToggle floating />
       <div className="role-card">
         <BrandMark sub={t('oneLast')} />
-        {err && <div className="error-banner" style={{ marginTop: 14 }}><AlertTriangle size={14} /> {err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 14 }}><AlertTriangle size={14} /> {err}</div>}
 
         {picking === 'staff' ? (
           <div style={{ marginTop: 18 }}>
@@ -2271,7 +2397,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   }, [bookings, query, sortDir, selectedDate, todayStr]);
 
   const del = async (id) => {
-    if (!window.confirm(t('deleteBooking'))) return;
+    if (!(await appConfirm({ title: t('deleteBooking'), confirmLabel: t('delete'), cancelLabel: t('cancel'), danger: true }))) return;
     const backup = bookings.find(b => b.id === id);
     try {
       await api(`/api/bookings/${id}`, { method: 'DELETE' });
@@ -2342,7 +2468,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
         {filtered.length > 0 && (
           <div className="day-stats">
             <div className="day-stat"><span className="v">{filtered.length}</span><span className="l">{labels.bookingPlural}</span></div>
-            {totalRevenue > 0 && <div className="day-stat"><span className="v">${totalRevenue.toFixed(0)}</span><span className="l">{t('revenue')}</span></div>}
+            {totalRevenue > 0 && <div className="day-stat"><span className="v">{fmtMoney(totalRevenue, lang)}</span><span className="l">{t('revenue')}</span></div>}
             {conflictIds.size > 0 && <div className="day-stat day-stat-warn"><span className="v">{conflictIds.size / 2}</span><span className="l">{t('conflictsCount')}</span></div>}
           </div>
         )}
@@ -2387,7 +2513,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
                 {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
                 {b.notes && <div className="note-chip">{t('notes')}: {b.notes}</div>}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button className="btn-icon" onClick={() => setModal(b)} aria-label={t('edit')}><Edit2 size={14} /></button>
                 <button className="btn-icon" onClick={() => del(b.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
               </div>
@@ -2483,14 +2609,23 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
     // Pre-save conflict check — warn user before creating a double-booking.
     const conflict = findConflict();
     if (conflict) {
-      const ok = window.confirm(
-        `${t('overlapsWithAnother')}: ${conflict.client} @ ${conflict.time} (${conflict.duration}min).\n\n${t('save')}?`
-      );
+      const ok = await appConfirm({
+        title: t('overlapsWithAnother'),
+        body: `${conflict.client} @ ${conflict.time} (${conflict.duration}min). ${t('save')}?`,
+        confirmLabel: t('save'),
+        cancelLabel: t('cancel'),
+        danger: true,
+      });
       if (!ok) { setSaving(false); return; }
     }
     // Warn (but allow) if booking is in the past — useful for logging historical visits.
     if (f.date && f.date < todayStr && !booking) {
-      const ok = window.confirm(`${t('dateInPastWarn')} (${f.date}). ${t('save')}?`);
+      const ok = await appConfirm({
+        title: t('dateInPastWarn'),
+        body: `${f.date}. ${t('save')}?`,
+        confirmLabel: t('save'),
+        cancelLabel: t('cancel'),
+      });
       if (!ok) { setSaving(false); return; }
     }
     try {
@@ -2512,7 +2647,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
   return (
     <Modal title={booking ? `${t('edit')} ${labels.booking.toLowerCase()}` : `${t('add')} ${labels.booking.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{labels.client}</label>
           <input className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} /></div>
         {hasServices && (
@@ -2676,7 +2811,7 @@ function ClientsTab({ bookings, staff, toast }) {
             </div>
             <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--muted)' }}>
               <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>{fmtMoney(c.totalSpend, lang)}</div>
-              <div style={{ fontSize: 11 }}>{c.lastVisit || ''}</div>
+              <div style={{ fontSize: 11 }}>{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'short', day: 'numeric' }) : ''}</div>
             </div>
           </div>
         ))}
@@ -2696,7 +2831,7 @@ function ClientsTab({ bookings, staff, toast }) {
             <div className="stats" style={{ marginBottom: 14 }}>
               <div className="stat"><div className="v">{detail.visits}</div><div className="l">{labels.bookingPlural}</div></div>
               <div className="stat"><div className="v">{fmtMoney(detail.totalSpend, lang)}</div><div className="l">{t('revenue')}</div></div>
-              <div className="stat"><div className="v">{detail.lastVisit || '—'}</div><div className="l">{t('lastVisitLabel')}</div></div>
+              <div className="stat"><div className="v">{detail.lastVisit ? new Date(detail.lastVisit).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</div><div className="l">{t('lastVisitLabel')}</div></div>
             </div>
 
             {detail.allergies && (
@@ -2755,7 +2890,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
   };
 
   const del = async (id) => {
-    if (!window.confirm(t('removeStaff'))) return;
+    if (!(await appConfirm({ title: t('removeStaff'), confirmLabel: t('remove'), cancelLabel: t('cancel'), danger: true }))) return;
     const backup = staff.find(s => s.id === id);
     try {
       await api(`/api/staff/${id}`, { method: 'DELETE' });
@@ -2820,7 +2955,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
               </div>
               <div style={{ display: 'flex', gap: 4 }}>
                 {waLink(s.phone) && (
-                  <a className="btn-icon" href={waLink(s.phone)} target="_blank" rel="noreferrer" aria-label={t('whatsapp')} title={t('whatsapp')}>
+                  <a className="btn-icon" href={waLink(s.phone)} target="_blank" rel="noopener noreferrer" aria-label={t('whatsapp')} title={t('whatsapp')}>
                     <PhoneCall size={14} />
                   </a>
                 )}
@@ -2871,7 +3006,7 @@ function StaffModal({ member, onClose, onSaved }) {
   return (
     <Modal title={member ? t('editTeamMember') : t('addTeamMember')} onClose={onClose}>
       <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
         <div className="field"><label>{t('role')}</label>
@@ -2938,7 +3073,7 @@ function StaffModal({ member, onClose, onSaved }) {
 
 // ---------- Services Catalog ----------
 function ServicesTab({ services, onReload, toast }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { labels } = useBiz();
   const [modal, setModal] = useState(null);
 
@@ -2953,7 +3088,7 @@ function ServicesTab({ services, onReload, toast }) {
   }, [services]);
 
   const delService = async (id) => {
-    if (!window.confirm(t('removeServiceConfirm').replace('{item}', labels.service.toLowerCase()))) return;
+    if (!(await appConfirm({ title: t('removeServiceConfirm').replace('{item}', labels.service.toLowerCase()), confirmLabel: t('remove'), cancelLabel: t('cancel'), danger: true }))) return;
     try {
       await api(`/api/services/${id}`, { method: 'DELETE' });
       toast(`${labels.service} removed`);
@@ -2990,7 +3125,7 @@ function ServicesTab({ services, onReload, toast }) {
                   <div className="grow">
                     <div className="title" style={{ fontSize: 14 }}>{s.name}</div>
                     <div className="meta" style={{ fontSize: 11 }}>
-                      {s.durationMin} min · {fmtMoney(s.price, 'en')}
+                      {s.durationMin} min · {fmtMoney(s.price, lang)}
                     </div>
                   </div>
                   <button className="icon-btn" onClick={() => setModal(s)} aria-label={t('edit')}>
@@ -3048,7 +3183,7 @@ function ServiceModal({ service, onClose, onSaved }) {
   return (
     <Modal title={service ? `${t('edit')} ${labels.service.toLowerCase()}` : `${t('add')} ${labels.service.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
         <div className="field"><label>{t('category')}</label>
@@ -3087,29 +3222,55 @@ function ServiceModal({ service, onClose, onSaved }) {
 }
 
 function InventoryTab({ inventory, onReload, toast }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
   const [cat, setCat] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // all | low | out
+  const [sortBy, setSortBy] = useState('name'); // name | stock-asc | stock-desc | value
 
   const categories = useMemo(() => {
     const set = new Set(inventory.map(i => i.category).filter(Boolean));
     return Array.from(set).sort();
   }, [inventory]);
 
+  // Summary stats — total items, total inventory value, low + out counts.
+  const summary = useMemo(() => {
+    let totalValue = 0, lowCount = 0, outCount = 0;
+    for (const i of inventory) {
+      const stock = Number(i.stock) || 0;
+      const cost = Number(i.cost) || 0;
+      totalValue += stock * cost;
+      if (stock <= 0) outCount += 1;
+      else if (stock <= (Number(i.threshold) || 0)) lowCount += 1;
+    }
+    return { totalItems: inventory.length, totalValue, lowCount, outCount };
+  }, [inventory]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return inventory.filter(i => {
+    let out = inventory.filter(i => {
       if (cat && i.category !== cat) return false;
+      const stock = Number(i.stock) || 0;
+      const thr = Number(i.threshold) || 0;
+      if (statusFilter === 'low' && stock > thr) return false;
+      if (statusFilter === 'out' && stock > 0) return false;
       if (!q) return true;
       return (i.name || '').toLowerCase().includes(q) || (i.supplier || '').toLowerCase().includes(q);
     });
-  }, [inventory, query, cat]);
+    if (sortBy === 'name') out = [...out].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    else if (sortBy === 'stock-asc') out = [...out].sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0));
+    else if (sortBy === 'stock-desc') out = [...out].sort((a, b) => (Number(b.stock) || 0) - (Number(a.stock) || 0));
+    else if (sortBy === 'value') out = [...out].sort((a, b) => ((Number(b.stock) || 0) * (Number(b.cost) || 0)) - ((Number(a.stock) || 0) * (Number(a.cost) || 0)));
+    return out;
+  }, [inventory, query, cat, statusFilter, sortBy]);
 
   const exportCsv = () => {
     const rows = filtered.map(i => ({
       id: i.id, name: i.name, category: i.category, stock: i.stock,
-      threshold: i.threshold, unit: i.unit, supplier: i.supplier, lastOrder: i.lastOrder || '',
+      threshold: i.threshold, unit: i.unit, supplier: i.supplier,
+      cost: i.cost || 0, value: (Number(i.stock) || 0) * (Number(i.cost) || 0),
+      lastOrder: i.lastOrder || '',
     }));
     downloadCSV(`inventory-${new Date().toISOString().slice(0,10)}.csv`, rows);
   };
@@ -3127,7 +3288,7 @@ function InventoryTab({ inventory, onReload, toast }) {
     } catch (e) { toast(e.message || t('couldNotMarkOrdered')); }
   };
   const del = async (id) => {
-    if (!window.confirm(t('removeItem'))) return;
+    if (!(await appConfirm({ title: t('removeItem'), confirmLabel: t('remove'), cancelLabel: t('cancel'), danger: true }))) return;
     const backup = inventory.find(i => i.id === id);
     try {
       await api(`/api/inventory/${id}`, { method: 'DELETE' });
@@ -3148,6 +3309,15 @@ function InventoryTab({ inventory, onReload, toast }) {
 
   return (
     <div>
+      {/* Summary card — total items, value, low/out counts. Quick at-a-glance status. */}
+      {summary.totalItems > 0 && (
+        <div className="day-stats" style={{ marginBottom: 14 }}>
+          <div className="day-stat"><span className="v">{summary.totalItems}</span><span className="l">{t('inventory')}</span></div>
+          {summary.totalValue > 0 && <div className="day-stat"><span className="v">{fmtMoney(summary.totalValue, lang)}</span><span className="l">{t('inventoryValue')}</span></div>}
+          {summary.lowCount > 0 && <div className="day-stat day-stat-warn"><span className="v">{summary.lowCount}</span><span className="l">{t('low')}</span></div>}
+          {summary.outCount > 0 && <div className="day-stat day-stat-warn"><span className="v">{summary.outCount}</span><span className="l">Out</span></div>}
+        </div>
+      )}
       <div className="card">
         <div className="card-head">
           <h3>{t('inventory')}</h3>
@@ -3155,12 +3325,23 @@ function InventoryTab({ inventory, onReload, toast }) {
         </div>
         <div className="search-wrap">
           <Search size={14} className="search-icon" />
-          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
+          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
         </div>
         <div className="toolbar">
           <select className="select" value={cat} onChange={e => setCat(e.target.value)} aria-label={t('filterCategory')}>
             <option value="">{t('allCategories')}</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select className="select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label={t('filterCategory')}>
+            <option value="all">All</option>
+            <option value="low">Low only</option>
+            <option value="out">Out only</option>
+          </select>
+          <select className="select" value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label={t('sortBy')}>
+            <option value="name">Name A-Z</option>
+            <option value="stock-asc">Stock ↑</option>
+            <option value="stock-desc">Stock ↓</option>
+            <option value="value">Value ↓</option>
           </select>
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
             <Download size={12} /> {t('exportCsv')}
@@ -3246,7 +3427,7 @@ function InventoryModal({ item, onClose, onSaved }) {
   return (
     <Modal title={item ? t('editItem') : t('addItem')} onClose={onClose}>
       <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -3286,7 +3467,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
   })).filter(s => s.count > 0).sort((a, b) => b.count - a.count);
 
   const delViolation = async (id) => {
-    if (!window.confirm(t('removeViolation'))) return;
+    if (!(await appConfirm({ title: t('removeViolation'), confirmLabel: t('remove'), cancelLabel: t('cancel'), danger: true }))) return;
     try {
       await api(`/api/violations/${id}`, { method: 'DELETE' });
       toast(t('noteRemoved')); onReload();
@@ -3294,7 +3475,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
   };
 
   const delSop = async (id) => {
-    if (!window.confirm(t('removeSopRule'))) return;
+    if (!(await appConfirm({ title: t('removeSopRule'), confirmLabel: t('remove'), cancelLabel: t('cancel'), danger: true }))) return;
     try {
       await api(`/api/sop/${id}`, { method: 'DELETE' });
       toast(t('sopRuleRemoved')); onReloadSops && onReloadSops();
@@ -3411,7 +3592,7 @@ function SOPRuleModal({ onClose, onSaved }) {
   return (
     <Modal title={t('addSopRule')} onClose={onClose}>
       <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} /> {err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} /> {err}</div>}
         <div className="field">
           <label>{t('sopRuleTitle')}</label>
           <input className="input" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
@@ -3478,7 +3659,7 @@ function ViolationModal({ staff, sops, onClose, onSaved }) {
   return (
     <Modal title={t('logSopViolation')} onClose={onClose}>
       <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('staffPerson')}</label>
           <select className="select" value={f.staffId} onChange={e => setF({ ...f, staffId: Number(e.target.value) })}>
             {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -3601,7 +3782,7 @@ function ReassignModal({ request, staff, onClose, onSubmit }) {
         {t('assignBookingsTo')} <strong>{request.date}</strong> {t('to')}
       </p>
       {!hasStaff ? (
-        <div className="error-banner" style={{ marginTop: 8 }}>
+        <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 8 }}>
           <AlertTriangle size={14} /> {t('noOtherStaffAvailable')}
         </div>
       ) : (
@@ -3625,7 +3806,7 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
   const { t } = useT();
   const [modal, setModal] = useState(false);
   const del = async (id) => {
-    if (!window.confirm(t('deleteAnnouncement'))) return;
+    if (!(await appConfirm({ title: t('deleteAnnouncement'), confirmLabel: t('delete'), cancelLabel: t('cancel'), danger: true }))) return;
     const backup = announcements.find(a => a.id === id);
     try {
       await api(`/api/announcements/${id}`, { method: 'DELETE' });
@@ -3696,7 +3877,7 @@ function AnnouncementModal({ defaultFrom, onClose, onSaved }) {
   return (
     <Modal title={t('newAnnouncement')} onClose={onClose}>
       <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('title')}</label>
           <input className="input" required value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></div>
         <div className="field"><label>{t('message')}</label>
@@ -4000,7 +4181,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
             ⏰ {t('sickCallNotice')}
           </div>
         )}
-        {err && <div className="error-banner"><AlertTriangle size={14} /> {err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} /> {err}</div>}
         <div className="field"><label>{t('date')}</label>
           <input className="input" type="date" required min={new Date().toISOString().slice(0,10)} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
         {type === 'swap' && (
@@ -4315,43 +4496,19 @@ const OWNER_NAV = [
 // Runs once for every new account on first dashboard load. Five slides: app intro,
 // scope ("works for any service biz"), three capability slides, then "let's go".
 // User taps Next or swipes through. Skip available throughout.
-const SLIDES = [
-  {
-    icon: '👋',
-    title: 'Welcome aboard',
-    body: "We're going to make running your business much easier. This will only take 30 seconds.",
-  },
-  {
-    icon: '🌐',
-    title: 'Built for any service business',
-    body: 'Spas, salons, gyms, clinics, restaurants, hotels, cafés, repair shops, freelancers — and many more. If you take bookings or manage a team, this app fits.',
-  },
-  {
-    icon: '📅',
-    title: 'Smart scheduling',
-    body: 'Bookings, shifts, swaps, and reassignments — all in one calendar. When someone calls in sick, you can reassign their day in two taps.',
-  },
-  {
-    icon: '👥',
-    title: 'Your team, organized',
-    body: 'Time-off, sick calls, and shift swaps come through as requests you can approve or decline. No more "did you see my text?"',
-  },
-  {
-    icon: '📦',
-    title: 'Never run out of stock',
-    body: 'Track supplies, products, or equipment. Get alerts before you run low. One tap to mark items reordered.',
-  },
-  {
-    icon: '✨',
-    title: "Let's set up yours",
-    body: "Tap the button below — we'll show you where everything is.",
-  },
-];
+// Slide icons are stable across locales; title/body resolved from translations.
+const SLIDE_ICONS = ['👋', '🌐', '📅', '👥', '📦', '✨'];
 
 function WelcomeSlideshow({ onDone }) {
+  const { t } = useT();
   const [step, setStep] = useState(0);
-  const slide = SLIDES[step];
-  const isLast = step === SLIDES.length - 1;
+  const slides = SLIDE_ICONS.map((icon, i) => ({
+    icon,
+    title: t(`slide${i + 1}Title`),
+    body: t(`slide${i + 1}Body`),
+  }));
+  const slide = slides[step];
+  const isLast = step === slides.length - 1;
 
   return (
     <div style={{
@@ -4380,7 +4537,7 @@ function WelcomeSlideshow({ onDone }) {
             padding: '6px 12px', minHeight: 32,
             fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
           }}
-        >Skip</button>
+        >{t('slideshowSkip')}</button>
 
         <div style={{ fontSize: 56, marginBottom: 18 }}>{slide.icon}</div>
         <h2 style={{
@@ -4394,7 +4551,7 @@ function WelcomeSlideshow({ onDone }) {
 
         {/* Progress dots */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 22 }}>
-          {SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <div key={i} style={{
               width: i === step ? 22 : 7, height: 7, borderRadius: 4,
               background: i <= step ? 'var(--emerald)' : 'var(--line)',
@@ -4413,7 +4570,7 @@ function WelcomeSlideshow({ onDone }) {
                 cursor: 'pointer', fontFamily: 'inherit', fontSize: 14,
                 color: 'var(--muted)',
               }}
-            >← Back</button>
+            >{t('slideshowBack')}</button>
           )}
           <button
             onClick={() => isLast ? onDone() : setStep(step + 1)}
@@ -4423,7 +4580,7 @@ function WelcomeSlideshow({ onDone }) {
               cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 600,
             }}
           >
-            {isLast ? "Show me around →" : 'Next →'}
+            {isLast ? t('slideshowFinish') : t('slideshowNext')}
           </button>
         </div>
       </div>
@@ -4864,7 +5021,7 @@ function AppInner() {
   }
 
   if (needsPayment) return (
-    <PaymentRequired user={user} onActivated={setUser} onLogout={logout} />
+    <PaymentRequired user={user} onLogout={logout} />
   );
 
   if (!user.businessId) {
@@ -4922,6 +5079,7 @@ function AppInner() {
   return (
     <BizProvider business={business}>
     <div className="shell">
+      <a href="#main" className="skip-link">{t('skipToMain') || 'Skip to main content'}</a>
       <OfflineBanner />
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
@@ -4953,7 +5111,6 @@ function AppInner() {
           business={business}
           onClose={() => setShowSettings(false)}
           onSwitched={(u) => { setUser(u); setRole(null); setOnboardingChoice(null); }}
-          onActivated={setUser}
           onAccountDeleted={() => {
             setToken(null);
             setUser(null);
@@ -4967,7 +5124,7 @@ function AppInner() {
         />
       )}
 
-      <main className="page fade" key={tab}>
+      <main id="main" className="page fade" tabIndex={-1}>
         <div className="page-title">{pageTitle}</div>
 
         <LoadState loading={anyLoading} error={anyError} reload={reloadAll}>
@@ -5094,7 +5251,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <LangProvider>
-        <AppInner />
+        <ConfirmProvider>
+          <AppInner />
+        </ConfirmProvider>
       </LangProvider>
     </ErrorBoundary>
   );
