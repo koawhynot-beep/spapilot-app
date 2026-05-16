@@ -852,12 +852,17 @@ const PERMISSION_DEFS = [
 
 
 // ---------- Shared UI ----------
-function Avatar({ initial, color, size = 36 }) {
+function Avatar({ initial, color, size = 36, name }) {
   return (
-    <div className="avatar" style={{
-      width: size, height: size,
-      background: color, fontSize: size * 0.4,
-    }}>{initial}</div>
+    <div
+      className="avatar"
+      role="img"
+      aria-label={name || (typeof initial === 'string' ? initial : '')}
+      style={{
+        width: size, height: size,
+        background: color, fontSize: size * 0.4,
+      }}
+    >{initial}</div>
   );
 }
 
@@ -5027,7 +5032,14 @@ function AppInner() {
           const active = tab === item.id;
           const badge = item.id === 'alerts' ? alertBadge : 0;
           return (
-            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-item ${active ? 'active' : ''}`} data-tour={`tab-${item.id}`}>
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              className={`nav-item ${active ? 'active' : ''}`}
+              data-tour={`tab-${item.id}`}
+              aria-current={active ? 'page' : undefined}
+              aria-label={t(item.labelKey)}
+            >
               <Icon size={22} />
               <span>{t(item.labelKey)}</span>
               {active && <span className="dot" />}

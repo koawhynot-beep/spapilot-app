@@ -258,8 +258,11 @@
 }
 .row:last-child { border-bottom: none; }
 .row .grow { flex: 1; min-width: 0; }
-.row .title { font-weight: 600; color: var(--ink); font-size: 14px; }
-.row .meta { font-size: 12px; color: var(--muted); }
+.row .title {
+  font-weight: 600; color: var(--ink); font-size: 14px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.row .meta { font-size: 12px; color: var(--muted); word-wrap: break-word; }
 
 /* Avatar */
 .avatar {
