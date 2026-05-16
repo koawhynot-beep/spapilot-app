@@ -225,6 +225,9 @@ const TRANSLATIONS = {
     statusPending: 'pending',
     statusApproved: 'approved',
     statusDeclined: 'declined',
+    colorLabel: 'Color',
+    historyLabel: 'History',
+    subscriptionActivated: 'Subscription activated. Welcome aboard!',
     search: 'Search', sortBy: 'Sort by', filterCategory: 'Filter category', allCategories: 'All',
     timeAsc: 'Time ↑', timeDesc: 'Time ↓', exportCsv: '⬇ Download Spreadsheet',
     language: 'Language', english: 'English', indonesian: 'Bahasa',
@@ -490,6 +493,9 @@ const TRANSLATIONS = {
     statusPending: 'menunggu',
     statusApproved: 'disetujui',
     statusDeclined: 'ditolak',
+    colorLabel: 'Warna',
+    historyLabel: 'Riwayat',
+    subscriptionActivated: 'Langganan diaktifkan. Selamat bergabung!',
     search: 'Cari', sortBy: 'Urutkan', filterCategory: 'Filter kategori', allCategories: 'Semua',
     timeAsc: 'Waktu ↑', timeDesc: 'Waktu ↓', exportCsv: '⬇ Unduh Spreadsheet',
     language: 'Bahasa', english: 'English', indonesian: 'Bahasa',
@@ -2602,7 +2608,7 @@ function ClientsTab({ bookings, staff, toast }) {
             )}
 
             <h3 style={{ fontSize: 13, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '14px 0 8px' }}>
-              History
+              {t('historyLabel')}
             </h3>
             {detail.bookings.slice().reverse().map(b => {
               const m = staff.find(s => s.id === b.staffId);
@@ -2943,17 +2949,17 @@ function ServiceModal({ service, onClose, onSaved }) {
     <Modal title={service ? `${t('edit')} ${labels.service.toLowerCase()}` : `${t('add')} ${labels.service.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={save}>
         {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>Name</label>
+        <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
-        <div className="field"><label>Category</label>
+        <div className="field"><label>{t('category')}</label>
           <input className="input" placeholder="e.g. Consultation, Haircut, Repair" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>Duration (min)</label>
+          <div className="field" style={{ flex: 1 }}><label>{t('durationMin')}</label>
             <input className="input" type="number" min="0" inputMode="numeric" value={f.durationMin} onChange={e => setF({ ...f, durationMin: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>Price</label>
+          <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
             <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></div>
         </div>
-        <div className="field"><label>Color</label>
+        <div className="field"><label>{t('colorLabel')}</label>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {COLOR_OPTIONS.map(c => (
               <button
@@ -4637,7 +4643,7 @@ function AppInner() {
           const url = new URL(window.location.href);
           url.searchParams.delete('subscribed');
           window.history.replaceState({}, '', url.toString());
-          setToastMsg('Subscription activated. Welcome aboard!');
+          setToastMsg(TRANSLATIONS[localStorage.getItem(LANG_KEY) || 'en']?.subscriptionActivated || TRANSLATIONS.en.subscriptionActivated);
         }
       })
       .catch(() => { setToken(null); setAuthChecking(false); });
