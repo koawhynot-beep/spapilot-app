@@ -2353,6 +2353,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
           booking={modal === 'new' ? null : modal}
           staff={staff}
           services={services}
+          allBookings={bookings}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); onReload(); toast(modal === 'new' ? t('bookingAdded') : t('bookingUpdated')); }}
         />
@@ -2361,7 +2362,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   );
 }
 
-function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
+function BookingModal({ booking, staff, services = [], allBookings = [], onClose, onSaved }) {
   const { t } = useT();
   const { labels, business } = useBiz();
   // C6 fix: allow allergies field for new generic business categories too.
@@ -2393,8 +2394,32 @@ function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
 
+  // Detect overlap with existing bookings on same staff member at the same time/date.
+  // Returns conflict booking if found, else null. Excludes the booking we're editing.
+  const findConflict = () => {
+    if (!f.staffId || !f.date || !f.time || !f.duration) return null;
+    const newStart = toMin(f.time);
+    const newEnd = newStart + (Number(f.duration) || 0);
+    return allBookings.find(b => {
+      if (booking && b.id === booking.id) return false; // skip self when editing
+      if (b.staffId !== f.staffId) return false;
+      if ((b.date || '') !== f.date) return false;
+      const bStart = toMin(b.time);
+      const bEnd = bStart + (Number(b.duration) || 0);
+      return newStart < bEnd && bStart < newEnd;
+    });
+  };
+
   const save = async (e) => {
     e.preventDefault(); setSaving(true); setErr(null);
+    // Pre-save conflict check — warn user before creating a double-booking.
+    const conflict = findConflict();
+    if (conflict) {
+      const ok = window.confirm(
+        `${t('overlapsWithAnother')}: ${conflict.client} @ ${conflict.time} (${conflict.duration}min).\n\n${t('save')}?`
+      );
+      if (!ok) { setSaving(false); return; }
+    }
     try {
       // Coerce empty-string price + ensure staffId is sent (so bookings show up in per-staff views).
       // If staff exists but user typed a custom name in the fallback input, keep `therapist` text but
