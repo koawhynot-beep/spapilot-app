@@ -180,6 +180,39 @@ const TRANSLATIONS = {
     sickCallNotice: 'Policy: call in sick at least 3 hours before your shift starts.',
     daysWeek: 'Days / week', mySopNotes: 'My SOP Notes', cleanRecord: 'Clean record — well done.',
     selectStaff: 'Select team member',
+    noTeamMembersAskManager: 'No team members exist yet. Ask the manager to add you to the team first.',
+    noOtherStaffAvailable: 'No other team members available. Decline this request or add a teammate first.',
+    overlapsWithAnother: 'Overlaps with another booking on this team member',
+    conflictsCount: 'Conflicts', peakHourLabel: 'Peak hour', topServicesTitle: 'Top services',
+    inventoryValue: 'Inventory value', thisMonth: 'This Month', allTime: 'All Time',
+    noTeamYetShort: 'No team members yet.',
+    ruleTitleRequired: 'Rule title required',
+    phonePlaceholder: 'Phone number',
+    yourPasswordPlaceholder: 'Your password',
+    typeDeleteToConfirm: 'Type DELETE to confirm',
+    deleteAccountConfirm: 'DELETE',
+    subscriptionUnavailable: 'Subscription is temporarily unavailable. Please try again in a few minutes.',
+    extraDetailPlaceholder: 'Extra detail…',
+    ruleTitlePh: 'e.g. Arrive on time, Wear uniform…',
+    rulePunctualityPh: 'e.g. Punctuality, Appearance…',
+    passwordRequired: 'Password required',
+    privacyAndData: 'Privacy & Data',
+    exportMyData: 'Export my data',
+    deleteAccount: 'Delete account',
+    deleteAccountWarn: '⚠ This permanently deletes your account and all your business data. Cannot be undone.',
+    deleteForever: 'Delete forever',
+    deletingEllipsis: 'Deleting…',
+    exportFailed: 'Export failed',
+    dataExported: 'Data exported',
+    accountDeleted: 'Account deleted',
+    restartTutorial: 'Restart tutorial',
+    joinTeamTitle: 'Join a team',
+    freeForever: 'FREE FOREVER',
+    joinTeamIntro: 'Staff accounts cost nothing. Ask your manager for the 6-letter business code, then:',
+    joinStep1: 'Tap the button below',
+    joinStep2: 'Create your free account (email + password)',
+    joinStep3: 'Pick "I work as staff" and enter the code given by the business owner',
+    joinTeamCta: 'Join your team →',
     search: 'Search', sortBy: 'Sort by', filterCategory: 'Filter category', allCategories: 'All',
     timeAsc: 'Time ↑', timeDesc: 'Time ↓', exportCsv: '⬇ Download Spreadsheet',
     language: 'Language', english: 'English', indonesian: 'Bahasa',
@@ -400,6 +433,39 @@ const TRANSLATIONS = {
     sickCallNotice: 'Kebijakan: lapor sakit minimal 3 jam sebelum shift dimulai.',
     daysWeek: 'Hari / minggu', mySopNotes: 'Catatan SOP Saya', cleanRecord: 'Catatan bersih — kerja bagus.',
     selectStaff: 'Pilih anggota tim',
+    noTeamMembersAskManager: 'Belum ada anggota tim. Minta manajer menambahkan Anda ke tim terlebih dahulu.',
+    noOtherStaffAvailable: 'Tidak ada anggota tim lain. Tolak permintaan ini atau tambahkan rekan terlebih dahulu.',
+    overlapsWithAnother: 'Tumpang tindih dengan pemesanan lain pada staf yang sama',
+    conflictsCount: 'Konflik', peakHourLabel: 'Jam tersibuk', topServicesTitle: 'Layanan teratas',
+    inventoryValue: 'Nilai inventaris', thisMonth: 'Bulan Ini', allTime: 'Sepanjang Waktu',
+    noTeamYetShort: 'Belum ada anggota tim.',
+    ruleTitleRequired: 'Judul aturan wajib diisi',
+    phonePlaceholder: 'Nomor telepon',
+    yourPasswordPlaceholder: 'Kata sandi Anda',
+    typeDeleteToConfirm: 'Ketik DELETE untuk konfirmasi',
+    deleteAccountConfirm: 'DELETE',
+    subscriptionUnavailable: 'Langganan tidak tersedia sementara. Coba lagi beberapa menit lagi.',
+    extraDetailPlaceholder: 'Detail tambahan…',
+    ruleTitlePh: 'misal Datang tepat waktu, Pakai seragam…',
+    rulePunctualityPh: 'misal Ketepatan, Penampilan…',
+    passwordRequired: 'Kata sandi diperlukan',
+    privacyAndData: 'Privasi & Data',
+    exportMyData: 'Ekspor data saya',
+    deleteAccount: 'Hapus akun',
+    deleteAccountWarn: '⚠ Ini akan menghapus akun Anda dan semua data bisnis Anda secara permanen. Tidak dapat dibatalkan.',
+    deleteForever: 'Hapus selamanya',
+    deletingEllipsis: 'Menghapus…',
+    exportFailed: 'Ekspor gagal',
+    dataExported: 'Data diekspor',
+    accountDeleted: 'Akun dihapus',
+    restartTutorial: 'Mulai ulang tutorial',
+    joinTeamTitle: 'Gabung tim',
+    freeForever: 'GRATIS SELAMANYA',
+    joinTeamIntro: 'Akun staf gratis. Minta kode bisnis 6-huruf dari manajer, lalu:',
+    joinStep1: 'Ketuk tombol di bawah',
+    joinStep2: 'Buat akun gratis Anda (email + kata sandi)',
+    joinStep3: 'Pilih "Saya bekerja sebagai staf" dan masukkan kode dari pemilik bisnis',
+    joinTeamCta: 'Gabung tim Anda →',
     search: 'Cari', sortBy: 'Urutkan', filterCategory: 'Filter kategori', allCategories: 'Semua',
     timeAsc: 'Waktu ↑', timeDesc: 'Waktu ↓', exportCsv: '⬇ Unduh Spreadsheet',
     language: 'Bahasa', english: 'English', indonesian: 'Bahasa',
@@ -1206,30 +1272,30 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
 
       {/* Join-team info modal */}
       {showJoinInfo && (
-        <Modal title="Join a team" onClose={() => setShowJoinInfo(false)}>
+        <Modal title={t('joinTeamTitle')} onClose={() => setShowJoinInfo(false)}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <Users size={20} color="var(--emerald)" />
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
               padding: '3px 8px', borderRadius: 999,
               background: 'var(--emerald)', color: '#fff',
-            }}>FREE FOREVER</span>
+            }}>{t('freeForever')}</span>
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 14 }}>
-            Staff accounts cost nothing. Ask your manager for the 6-letter business code, then:
+            {t('joinTeamIntro')}
           </div>
           <ol style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.7, paddingLeft: 20, margin: '0 0 18px' }}>
-            <li>Tap the button below</li>
-            <li>Create your free account (email + password)</li>
-            <li>Pick "I work as staff" and enter the code given by the business owner</li>
+            <li>{t('joinStep1')}</li>
+            <li>{t('joinStep2')}</li>
+            <li>{t('joinStep3')}</li>
           </ol>
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setShowJoinInfo(false)}>Cancel</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setShowJoinInfo(false)}>{t('cancel')}</button>
             <button
               type="button"
               className="btn btn-primary"
               onClick={() => { setShowJoinInfo(false); onJoinTeam(); }}
-            >Join your team →</button>
+            >{t('joinTeamCta')}</button>
           </div>
         </Modal>
       )}
@@ -1263,9 +1329,9 @@ function OnboardingRoleSelector({ user, onPickOwner, onPickStaff, onLogout }) {
             </div>
           </button>
         </div>
-        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}>
-          <span>{user?.email}</span>
-          <button className="btn-link" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }} onClick={onLogout}>
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: 'var(--ink)', flexWrap: 'wrap', gap: 8 }}>
+          <span>{t('email')}: <strong style={{ color: 'var(--emerald)' }}>{user?.email}</strong></span>
+          <button className="btn-link" onClick={onLogout}>
             {t('signOut')}
           </button>
         </div>
@@ -1431,7 +1497,7 @@ function PaymentRequired({ user, onActivated, onLogout }) {
         return;
       }
       // No checkout URL = backend Stripe missing. Don't silently auto-activate.
-      setErr('Subscription is temporarily unavailable. Please try again in a few minutes.');
+      setErr(t('subscriptionUnavailable'));
       setBusy(false);
     } catch (e) { setErr(e.message || t('failed')); setBusy(false); }
   };
@@ -1455,9 +1521,9 @@ function PaymentRequired({ user, onActivated, onLogout }) {
         <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
           {t('subscribeNote')}
         </div>
-        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)' }}>
-          <span>{user?.email}</span>
-          <button className="btn-link" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12 }} onClick={onLogout}>
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, color: 'var(--ink)', flexWrap: 'wrap', gap: 8 }}>
+          <span>{t('email')}: <strong style={{ color: 'var(--emerald)' }}>{user?.email}</strong></span>
+          <button className="btn-link" onClick={onLogout}>
             {t('signOut')}
           </button>
         </div>
@@ -1482,7 +1548,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
       const res = await fetch(`${API}/api/auth/export-data`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Export failed');
+      if (!res.ok) throw new Error(t('exportFailed'));
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1492,19 +1558,19 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast('Data exported');
-    } catch (e) { toast(e.message || 'Export failed'); }
+      toast(t('dataExported'));
+    } catch (e) { toast(e.message || t('exportFailed')); }
     finally { setBusy(false); }
   };
 
   const deleteAccount = async () => {
     setDeleteErr(null);
     if (deleteConfirm !== 'DELETE') {
-      setDeleteErr('Type DELETE to confirm');
+      setDeleteErr(t('typeDeleteToConfirm'));
       return;
     }
     if (!deletePassword) {
-      setDeleteErr('Password required');
+      setDeleteErr(t('passwordRequired'));
       return;
     }
     setBusy(true);
@@ -1513,10 +1579,10 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
         method: 'DELETE',
         body: { password: deletePassword, confirmation: 'DELETE' },
       });
-      toast('Account deleted');
+      toast(t('accountDeleted'));
       onAccountDeleted && onAccountDeleted();
     } catch (e) {
-      setDeleteErr(e.message || 'Failed');
+      setDeleteErr(e.message || t('failed'));
       setBusy(false);
     }
   };
@@ -1619,36 +1685,36 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
           onClose();
           window.location.reload();
         }}>
-          Restart tutorial
+          {t('restartTutorial')}
         </button>
       </div>
 
       <div className="field" style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-          Privacy & Data
+          {t('privacyAndData')}
         </div>
         <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13, marginBottom: 8 }} disabled={busy} onClick={exportData}>
           <Download size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-          Export my data
+          {t('exportMyData')}
         </button>
         {!showDeleteConfirm ? (
           <button
             className="btn btn-ghost"
-            style={{ width: '100%', fontSize: 13, color: '#c33' }}
+            style={{ width: '100%', fontSize: 13, color: 'var(--danger)' }}
             onClick={() => setShowDeleteConfirm(true)}
           >
             <Trash2 size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-            Delete account
+            {t('deleteAccount')}
           </button>
         ) : (
-          <div style={{ padding: 12, background: '#fee', border: '1px solid #fbb', borderRadius: 8, marginTop: 4 }}>
-            <div style={{ fontSize: 13, color: '#900', marginBottom: 10, fontWeight: 600 }}>
-              ⚠ This permanently deletes your account and all your business data. Cannot be undone.
+          <div style={{ padding: 12, background: '#fbecec', border: '1px solid #f0c8c8', borderRadius: 8, marginTop: 4 }}>
+            <div style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 10, fontWeight: 600 }}>
+              {t('deleteAccountWarn')}
             </div>
             <input
               type="password"
               className="input"
-              placeholder="Your password"
+              placeholder={t('yourPasswordPlaceholder')}
               value={deletePassword}
               onChange={e => { setDeleteErr(null); setDeletePassword(e.target.value); }}
               style={{ marginBottom: 8 }}
@@ -1656,13 +1722,13 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
             <input
               type="text"
               className="input"
-              placeholder="Type DELETE to confirm"
+              placeholder={t('typeDeleteToConfirm')}
               value={deleteConfirm}
               onChange={e => { setDeleteErr(null); setDeleteConfirm(e.target.value); }}
               style={{ marginBottom: 8 }}
             />
             {deleteErr && (
-              <div style={{ color: '#900', fontSize: 12, marginBottom: 8 }}>{deleteErr}</div>
+              <div style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 8 }}>{deleteErr}</div>
             )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button
@@ -1671,15 +1737,15 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
                 disabled={busy}
                 onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteConfirm(''); setDeleteErr(null); }}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 className="btn btn-sm"
-                style={{ flex: 1, background: '#c33', color: '#fff', border: 'none' }}
+                style={{ flex: 1, background: 'var(--danger)', color: '#fff', border: 'none' }}
                 disabled={busy}
                 onClick={deleteAccount}
               >
-                {busy ? 'Deleting…' : 'Delete forever'}
+                {busy ? t('deletingEllipsis') : t('deleteForever')}
               </button>
             </div>
           </div>
@@ -1718,18 +1784,43 @@ function OfflineBanner() {
 }
 
 // ---------- Trial banner ----------
+// Show subtle banner from day 1 (count remaining), escalate styling at ≤3 days.
+// Users need a continuous reminder, not a surprise on day 4.
 function TrialBanner({ user, onUpgrade }) {
   const { t } = useT();
   if (!user || user.subscriptionStatus === 'active') return null;
   const trialEnd = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
   if (!trialEnd) return null;
   const daysLeft = Math.max(0, Math.ceil((trialEnd - new Date()) / (24 * 60 * 60 * 1000)));
-  if (daysLeft > 3) return null; // only show when 3 or fewer days left
-  const label = daysLeft <= 0 ? t('trialEnded') : t('trialEndingSoon').replace('{n}', daysLeft);
+  const urgent = daysLeft <= 3;
+  const ended = daysLeft <= 0;
+  const label = ended
+    ? t('trialEnded')
+    : urgent
+      ? t('trialEndingSoon').replace('{n}', daysLeft)
+      : t('trialActiveBanner').replace('{n}', daysLeft);
+  const styles = ended
+    ? { bg: '#fbecec', border: '#f0c8c8', text: 'var(--danger)' }
+    : urgent
+      ? { bg: '#fef3e0', border: '#f5d8a4', text: 'var(--warn)' }
+      : { bg: 'var(--emerald-soft, #e6ede9)', border: 'var(--line)', text: 'var(--emerald)' };
   return (
-    <div style={{ background: '#fef3e0', borderBottom: '1px solid #f5d8a4', padding: '8px 14px', fontSize: 12, color: 'var(--emerald)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span><AlertTriangle size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> {label}</span>
-      <button className="btn btn-primary btn-sm" onClick={onUpgrade}>{t('subscribeMonthly')}</button>
+    <div role="status" style={{
+      background: styles.bg, borderBottom: `1px solid ${styles.border}`,
+      padding: '8px 14px', fontSize: 12, color: styles.text,
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+    }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        {urgent ? <AlertTriangle size={12} /> : <Gem size={12} />}
+        {label}
+      </span>
+      <button
+        className="btn btn-sm"
+        onClick={onUpgrade}
+        style={{ background: urgent ? 'var(--emerald)' : 'transparent', color: urgent ? '#fff' : 'var(--emerald)', border: urgent ? 'none' : '1px solid var(--emerald)' }}
+      >
+        {t('subscribeMonthly')}
+      </button>
     </div>
   );
 }
@@ -1776,7 +1867,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
           <div style={{ marginTop: 18 }}>
             {staff.length === 0 ? (
               <div className="center-muted" style={{ padding: '20px 12px', fontSize: 14, lineHeight: 1.5 }}>
-                No team members exist yet. Ask the manager to add you to the team first.
+                {t('noTeamMembersAskManager')}
               </div>
             ) : (
               <div className="field">
@@ -2130,7 +2221,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
           <div className="day-stats">
             <div className="day-stat"><span className="v">{filtered.length}</span><span className="l">{labels.bookingPlural}</span></div>
             {totalRevenue > 0 && <div className="day-stat"><span className="v">${totalRevenue.toFixed(0)}</span><span className="l">{t('revenue')}</span></div>}
-            {conflictIds.size > 0 && <div className="day-stat day-stat-warn"><span className="v">{conflictIds.size / 2}</span><span className="l">Conflicts</span></div>}
+            {conflictIds.size > 0 && <div className="day-stat day-stat-warn"><span className="v">{conflictIds.size / 2}</span><span className="l">{t('conflictsCount')}</span></div>}
           </div>
         )}
 
@@ -2170,7 +2261,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
                 <div className="title">{b.client}</div>
                 <div className="meta">{b.treatment} · {b.duration}min{b.price > 0 ? ` · $${b.price}` : ''}</div>
                 {m && <div className="meta" style={{ marginTop: 4 }}>{lang === 'id' ? 'dengan' : 'with'} <strong>{m.name}</strong></div>}
-                {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Overlaps with another booking on this staff</div>}
+                {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('overlapsWithAnother')}</div>}
                 {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
                 {b.notes && <div className="note-chip">{t('notes')}: {b.notes}</div>}
               </div>
@@ -2308,7 +2399,7 @@ function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>{labels.client} phone</label>
-            <input className="input" type="tel" placeholder="Phone number" value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
+            <input className="input" type="tel" placeholder={t('phonePlaceholder')} value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
             <input className="input" type="number" min="0" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         </div>
@@ -2626,7 +2717,7 @@ function StaffModal({ member, onClose, onSaved }) {
         <div className="field"><label>{t('birthday')}</label>
           <input className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
         <div className="field"><label>{t('staffPhone')}</label>
-          <input className="input" type="tel" placeholder="Phone number" value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
+          <input className="input" type="tel" placeholder={t('phonePlaceholder')} value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
         <div className="field"><label>{t('avatarColor')}</label>
           <div className="color-swatches">
             {COLOR_OPTIONS.map(c => (
@@ -3146,7 +3237,7 @@ function SOPRuleModal({ onClose, onSaved }) {
 
   const save = async (e) => {
     e.preventDefault();
-    if (!f.title.trim()) { setErr('Rule title required'); return; }
+    if (!f.title.trim()) { setErr(t('ruleTitleRequired')); return; }
     setSaving(true); setErr(null);
     try {
       await api('/api/sop', { method: 'POST', body: f });
@@ -3161,17 +3252,17 @@ function SOPRuleModal({ onClose, onSaved }) {
         <div className="field">
           <label>{t('sopRuleTitle')}</label>
           <input className="input" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
-            placeholder="e.g. Arrive on time, Wear uniform…" autoFocus />
+            placeholder={t('ruleTitlePh')} autoFocus />
         </div>
         <div className="field">
           <label>{t('category')}</label>
           <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
-            placeholder="e.g. Punctuality, Appearance…" />
+            placeholder={t('rulePunctualityPh')} />
         </div>
         <div className="field">
           <label>{t('sopRuleDesc')}</label>
           <textarea className="textarea" value={f.body} onChange={e => setF({ ...f, body: e.target.value })}
-            placeholder="Extra detail…" rows={3} />
+            placeholder={t('extraDetailPlaceholder')} rows={3} />
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
@@ -3336,7 +3427,7 @@ function ReassignModal({ request, staff, onClose, onSubmit }) {
       </p>
       {!hasStaff ? (
         <div className="error-banner" style={{ marginTop: 8 }}>
-          <AlertTriangle size={14} /> No other team members available. Decline this request or add a teammate first.
+          <AlertTriangle size={14} /> {t('noOtherStaffAvailable')}
         </div>
       ) : (
         <div className="field">
@@ -3919,7 +4010,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
     return bestH < 0 ? null : { hour: bestH, count: bestC };
   }, [scoped]);
 
-  const rangeLabel = range === 'week' ? t('thisWeek') : range === 'month' ? 'This Month' : 'All Time';
+  const rangeLabel = range === 'week' ? t('thisWeek') : range === 'month' ? t('thisMonth') : t('allTime');
 
   return (
     <div>
@@ -3942,7 +4033,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
         <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">{currency}{fmt(avgPerDay)}</div></div></div>
         <div className="row"><CheckCircle size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{scoped.length} {labels.bookingPlural.toLowerCase()}</div></div></div>
         {peakHour && (
-          <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">Peak hour</div><div className="meta">{String(peakHour.hour).padStart(2,'0')}:00 · {peakHour.count} {labels.bookingPlural.toLowerCase()}</div></div></div>
+          <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('peakHourLabel')}</div><div className="meta">{String(peakHour.hour).padStart(2,'0')}:00 · {peakHour.count} {labels.bookingPlural.toLowerCase()}</div></div></div>
         )}
         {top && top.revenue > 0 && (
           <div className="row">
@@ -3954,7 +4045,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
 
       {serviceTallies.length > 0 && (
         <div className="card">
-          <h3>Top {labels.servicePlural || 'Services'}</h3>
+          <h3>{t('topServicesTitle')}</h3>
           {serviceTallies.map((s, idx) => {
             const max = serviceTallies[0].count;
             const pct = Math.round((s.count / max) * 100);
@@ -3977,7 +4068,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
         <h3>{t('snapshot')}</h3>
         <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('lowStockItems')}</div><div className="meta">{lowStock.length} {t('flagged')}</div></div></div>
         {inventoryValue > 0 && (
-          <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">Inventory value</div><div className="meta">{currency}{fmt(inventoryValue)}</div></div></div>
+          <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('inventoryValue')}</div><div className="meta">{currency}{fmt(inventoryValue)}</div></div></div>
         )}
         <div className="row"><Bell size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('pendingRequestsSnap')}</div><div className="meta">{requests.filter(r => r.status === 'pending').length}</div></div></div>
         <div className="row"><Megaphone size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('announcementsSent')}</div><div className="meta">{announcements.length}</div></div></div>
@@ -3986,7 +4077,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
       <div className="card">
         <h3>{t('team')} · {t('commission')}</h3>
         {perStaff.length === 0 ? (
-          <div className="center-muted">No team members yet.</div>
+          <div className="center-muted">{t('noTeamYetShort')}</div>
         ) : perStaff.map(s => (
           <div key={s.id} className="row">
             <Avatar initial={s.avatar} color={s.color} size={32} />
