@@ -231,6 +231,11 @@ const TRANSLATIONS = {
     phoneShort: 'phone',
     dateInPastWarn: 'Date is in the past',
     managementSig: 'Management',
+    required: 'Required',
+    sickReasonPh: 'e.g. Fever, food poisoning, injury…',
+    removeServiceConfirm: 'Remove this {item}?',
+    staffNameNoTeamPh: '{role} name (no team yet)',
+    activePlanLabel: 'Active — $19/month',
     emptyScheduleTitle: 'No {plural} on {date}',
     emptyScheduleBody: 'Add a {item} so your team knows what’s coming up.',
     emptyClientsTitle: 'No {plural} yet',
@@ -511,6 +516,11 @@ const TRANSLATIONS = {
     phoneShort: 'telepon',
     dateInPastWarn: 'Tanggal di masa lalu',
     managementSig: 'Manajemen',
+    required: 'Wajib',
+    sickReasonPh: 'misal demam, keracunan makanan, cedera…',
+    removeServiceConfirm: 'Hapus {item} ini?',
+    staffNameNoTeamPh: '{role} nama (belum ada tim)',
+    activePlanLabel: 'Aktif — $19/bulan',
     emptyScheduleTitle: 'Tidak ada {plural} pada {date}',
     emptyScheduleBody: 'Tambahkan {item} agar tim Anda tahu yang akan datang.',
     emptyClientsTitle: 'Belum ada {plural}',
@@ -1305,7 +1315,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
           <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
         </button>
         <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
-          Then $19/month after 7-day free trial
+          {t('trialFinePrintSub')}
         </div>
 
         {/* Small Join-team button — modal opens with full instructions on click */}
@@ -1684,7 +1694,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
       if (checkoutUrl) {
         window.location.href = checkoutUrl;
       } else {
-        toast('Subscription temporarily unavailable. Please try again later.');
+        toast(t('subscriptionUnavailable'));
       }
     } catch (e) { toast(e.message || t('failed')); }
     finally { setBusy(false); }
@@ -1710,7 +1720,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
           <Gem size={16} color={status === 'active' ? 'var(--emerald)' : 'var(--gold)'} />
           <div className="grow">
             <div className="title" style={{ fontSize: 13 }}>
-              {status === 'active' ? `${t('active')} — $19/month` : t('trialActiveBanner').replace('{n}', daysLeft)}
+              {status === 'active' ? t('activePlanLabel') : t('trialActiveBanner').replace('{n}', daysLeft)}
             </div>
             {status !== 'active' && trialEnd && (
               <div className="meta" style={{ fontSize: 11 }}>
@@ -2012,9 +2022,19 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
     if (!lowStock.length) { toast && toast(t('noLowStock')); return; }
     setBusy(true);
     try {
-      await Promise.all(lowStock.map(i => api(`/api/inventory/${i.id}/order`, { method: 'POST', body: {} })));
-      toast && toast(t('reorderAllDone'));
+      // Use allSettled so partial successes are kept (was Promise.all → one failure aborted batch).
+      const results = await Promise.allSettled(
+        lowStock.map(i => api(`/api/inventory/${i.id}/order`, { method: 'POST', body: {} }))
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
       onReload && onReload();
+      if (failed === 0) {
+        toast && toast(t('reorderAllDone'));
+      } else if (failed === results.length) {
+        toast && toast(t('couldNotMarkOrdered'));
+      } else {
+        toast && toast(`${results.length - failed}/${results.length} ${t('markedOrdered').toLowerCase()}`);
+      }
     } catch (e) { toast && toast(e.message || t('couldNotMarkOrdered')); }
     finally { setBusy(false); }
   };
@@ -2470,7 +2490,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
     }
     // Warn (but allow) if booking is in the past — useful for logging historical visits.
     if (f.date && f.date < todayStr && !booking) {
-      const ok = window.confirm(`Date is in the past (${f.date}). ${t('save')}?`);
+      const ok = window.confirm(`${t('dateInPastWarn')} (${f.date}). ${t('save')}?`);
       if (!ok) { setSaving(false); return; }
     }
     try {
@@ -2533,7 +2553,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
           ) : (
             <input
               className="input"
-              placeholder={`${labels.staffMember} name (no team yet)`}
+              placeholder={t('staffNameNoTeamPh').replace('{role}', labels.staffMember)}
               value={f.therapist || ''}
               onChange={e => setF({ ...f, therapist: e.target.value })}
             />
@@ -2933,7 +2953,7 @@ function ServicesTab({ services, onReload, toast }) {
   }, [services]);
 
   const delService = async (id) => {
-    if (!window.confirm(`Remove this ${labels.service.toLowerCase()}?`)) return;
+    if (!window.confirm(t('removeServiceConfirm').replace('{item}', labels.service.toLowerCase()))) return;
     try {
       await api(`/api/services/${id}`, { method: 'DELETE' });
       toast(`${labels.service} removed`);
@@ -3982,7 +4002,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
         )}
         {err && <div className="error-banner"><AlertTriangle size={14} /> {err}</div>}
         <div className="field"><label>{t('date')}</label>
-          <input className="input" type="date" required value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
+          <input className="input" type="date" required min={new Date().toISOString().slice(0,10)} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
         {type === 'swap' && (
           <>
             <div className="field"><label>{t('swapWith')}</label>
@@ -3991,7 +4011,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
                 {others.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select></div>
             <div className="field"><label>{t('theirDay')}</label>
-              <input className="input" type="date" value={f.swapDay} onChange={e => setF({ ...f, swapDay: e.target.value })} /></div>
+              <input className="input" type="date" min={new Date().toISOString().slice(0,10)} value={f.swapDay} onChange={e => setF({ ...f, swapDay: e.target.value })} /></div>
           </>
         )}
         <div className="field">
@@ -4000,11 +4020,11 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
             className="textarea"
             value={f.reason}
             onChange={e => { setErr(null); setF({ ...f, reason: e.target.value }); }}
-            placeholder={type === 'sick' ? 'e.g. Fever, food poisoning, injury…' : ''}
+            placeholder={type === 'sick' ? t('sickReasonPh') : ''}
             rows={type === 'sick' ? 3 : 2}
           />
           {type === 'sick' && (
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Required</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{t('required')}</div>
           )}
         </div>
         <div className="modal-actions">
