@@ -228,6 +228,8 @@ const TRANSLATIONS = {
     colorLabel: 'Color',
     historyLabel: 'History',
     subscriptionActivated: 'Subscription activated. Welcome aboard!',
+    phoneShort: 'phone',
+    dateInPastWarn: 'Date is in the past',
     search: 'Search', sortBy: 'Sort by', filterCategory: 'Filter category', allCategories: 'All',
     timeAsc: 'Time ↑', timeDesc: 'Time ↓', exportCsv: '⬇ Download Spreadsheet',
     language: 'Language', english: 'English', indonesian: 'Bahasa',
@@ -496,6 +498,8 @@ const TRANSLATIONS = {
     colorLabel: 'Warna',
     historyLabel: 'Riwayat',
     subscriptionActivated: 'Langganan diaktifkan. Selamat bergabung!',
+    phoneShort: 'telepon',
+    dateInPastWarn: 'Tanggal di masa lalu',
     search: 'Cari', sortBy: 'Urutkan', filterCategory: 'Filter kategori', allCategories: 'Semua',
     timeAsc: 'Waktu ↑', timeDesc: 'Waktu ↓', exportCsv: '⬇ Unduh Spreadsheet',
     language: 'Bahasa', english: 'English', indonesian: 'Bahasa',
@@ -2066,7 +2070,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
               </div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment} · {b.duration}min</div>
+                <div className="meta">{b.treatment}{b.duration ? ` · ${b.duration}min` : ''}</div>
               </div>
               {m && <Avatar initial={m.avatar} color={m.color} size={28} />}
             </div>
@@ -2320,7 +2324,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
               <div className="time" style={{ color: accent }}>{b.time}</div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment} · {b.duration}min{b.price > 0 ? ` · $${b.price}` : ''}</div>
+                <div className="meta">{b.treatment}{b.duration ? ` · ${b.duration}min` : ''}{b.price > 0 ? ` · $${b.price}` : ''}</div>
                 {m && <div className="meta" style={{ marginTop: 4 }}>{t('withPerson')} <strong>{m.name}</strong></div>}
                 {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('overlapsWithAnother')}</div>}
                 {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
@@ -2412,6 +2416,13 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
 
   const save = async (e) => {
     e.preventDefault(); setSaving(true); setErr(null);
+    // Validate duration — was accepting empty/NaN silently.
+    const dur = Number(f.duration);
+    if (!dur || dur < 5) {
+      setErr(`${t('durationMin')}: min 5`);
+      setSaving(false);
+      return;
+    }
     // Pre-save conflict check — warn user before creating a double-booking.
     const conflict = findConflict();
     if (conflict) {
@@ -2420,12 +2431,18 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
       );
       if (!ok) { setSaving(false); return; }
     }
+    // Warn (but allow) if booking is in the past — useful for logging historical visits.
+    if (f.date && f.date < todayStr && !booking) {
+      const ok = window.confirm(`Date is in the past (${f.date}). ${t('save')}?`);
+      if (!ok) { setSaving(false); return; }
+    }
     try {
       // Coerce empty-string price + ensure staffId is sent (so bookings show up in per-staff views).
       // If staff exists but user typed a custom name in the fallback input, keep `therapist` text but
       // also pass `staffId` if it was selected from the dropdown.
       const body = {
         ...f,
+        duration: dur,
         price: f.price === '' || f.price == null ? 0 : Number(f.price),
         staffId: f.staffId || null,
       };
@@ -2436,7 +2453,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
   };
 
   return (
-    <Modal title={booking ? `Edit ${labels.booking}` : `New ${labels.booking}`} onClose={onClose}>
+    <Modal title={booking ? `${t('edit')} ${labels.booking.toLowerCase()}` : `${t('add')} ${labels.booking.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={save}>
         {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{labels.client}</label>
@@ -2486,7 +2503,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
           )}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{labels.client} phone</label>
+          <div className="field" style={{ flex: 1 }}><label>{labels.client} · {t('phoneShort') || 'phone'}</label>
             <input className="input" type="tel" placeholder={t('phonePlaceholder')} value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
             <input className="input" type="number" min="0" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
@@ -2533,8 +2550,8 @@ function ClientsTab({ bookings, staff, toast }) {
       existing.totalSpend += Number(b.price) || 0;
       if (b.clientPhone && !existing.phone) existing.phone = b.clientPhone;
       if (b.allergies && !existing.allergies) existing.allergies = b.allergies;
-      const date = b.date || b.time || '';
-      if (!existing.lastVisit || date > existing.lastVisit) existing.lastVisit = date;
+      const date = b.date || '';
+      if (date && (!existing.lastVisit || date > existing.lastVisit)) existing.lastVisit = date;
       existing.bookings.push(b);
       map.set(key, existing);
     }
@@ -2571,7 +2588,7 @@ function ClientsTab({ bookings, staff, toast }) {
           <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
         </div>
         <div className="toolbar">
-          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={clients.length === 0}>
+          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
             <Download size={12} /> {t('exportCsv')}
           </button>
         </div>
@@ -2642,7 +2659,7 @@ function ClientsTab({ bookings, staff, toast }) {
                   <Calendar size={16} color="var(--gold)" />
                   <div className="grow">
                     <div className="title">{b.treatment}</div>
-                    <div className="meta">{b.time} · {b.duration}min{m ? ` · ${m.name}` : ''}</div>
+                    <div className="meta">{b.time}{b.duration ? ` · ${b.duration}min` : ''}{m ? ` · ${m.name}` : ''}</div>
                   </div>
                   {b.price > 0 && <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>${b.price}</div>}
                 </div>
@@ -2656,8 +2673,9 @@ function ClientsTab({ bookings, staff, toast }) {
 }
 
 function StaffTab({ staff, violations, onReload, toast }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { labels } = useBiz();
+  const locale = lang === 'id' ? 'id-ID' : 'en-US';
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
 
@@ -2717,7 +2735,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
           <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
         </div>
         <div className="toolbar">
-          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={staff.length === 0}>
+          <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
             <Download size={12} /> {t('exportCsv')}
           </button>
         </div>
@@ -2738,7 +2756,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
               <Avatar initial={s.avatar} color={s.color} size={44} />
               <div className="grow">
                 <div className="title">{s.name}</div>
-                <div className="meta">{s.role}{s.birthday ? ` · ${t('birthday').toLowerCase()} ${new Date(s.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</div>
+                <div className="meta">{s.role}{s.birthday ? ` · ${t('birthday').toLowerCase()} ${new Date(s.birthday).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}` : ''}</div>
                 <div style={{ marginTop: 4 }}>
                   {vCount > 0 && <Badge label={`${vCount} ${vCount === 1 ? t('sopNote') : t('sopNotes')}`} type="warn" />}
                 </div>
@@ -3388,6 +3406,18 @@ function ViolationModal({ staff, sops, onClose, onSaved }) {
     </Modal>
   );
 
+  // Audit fix: no team members yet — silent empty-submit was possible.
+  if (!staff.length) return (
+    <Modal title={t('logSopViolation')} onClose={onClose}>
+      <div style={{ padding: '12px 0', color: 'var(--muted)', lineHeight: 1.6 }}>
+        {t('noTeamYetShort')}
+      </div>
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
+      </div>
+    </Modal>
+  );
+
   return (
     <Modal title={t('logSopViolation')} onClose={onClose}>
       <form onSubmit={save}>
@@ -3707,7 +3737,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
               <div className="time">{b.time}</div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment} · {b.duration}min</div>
+                <div className="meta">{b.treatment}{b.duration ? ` · ${b.duration}min` : ''}</div>
                 {b.allergies && (
                   <div className="note-chip" style={{ background: '#fbecec', color: 'var(--danger)' }}>
                     <AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
@@ -3966,7 +3996,7 @@ function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSu
           <label>{t('product')}</label>
           <select className="select" value={f.productId} onChange={e => setF({ ...f, productId: e.target.value })}>
             {inventory.length === 0
-              ? <option value="">No items</option>
+              ? <option value="">{t('emptyInventoryTitle')}</option>
               : inventory.map(i => (
                 <option key={i.id} value={i.id}>
                   {i.name} ({i.stock} {i.unit} left)
@@ -3999,7 +4029,9 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
   const me = staff.find(s => s.id === staffId);
   if (!me) return null;
   const myV = violations.filter(v => v.staffId === staffId);
-  const sessionsThisWeek = bookings.filter(b => b.staffId === staffId).length;
+  // Fix: was sessionsThisWeek but counted ALL bookings; rename + filter to today's.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const sessionsToday = bookings.filter(b => b.staffId === staffId && (b.date || todayStr) === todayStr).length;
   const locale = lang === 'id' ? 'id-ID' : 'en-US';
 
   return (
@@ -4014,7 +4046,7 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
       </div>
 
       <div className="stats">
-        <div className="stat"><div className="v">{sessionsThisWeek}</div><div className="l">{t('sessionsTodayStat')}</div></div>
+        <div className="stat"><div className="v">{sessionsToday}</div><div className="l">{t('sessionsTodayStat')}</div></div>
         <div className="stat"><div className="v">{me.schedule?.length || 0}</div><div className="l">{t('daysWeek')}</div></div>
         <div className="stat"><div className="v">{myV.length}</div><div className="l">{t('sopNotes')}</div></div>
       </div>

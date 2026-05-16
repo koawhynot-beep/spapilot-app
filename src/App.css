@@ -276,7 +276,8 @@
   padding: 8px 4px 10px; z-index: 20;
   box-shadow: 0 -2px 14px rgba(45, 90, 74, 0.06);
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
+  /* proximity instead of mandatory so iOS edge-swipe-back gesture still works */
+  scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
