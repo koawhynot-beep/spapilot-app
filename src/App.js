@@ -823,8 +823,10 @@ async function api(path, opts = {}) {
   }
   if (!res.ok) {
     let msg = `${res.status}`;
-    try { const d = await res.json(); msg = d.error || msg; } catch {}
-    if (res.status >= 500) msg = `Server error (${res.status}). Please try again.`;
+    let serverErr = null;
+    try { const d = await res.json(); serverErr = d.error || null; msg = serverErr || msg; } catch {}
+    // Surface server-provided error if any; only fall back to generic for true unknown 5xx
+    if (res.status >= 500 && !serverErr) msg = `Server error (${res.status}). Please try again.`;
     throw new Error(msg);
   }
   if (res.status === 204) return null;
