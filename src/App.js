@@ -230,6 +230,16 @@ const TRANSLATIONS = {
     subscriptionActivated: 'Subscription activated. Welcome aboard!',
     phoneShort: 'phone',
     dateInPastWarn: 'Date is in the past',
+    managementSig: 'Management',
+    emptyScheduleTitle: 'No {plural} on {date}',
+    emptyScheduleBody: 'Add a {item} so your team knows what’s coming up.',
+    emptyClientsTitle: 'No {plural} yet',
+    emptyClientsBody: '{Plural} you add to {bookings} will show up here automatically.',
+    emptyStaffTitle2: 'No {plural} yet',
+    emptyStaffBody2: 'Add the {plural} who work with you so you can assign {bookings}.',
+    emptyServicesTitle: 'No {plural} yet',
+    emptyServicesBody: 'Define the {plural} you offer (e.g., 30-min consultation, haircut, oil change). Add price and duration once, then pick from this list when creating {bookings}.',
+    addFirstFmt: 'Add your first {item}',
     search: 'Search', sortBy: 'Sort by', filterCategory: 'Filter category', allCategories: 'All',
     timeAsc: 'Time ↑', timeDesc: 'Time ↓', exportCsv: '⬇ Download Spreadsheet',
     language: 'Language', english: 'English', indonesian: 'Bahasa',
@@ -500,6 +510,16 @@ const TRANSLATIONS = {
     subscriptionActivated: 'Langganan diaktifkan. Selamat bergabung!',
     phoneShort: 'telepon',
     dateInPastWarn: 'Tanggal di masa lalu',
+    managementSig: 'Manajemen',
+    emptyScheduleTitle: 'Tidak ada {plural} pada {date}',
+    emptyScheduleBody: 'Tambahkan {item} agar tim Anda tahu yang akan datang.',
+    emptyClientsTitle: 'Belum ada {plural}',
+    emptyClientsBody: '{Plural} yang Anda tambahkan ke {bookings} akan muncul di sini otomatis.',
+    emptyStaffTitle2: 'Belum ada {plural}',
+    emptyStaffBody2: 'Tambahkan {plural} yang bekerja dengan Anda agar bisa diberi {bookings}.',
+    emptyServicesTitle: 'Belum ada {plural}',
+    emptyServicesBody: 'Definisikan {plural} yang Anda tawarkan (misal konsultasi 30 menit, potong rambut, ganti oli). Tambahkan harga dan durasi sekali, lalu pilih dari daftar ini saat membuat {bookings}.',
+    addFirstFmt: 'Tambah {item} pertama',
     search: 'Cari', sortBy: 'Urutkan', filterCategory: 'Filter kategori', allCategories: 'Semua',
     timeAsc: 'Waktu ↑', timeDesc: 'Waktu ↓', exportCsv: '⬇ Unduh Spreadsheet',
     language: 'Bahasa', english: 'English', indonesian: 'Bahasa',
@@ -692,6 +712,18 @@ function LangProvider({ children }) {
   }, [lang]);
   const value = useMemo(() => ({ lang, t, setLang }), [lang, t, setLang]);
   return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
+}
+
+// ---------- Currency helper ----------
+// Business-level money (booking price, service price, client revenue, inventory cost).
+// NOT for subscription pricing — that stays USD because Stripe charges in USD.
+// Indonesian users see "Rp 1,000" with thousands separator; English users see "$1,000.00" with cents.
+function fmtMoney(amount, lang) {
+  const n = Number(amount) || 0;
+  if (lang === 'id') {
+    return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n);
+  }
+  return '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
 // ---------- CSV export ----------
@@ -2309,9 +2341,9 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
             ? <div className="center-muted">{t('noResults')}</div>
             : <EmptyState
                 icon={Calendar}
-                title={`No ${labels.bookingPlural.toLowerCase()} on ${dateLabel.toLowerCase()}`}
-                body={`Add a ${labels.booking.toLowerCase()} so your team knows what's coming up.`}
-                ctaLabel={`Add ${labels.booking}`}
+                title={t('emptyScheduleTitle').replace('{plural}', labels.bookingPlural.toLowerCase()).replace('{date}', dateLabel.toLowerCase())}
+                body={t('emptyScheduleBody').replace('{item}', labels.booking.toLowerCase())}
+                ctaLabel={`${t('add')} ${labels.booking.toLowerCase()}`}
                 onCta={() => setModal('new')}
               />
         ) : filtered.map(b => {
@@ -2324,7 +2356,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
               <div className="time" style={{ color: accent }}>{b.time}</div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment}{b.duration ? ` · ${b.duration}min` : ''}{b.price > 0 ? ` · $${b.price}` : ''}</div>
+                <div className="meta">{b.treatment}{b.duration ? ` · ${b.duration}min` : ''}{b.price > 0 ? ` · ${fmtMoney(b.price, lang)}` : ''}</div>
                 {m && <div className="meta" style={{ marginTop: 4 }}>{t('withPerson')} <strong>{m.name}</strong></div>}
                 {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('overlapsWithAnother')}</div>}
                 {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
@@ -2367,7 +2399,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
 }
 
 function BookingModal({ booking, staff, services = [], allBookings = [], onClose, onSaved }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { labels, business } = useBiz();
   // C6 fix: allow allergies field for new generic business categories too.
   // Was only ['spa','salon','clinic'] → new users with type='services' lost the field.
@@ -2463,7 +2495,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
             <select className="select" value="" onChange={e => e.target.value && pickService(e.target.value)}>
               <option value="">{t('chooseAService')}</option>
               {services.map(s => (
-                <option key={s.id} value={s.id}>{s.name} · {s.durationMin}min · ${Number(s.price).toFixed(2)}</option>
+                <option key={s.id} value={s.id}>{s.name} · {s.durationMin}min · {fmtMoney(s.price, lang)}</option>
               ))}
             </select>
           </div>
@@ -2530,7 +2562,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
 // Derived from bookings — aggregates by client name (case-insensitive). No backend
 // schema change required. Each row = 1 unique client with totals + last visit + history.
 function ClientsTab({ bookings, staff, toast }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { labels } = useBiz();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(null); // selected client name or null
@@ -2596,8 +2628,8 @@ function ClientsTab({ bookings, staff, toast }) {
         {clients.length === 0 ? (
           <EmptyState
             icon={User}
-            title={`No ${labels.clientPlural.toLowerCase()} yet`}
-            body={`${labels.clientPlural} you add to ${labels.bookingPlural.toLowerCase()} will show up here automatically.`}
+            title={t('emptyClientsTitle').replace('{plural}', labels.clientPlural.toLowerCase())}
+            body={t('emptyClientsBody').replace('{Plural}', labels.clientPlural).replace('{bookings}', labels.bookingPlural.toLowerCase())}
           />
         ) : filtered.length === 0 ? (
           <div className="center-muted">{t('noResults')}</div>
@@ -2618,7 +2650,7 @@ function ClientsTab({ bookings, staff, toast }) {
               )}
             </div>
             <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--muted)' }}>
-              <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>${c.totalSpend}</div>
+              <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>{fmtMoney(c.totalSpend, lang)}</div>
               <div style={{ fontSize: 11 }}>{c.lastVisit || ''}</div>
             </div>
           </div>
@@ -2638,7 +2670,7 @@ function ClientsTab({ bookings, staff, toast }) {
 
             <div className="stats" style={{ marginBottom: 14 }}>
               <div className="stat"><div className="v">{detail.visits}</div><div className="l">{labels.bookingPlural}</div></div>
-              <div className="stat"><div className="v">${detail.totalSpend}</div><div className="l">{t('revenue')}</div></div>
+              <div className="stat"><div className="v">{fmtMoney(detail.totalSpend, lang)}</div><div className="l">{t('revenue')}</div></div>
               <div className="stat"><div className="v">{detail.lastVisit || '—'}</div><div className="l">{t('lastVisitLabel')}</div></div>
             </div>
 
@@ -2661,7 +2693,7 @@ function ClientsTab({ bookings, staff, toast }) {
                     <div className="title">{b.treatment}</div>
                     <div className="meta">{b.time}{b.duration ? ` · ${b.duration}min` : ''}{m ? ` · ${m.name}` : ''}</div>
                   </div>
-                  {b.price > 0 && <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>${b.price}</div>}
+                  {b.price > 0 && <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>{fmtMoney(b.price, lang)}</div>}
                 </div>
               );
             })}
@@ -2744,9 +2776,9 @@ function StaffTab({ staff, violations, onReload, toast }) {
             ? <div className="center-muted">{t('noResults')}</div>
             : <EmptyState
                 icon={Users}
-                title={`No ${labels.staffPlural.toLowerCase()} yet`}
-                body={`Add the ${labels.staffPlural.toLowerCase()} who work with you so you can assign ${labels.bookingPlural.toLowerCase()}.`}
-                ctaLabel={`Add your first ${labels.staffMember.toLowerCase()}`}
+                title={t('emptyStaffTitle2').replace('{plural}', labels.staffPlural.toLowerCase())}
+                body={t('emptyStaffBody2').replace('{plural}', labels.staffPlural.toLowerCase()).replace('{bookings}', labels.bookingPlural.toLowerCase())}
+                ctaLabel={t('addFirstFmt').replace('{item}', labels.staffMember.toLowerCase())}
                 onCta={() => setModal('new')}
               />
         ) : filtered.map(s => {
@@ -2916,9 +2948,9 @@ function ServicesTab({ services, onReload, toast }) {
         {services.length === 0 ? (
           <EmptyState
             icon={Sparkles}
-            title={`No ${labels.servicePlural.toLowerCase()} yet`}
-            body={`Define the ${labels.servicePlural.toLowerCase()} you offer (e.g., 30-min consultation, haircut, oil change). Add price and duration once, then pick from this list when creating ${labels.bookingPlural.toLowerCase()}.`}
-            ctaLabel={`Add ${labels.service.toLowerCase()}`}
+            title={t('emptyServicesTitle').replace('{plural}', labels.servicePlural.toLowerCase())}
+            body={t('emptyServicesBody').replace(/\{plural\}/g, labels.servicePlural.toLowerCase()).replace('{bookings}', labels.bookingPlural.toLowerCase())}
+            ctaLabel={`${t('add')} ${labels.service.toLowerCase()}`}
             onCta={() => setModal({})}
           />
         ) : (
@@ -2933,7 +2965,7 @@ function ServicesTab({ services, onReload, toast }) {
                   <div className="grow">
                     <div className="title" style={{ fontSize: 14 }}>{s.name}</div>
                     <div className="meta" style={{ fontSize: 11 }}>
-                      {s.durationMin} min · ${Number(s.price).toFixed(2)}
+                      {s.durationMin} min · {fmtMoney(s.price, 'en')}
                     </div>
                   </div>
                   <button className="icon-btn" onClick={() => setModal(s)} aria-label={t('edit')}>
@@ -3616,7 +3648,7 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
       </div>
       {modal && (
         <AnnouncementModal
-          defaultFrom={user?.name || 'Management'}
+          defaultFrom={user?.name || t('managementSig')}
           onClose={() => setModal(false)}
           onSaved={() => { setModal(false); onReload(); toast(t('announcementSent')); }}
         />
@@ -3627,7 +3659,7 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
 
 function AnnouncementModal({ defaultFrom, onClose, onSaved }) {
   const { t } = useT();
-  const [f, setF] = useState({ title: '', body: '', from: defaultFrom || 'Management' });
+  const [f, setF] = useState({ title: '', body: '', from: defaultFrom || t('managementSig') });
   const [saving, setSaving] = useState(false); const [err, setErr] = useState(null);
   const save = async (e) => {
     e.preventDefault(); setSaving(true); setErr(null);
