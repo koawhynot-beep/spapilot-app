@@ -3564,7 +3564,13 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
           <button className="btn btn-primary btn-sm" onClick={() => setModal(true)}><Megaphone size={14} /> {t('send')}</button>
         </div>
         {announcements.length === 0
-          ? <div className="center-muted">{t('nothingSent')}</div>
+          ? <EmptyState
+              icon={Megaphone}
+              title={t('nothingSent')}
+              body={`${t('newAnnouncement')}…`}
+              ctaLabel={t('newAnnouncement')}
+              onCta={() => setModal(true)}
+            />
           : announcements.map(a => (
             <div key={a.id} className="row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
