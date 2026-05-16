@@ -26,24 +26,25 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
+        <div role="alert" aria-live="assertive" style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          minHeight: '100vh', padding: '20px', background: '#fff', textAlign: 'center', fontFamily: 'system-ui'
+          minHeight: '100vh', padding: '20px', background: 'var(--cream, #f5f0e8)', textAlign: 'center',
+          fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--ink, #2b2623)'
         }}>
-          <AlertTriangle size={48} color="#d32f2f" style={{ marginBottom: '16px' }} />
-          <h1 style={{ color: '#d32f2f', marginBottom: '8px' }}>Something went wrong</h1>
-          <p style={{ color: '#666', marginBottom: '16px' }}>The app encountered an error. Try reloading.</p>
+          <AlertTriangle size={48} color="var(--danger, #a83838)" style={{ marginBottom: '16px' }} />
+          <h1 style={{ color: 'var(--danger, #a83838)', marginBottom: '8px', fontSize: 22, fontFamily: 'Fraunces, Georgia, serif' }}>Something went wrong</h1>
+          <p style={{ color: 'var(--muted, #6b5d4a)', marginBottom: '20px', fontSize: 14 }}>The app encountered an error. Try reloading.</p>
           <button
             onClick={() => window.location.reload()}
             style={{
-              padding: '10px 20px', background: '#2d5a4a', color: '#fff', border: 'none',
-              borderRadius: '4px', cursor: 'pointer', fontSize: '14px'
+              padding: '12px 22px', minHeight: 44, background: 'var(--emerald, #2d5a4a)', color: '#fff',
+              border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 600,
             }}
           >
             Reload App
           </button>
           {process.env.NODE_ENV === 'development' && this.state.error && (
-            <pre style={{ marginTop: '20px', padding: '10px', background: '#f5f5f5', overflow: 'auto', maxWidth: '100%' }}>
+            <pre style={{ marginTop: '20px', padding: '10px', background: '#f5f5f5', overflow: 'auto', maxWidth: '100%', fontSize: 11 }}>
               {this.state.error.toString()}
             </pre>
           )}
@@ -566,14 +567,16 @@ const BIZ_HIDDEN_TABS = {
   clinic:     [],
   other:      ['sop'],
 };
-const BizContext = createContext({ business: null, labels: BIZ_LABELS.spa, hiddenTabs: [] });
+// Default to generic "services" labels so any business type sees neutral terms
+// until they pick their specific industry. Avoids spa-only "Therapist/Treatment" leaking.
+const BizContext = createContext({ business: null, labels: BIZ_LABELS.services, hiddenTabs: [] });
 const useBiz = () => useContext(BizContext);
 function BizProvider({ business, children }) {
   const value = useMemo(() => {
-    const type = business?.type || 'spa';
+    const type = business?.type || 'services';
     return {
       business,
-      labels: BIZ_LABELS[type] || BIZ_LABELS.spa,
+      labels: BIZ_LABELS[type] || BIZ_LABELS.services,
       hiddenTabs: BIZ_HIDDEN_TABS[type] || [],
     };
   }, [business]);
@@ -691,6 +694,13 @@ function useCollection(path, enabled = true, pollMs = 0) {
 // ---------- Constants ----------
 const COLOR_OPTIONS = ['#2d5a4a', '#b8956a', '#8ba888', '#d4b896', '#6b8e7f', '#a17c52', '#c9a97a'];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+// Convert "HH:MM" to minutes for overlap math
+const toMin = (hhmm) => {
+  if (!hhmm || typeof hhmm !== 'string') return 0;
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
 const STAFF_DEFAULT_PERMISSIONS = {
   canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true,
   canRequestStock: true, canRequestNewProducts: false,
@@ -749,16 +759,21 @@ function Modal({ title, onClose, children }) {
   useEffect(() => {
     const esc = e => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', esc);
-    return () => window.removeEventListener('keydown', esc);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', esc);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [onClose]);
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="card-head">
+        <div className="modal-head">
           <h3>{title}</h3>
-          <button className="btn-icon" onClick={onClose} aria-label="close"><X size={16} /></button>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
-        {children}
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   );
@@ -781,7 +796,7 @@ function Toast({ payload, onDone }) {
         <button
           className="toast-btn"
           onClick={() => { action.undo(); onDone(); }}
-          aria-label="undo"
+          aria-label={action.undoLabel || 'Undo'}
         >{action.undoLabel || 'Undo'}</button>
       )}
     </div>
@@ -1185,7 +1200,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
             onClick={onShowPrivacy}>
             Privacy Policy
           </button>
-          {' · '}© {new Date().getFullYear()} Viroxit
+          {' · '}© {new Date().getFullYear()} Spapilot
         </div>
       </div>
 
@@ -1300,7 +1315,7 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
             {/* Broad work categories — every business fits exactly one. No "Other" needed. */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
               {[
-                { id: 'services', icon: '🛠️', label: 'I provide services',     sub: 'Haircuts, massage, training, consultations, repairs' },
+                { id: 'services', icon: '🛠️', label: 'I provide services',     sub: 'Haircuts, training, consultations, cleaning, repairs' },
                 { id: 'products', icon: '🛍️', label: 'I sell products',       sub: 'Food, retail, drinks, goods' },
                 { id: 'space',    icon: '🏨',  label: 'I host or rent space',  sub: 'Hotels, venues, rentals, rooms' },
                 { id: 'mix',      icon: '🔄',  label: 'I do a mix of these',   sub: 'Combination of the above' },
@@ -1472,7 +1487,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `viroxit-data-${user.id}-${Date.now()}.json`;
+      a.download = `spapilot-data-${user.id}-${Date.now()}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1676,6 +1691,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onActivated, onAc
 
 // ---------- Offline banner ----------
 function OfflineBanner() {
+  const { lang } = useT();
   const [offline, setOffline] = useState(typeof navigator !== 'undefined' && !navigator.onLine);
   useEffect(() => {
     const goOnline = () => setOffline(false);
@@ -1688,12 +1704,15 @@ function OfflineBanner() {
     };
   }, []);
   if (!offline) return null;
+  const msg = lang === 'id'
+    ? "⚠ Anda offline — perubahan tidak akan tersimpan sampai terhubung kembali"
+    : "⚠ You're offline — changes won't save until you reconnect";
   return (
-    <div style={{
-      background: '#fee', borderBottom: '1px solid #fbb', color: '#a00',
+    <div role="alert" style={{
+      background: '#fbecec', borderBottom: '1px solid #f0c8c8', color: 'var(--danger)',
       padding: '8px 14px', fontSize: 12, textAlign: 'center', fontWeight: 600,
     }}>
-      ⚠ You're offline — changes won't save until you reconnect
+      {msg}
     </div>
   );
 }
@@ -1993,9 +2012,11 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
 function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   const { labels } = useBiz();
   const { t, lang } = useT();
+  const todayStr = new Date().toISOString().slice(0, 10);
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
   const [sortDir, setSortDir] = useState('asc');
+  const [selectedDate, setSelectedDate] = useState(todayStr);
   const dayCounts = useMemo(() => {
     const counts = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
     bookings.forEach(b => {
@@ -2007,16 +2028,44 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
     return DAYS.map(d => ({ d, c: counts[d] }));
   }, [bookings]);
 
+  const shiftDate = (days) => {
+    const d = new Date(selectedDate + 'T12:00:00');
+    d.setDate(d.getDate() + days);
+    setSelectedDate(d.toISOString().slice(0, 10));
+  };
+  const dateLabel = useMemo(() => {
+    if (selectedDate === todayStr) return t('today');
+    const d = new Date(selectedDate + 'T12:00:00');
+    return d.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }, [selectedDate, todayStr, t, lang]);
+
+  // Detect overlapping bookings for visual conflict indicator
+  const conflictIds = useMemo(() => {
+    const sameDay = bookings.filter(b => (b.date || todayStr) === selectedDate);
+    const conflicts = new Set();
+    for (let i = 0; i < sameDay.length; i++) {
+      for (let j = i + 1; j < sameDay.length; j++) {
+        const a = sameDay[i], b = sameDay[j];
+        if (!a.staffId || !b.staffId || a.staffId !== b.staffId) continue;
+        const aStart = toMin(a.time), aEnd = aStart + (Number(a.duration) || 0);
+        const bStart = toMin(b.time), bEnd = bStart + (Number(b.duration) || 0);
+        if (aStart < bEnd && bStart < aEnd) { conflicts.add(a.id); conflicts.add(b.id); }
+      }
+    }
+    return conflicts;
+  }, [bookings, selectedDate, todayStr]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let out = q ? bookings.filter(b =>
+    let out = bookings.filter(b => (b.date || todayStr) === selectedDate);
+    if (q) out = out.filter(b =>
       (b.client || '').toLowerCase().includes(q) ||
       (b.treatment || '').toLowerCase().includes(q) ||
       (b.notes || '').toLowerCase().includes(q)
-    ) : bookings;
-    out = [...out].sort((a, b) => sortDir === 'asc' ? a.time.localeCompare(b.time) : b.time.localeCompare(a.time));
+    );
+    out = [...out].sort((a, b) => sortDir === 'asc' ? (a.time || '').localeCompare(b.time || '') : (b.time || '').localeCompare(a.time || ''));
     return out;
-  }, [bookings, query, sortDir]);
+  }, [bookings, query, sortDir, selectedDate, todayStr]);
 
   const del = async (id) => {
     if (!window.confirm(t('deleteBooking'))) return;
@@ -2046,15 +2095,44 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
     downloadCSV(`bookings-${new Date().toISOString().slice(0,10)}.csv`, rows);
   };
 
+  const totalRevenue = useMemo(
+    () => filtered.reduce((sum, b) => sum + (Number(b.price) || 0), 0),
+    [filtered]
+  );
+
   return (
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>Today's {labels.bookingPlural}</h3>
+          <h3>{dateLabel} · {labels.bookingPlural}</h3>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}>
             <Plus size={14} /> {t('add')}
           </button>
         </div>
+
+        {/* Date picker with prev/next + jump-to-today */}
+        <div className="date-nav">
+          <button className="btn-icon" onClick={() => shiftDate(-1)} aria-label="Previous day">‹</button>
+          <input
+            type="date"
+            className="input date-nav-input"
+            value={selectedDate}
+            onChange={e => setSelectedDate(e.target.value || todayStr)}
+          />
+          <button className="btn-icon" onClick={() => shiftDate(1)} aria-label="Next day">›</button>
+          {selectedDate !== todayStr && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDate(todayStr)}>{t('today')}</button>
+          )}
+        </div>
+
+        {/* Quick stats for the selected date */}
+        {filtered.length > 0 && (
+          <div className="day-stats">
+            <div className="day-stat"><span className="v">{filtered.length}</span><span className="l">{labels.bookingPlural}</span></div>
+            {totalRevenue > 0 && <div className="day-stat"><span className="v">${totalRevenue.toFixed(0)}</span><span className="l">{t('revenue')}</span></div>}
+            {conflictIds.size > 0 && <div className="day-stat day-stat-warn"><span className="v">{conflictIds.size / 2}</span><span className="l">Conflicts</span></div>}
+          </div>
+        )}
 
         <div className="search-wrap">
           <Search size={14} className="search-icon" />
@@ -2075,21 +2153,25 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
             ? <div className="center-muted">{t('noResults')}</div>
             : <EmptyState
                 icon={Calendar}
-                title={`No ${labels.bookingPlural.toLowerCase()} yet`}
-                body={`Add your first ${labels.booking.toLowerCase()} so your team knows what's coming up today.`}
+                title={`No ${labels.bookingPlural.toLowerCase()} on ${dateLabel.toLowerCase()}`}
+                body={`Add a ${labels.booking.toLowerCase()} so your team knows what's coming up.`}
                 ctaLabel={`Add ${labels.booking}`}
                 onCta={() => setModal('new')}
               />
         ) : filtered.map(b => {
           const m = staff.find(s => s.id === b.staffId);
+          const isConflict = conflictIds.has(b.id);
+          const svc = services.find(s => (s.name || '').toLowerCase() === (b.treatment || '').toLowerCase());
+          const accent = isConflict ? 'var(--danger)' : (svc?.color || 'var(--gold)');
           return (
-            <div key={b.id} className="sched-block">
-              <div className="time">{b.time}</div>
+            <div key={b.id} className={`sched-block ${isConflict ? 'sched-conflict' : ''}`} style={{ borderLeftColor: accent }}>
+              <div className="time" style={{ color: accent }}>{b.time}</div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment} · {b.duration}min</div>
+                <div className="meta">{b.treatment} · {b.duration}min{b.price > 0 ? ` · $${b.price}` : ''}</div>
                 {m && <div className="meta" style={{ marginTop: 4 }}>{lang === 'id' ? 'dengan' : 'with'} <strong>{m.name}</strong></div>}
-                {b.allergies && <div className="note-chip" style={{ background: '#fbecec', color: 'var(--danger)' }}><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
+                {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Overlaps with another booking on this staff</div>}
+                {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
                 {b.notes && <div className="note-chip">{t('notes')}: {b.notes}</div>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -2133,14 +2215,15 @@ function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
   const showAllergies = ['spa', 'salon', 'clinic'].includes(business?.type || 'spa');
   const hasStaff = staff && staff.length > 0;
   const hasServices = services && services.length > 0;
+  const todayStr = new Date().toISOString().slice(0, 10);
   const [f, setF] = useState(() => {
     if (!booking) return {
-      time: '10:00', client: '', treatment: '', duration: 60,
+      date: todayStr, time: '10:00', client: '', treatment: '', duration: 60,
       staffId: hasStaff ? staff[0].id : null,
       therapist: '',
       notes: '', allergies: '', clientPhone: '', price: 0,
     };
-    return { ...booking, therapist: booking.therapist || '' };
+    return { ...booking, date: booking.date || todayStr, therapist: booking.therapist || '' };
   });
 
   const pickService = (id) => {
@@ -2192,11 +2275,13 @@ function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
         <div className="field"><label>{labels.service}</label>
           <input className="input" required value={f.treatment} onChange={e => setF({ ...f, treatment: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}><label>{t('date')}</label>
+            <input className="input" type="date" required value={f.date || todayStr} onChange={e => setF({ ...f, date: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label>{t('time')}</label>
             <input className="input" type="time" required value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('durationMin')}</label>
-            <input className="input" type="number" min="0" inputMode="numeric" value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         </div>
+        <div className="field"><label>{t('durationMin')}</label>
+          <input className="input" type="number" min="5" inputMode="numeric" value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         {/* Staff picker — select from team if any exist, fallback to text input.
             Both keep the booking linked correctly: select sets staffId, text input is for ad-hoc names. */}
         <div className="field"><label>{labels.staffMember}</label>
@@ -2545,15 +2630,30 @@ function StaffModal({ member, onClose, onSaved }) {
         <div className="field"><label>{t('avatarColor')}</label>
           <div className="color-swatches">
             {COLOR_OPTIONS.map(c => (
-              <div key={c} className={`swatch ${f.color === c ? 'active' : ''}`}
-                style={{ background: c }} onClick={() => setF({ ...f, color: c })} />
+              <button
+                key={c}
+                type="button"
+                className={`swatch ${f.color === c ? 'active' : ''}`}
+                style={{ background: c }}
+                aria-label={`Color ${c}`}
+                aria-pressed={f.color === c}
+                onClick={() => setF({ ...f, color: c })}
+              />
             ))}
           </div>
         </div>
         <div className="field"><label>{t('workingDays')}</label>
           <div className="chip-row">
             {DAYS.map(d => (
-              <div key={d} className={`chip ${f.schedule.includes(d) ? 'active' : ''}`} onClick={() => toggleDay(d)}>{t('days')[d]}</div>
+              <button
+                key={d}
+                type="button"
+                className={`chip ${f.schedule.includes(d) ? 'active' : ''}`}
+                aria-pressed={f.schedule.includes(d)}
+                onClick={() => toggleDay(d)}
+              >
+                {t('days')[d]}
+              </button>
             ))}
           </div>
         </div>
@@ -2585,6 +2685,7 @@ function StaffModal({ member, onClose, onSaved }) {
 // ---------- Services Catalog ----------
 function ServicesTab({ services, onReload, toast }) {
   const { t } = useT();
+  const { labels } = useBiz();
   const [modal, setModal] = useState(null);
 
   const grouped = useMemo(() => {
@@ -2598,29 +2699,29 @@ function ServicesTab({ services, onReload, toast }) {
   }, [services]);
 
   const delService = async (id) => {
-    if (!window.confirm('Remove this service?')) return;
+    if (!window.confirm(`Remove this ${labels.service.toLowerCase()}?`)) return;
     try {
       await api(`/api/services/${id}`, { method: 'DELETE' });
-      toast('Service removed');
+      toast(`${labels.service} removed`);
       onReload();
-    } catch (e) { toast(e.message || 'Failed'); }
+    } catch (e) { toast(e.message || t('failed')); }
   };
 
   return (
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>Service catalog</h3>
+          <h3>{labels.service} catalog</h3>
           <button className="btn btn-primary btn-sm" onClick={() => setModal({})}>
-            <Plus size={14} /> Add service
+            <Plus size={14} /> {t('add')}
           </button>
         </div>
         {services.length === 0 ? (
           <EmptyState
             icon={Sparkles}
-            title="No services yet"
-            body="Define the services you offer (e.g., 60-min massage, haircut, oil change). Add price and duration once, then pick from this list when creating bookings."
-            ctaLabel="Add service"
+            title={`No ${labels.servicePlural.toLowerCase()} yet`}
+            body={`Define the ${labels.servicePlural.toLowerCase()} you offer (e.g., 30-min consultation, haircut, oil change). Add price and duration once, then pick from this list when creating ${labels.bookingPlural.toLowerCase()}.`}
+            ctaLabel={`Add ${labels.service.toLowerCase()}`}
             onCta={() => setModal({})}
           />
         ) : (
@@ -2638,10 +2739,10 @@ function ServicesTab({ services, onReload, toast }) {
                       {s.durationMin} min · ${Number(s.price).toFixed(2)}
                     </div>
                   </div>
-                  <button className="icon-btn" onClick={() => setModal(s)} aria-label="edit">
+                  <button className="icon-btn" onClick={() => setModal(s)} aria-label={t('edit')}>
                     <Edit2 size={14} />
                   </button>
-                  <button className="icon-btn" onClick={() => delService(s.id)} aria-label="delete">
+                  <button className="icon-btn" onClick={() => delService(s.id)} aria-label={t('delete')}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -2654,7 +2755,7 @@ function ServicesTab({ services, onReload, toast }) {
         <ServiceModal
           service={modal.id ? modal : null}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReload(); toast('Saved'); }}
+          onSaved={() => { setModal(null); onReload(); toast(t('save') + ' ✓'); }}
         />
       )}
     </div>
@@ -2663,6 +2764,7 @@ function ServicesTab({ services, onReload, toast }) {
 
 function ServiceModal({ service, onClose, onSaved }) {
   const { t } = useT();
+  const { labels } = useBiz();
   const [f, setF] = useState(service ? {
     ...service,
     durationMin: String(service.durationMin ?? ''),
@@ -2690,13 +2792,13 @@ function ServiceModal({ service, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={service ? 'Edit service' : 'New service'} onClose={onClose}>
+    <Modal title={service ? `${t('edit')} ${labels.service.toLowerCase()}` : `${t('add')} ${labels.service.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={save}>
         {err && <div className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>Name</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
         <div className="field"><label>Category</label>
-          <input className="input" placeholder="e.g. Massage, Haircut, Repair" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
+          <input className="input" placeholder="e.g. Consultation, Haircut, Repair" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label>Duration (min)</label>
             <input className="input" type="number" min="0" inputMode="numeric" value={f.durationMin} onChange={e => setF({ ...f, durationMin: e.target.value })} /></div>
@@ -2706,10 +2808,18 @@ function ServiceModal({ service, onClose, onSaved }) {
         <div className="field"><label>Color</label>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {COLOR_OPTIONS.map(c => (
-              <button key={c} type="button" onClick={() => setF({ ...f, color: c })}
+              <button
+                key={c}
+                type="button"
+                aria-label={`Color ${c}`}
+                aria-pressed={f.color === c}
+                onClick={() => setF({ ...f, color: c })}
                 style={{
-                  width: 28, height: 28, borderRadius: 6, background: c, border: f.color === c ? '2px solid var(--ink)' : '1px solid var(--border)', cursor: 'pointer',
-                }} />
+                  width: 28, height: 28, borderRadius: 6, background: c,
+                  border: f.color === c ? '2px solid var(--ink)' : '1px solid var(--border)',
+                  cursor: 'pointer', padding: 0,
+                }}
+              />
             ))}
           </div>
         </div>
@@ -2857,8 +2967,9 @@ function InventoryModal({ item, onClose, onSaved }) {
     ...item,
     stock: String(item.stock ?? ''),
     threshold: String(item.threshold ?? ''),
+    cost: String(item.cost ?? ''),
   } : {
-    name: '', category: '', stock: '', threshold: '5', unit: 'pcs', supplier: '',
+    name: '', category: '', stock: '', threshold: '5', unit: 'pcs', supplier: '', cost: '',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -2870,6 +2981,7 @@ function InventoryModal({ item, onClose, onSaved }) {
         ...f,
         stock: f.stock === '' ? 0 : Number(f.stock),
         threshold: f.threshold === '' ? 0 : Number(f.threshold),
+        cost: f.cost === '' || f.cost == null ? 0 : Number(f.cost),
       };
       if (item) await api(`/api/inventory/${item.id}`, { method: 'PUT', body: payload });
       else       await api('/api/inventory', { method: 'POST', body: payload });
@@ -2896,8 +3008,13 @@ function InventoryModal({ item, onClose, onSaved }) {
             <label>{t('threshold')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>— alert when below</span></label>
             <input className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} /></div>
         </div>
-        <div className="field"><label>{t('supplier')}</label>
-          <input className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} /></div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}><label>{t('supplier')}</label>
+            <input className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>{t('price')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>— cost per {f.unit || 'unit'}</span></label>
+            <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.cost} onChange={e => setF({ ...f, cost: e.target.value })} placeholder="0.00" /></div>
+        </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('saving') : t('save')}</button>
@@ -3172,7 +3289,7 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
                     <div className="title">{formatType(req.type)} · {s ? s.name : `${t('staffPerson')} #${req.staffId}`}</div>
                     <div className="meta">
                       {req.type === 'stock_request'
-                        ? `${inventory.find(i => i.id === req.productId)?.name || 'Product'} · qty ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
+                        ? `${inventory.find(i => i.id === req.productId)?.name || t('product')} · qty ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
                         : `${req.date} · ${req.reason || t('noReason')}`}
                     </div>
                   </div>
@@ -3210,20 +3327,29 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
 
 function ReassignModal({ request, staff, onClose, onSubmit }) {
   const { t } = useT();
-  const [to, setTo] = useState(staff[0]?.id || 1);
+  const hasStaff = staff.length > 0;
+  const [to, setTo] = useState(staff[0]?.id || null);
   return (
     <Modal title={t('reassignBookings')} onClose={onClose}>
       <p style={{ color: 'var(--muted)', fontSize: 13 }}>
         {t('assignBookingsTo')} <strong>{request.date}</strong> {t('to')}
       </p>
-      <div className="field">
-        <select className="select" value={to} onChange={e => setTo(Number(e.target.value))}>
-          {staff.map(s => <option key={s.id} value={s.id}>{s.name} · {s.role}</option>)}
-        </select>
-      </div>
+      {!hasStaff ? (
+        <div className="error-banner" style={{ marginTop: 8 }}>
+          <AlertTriangle size={14} /> No other team members available. Decline this request or add a teammate first.
+        </div>
+      ) : (
+        <div className="field">
+          <select className="select" value={to || ''} onChange={e => setTo(Number(e.target.value))}>
+            {staff.map(s => <option key={s.id} value={s.id}>{s.name} · {s.role}</option>)}
+          </select>
+        </div>
+      )}
       <div className="modal-actions">
         <button className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-        <button className="btn btn-primary" onClick={() => onSubmit(to)}>{t('approveReassign')}</button>
+        <button className="btn btn-primary" onClick={() => onSubmit(to)} disabled={!hasStaff || !to}>
+          {t('approveReassign')}
+        </button>
       </div>
     </Modal>
   );
@@ -3322,7 +3448,14 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
   const { t } = useT();
   const me = staff.find(s => s.id === staffId);
   const myBookings = bookings.filter(b => b.staffId === staffId);
-  const [sop] = useState(() => sops[Math.floor(Math.random() * sops.length)] || null);
+  // Re-pick daily SOP whenever sops list size changes (first load arrives async).
+  // Stable per day per session: same staff sees the same one on refreshes.
+  const sop = useMemo(() => {
+    if (!sops || sops.length === 0) return null;
+    const day = new Date().toISOString().slice(0, 10);
+    const seed = (staffId || 0) + day.split('-').reduce((a, b) => a + Number(b), 0);
+    return sops[seed % sops.length];
+  }, [sops, staffId]);
   const [sickModal, setSickModal] = useState(false);
 
   if (!me) return <div className="center-muted">{t('loadingProfile')}</div>;
@@ -3724,34 +3857,93 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
 function OwnerView({ staff, bookings, inventory, requests, violations, announcements }) {
   const { t, lang } = useT();
   const { labels } = useBiz();
-  const lowStock = inventory.filter(i => i.stock <= i.threshold);
-  const totalRevenue = bookings.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
-  const avgPerDay = Math.round(totalRevenue / 7);
-  const fmt = (n) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US').format(n);
-  const currency = lang === 'id' ? 'IDR ' : '$';
 
-  // Per-staff totals + commission.
+  // Scope: this week = last 7 days inclusive of today.
+  const [range, setRange] = useState('week'); // 'week' | 'month' | 'all'
+  const cutoff = useMemo(() => {
+    if (range === 'all') return null;
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - (range === 'week' ? 6 : 29));
+    return d.toISOString().slice(0, 10);
+  }, [range]);
+  const scoped = useMemo(() => {
+    if (!cutoff) return bookings;
+    return bookings.filter(b => (b.date || '') >= cutoff);
+  }, [bookings, cutoff]);
+
+  const lowStock = inventory.filter(i => i.stock <= i.threshold);
+  const totalRevenue = scoped.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
+  const oldestDate = bookings.length > 0 ? bookings[bookings.length - 1]?.date : null;
+  const periodDays = range === 'week' ? 7 : range === 'month' ? 30
+    : Math.max(1, Math.ceil((Date.now() - new Date(oldestDate || Date.now()).getTime()) / (24 * 60 * 60 * 1000)));
+  const avgPerDay = Math.round(totalRevenue / periodDays);
+  const fmt = (n) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US').format(n);
+  const currency = lang === 'id' ? 'Rp ' : '$';
+
+  // Inventory total cost (if cost set)
+  const inventoryValue = inventory.reduce((sum, i) => sum + ((Number(i.cost) || 0) * (Number(i.stock) || 0)), 0);
+
+  // Per-staff totals + commission (scoped).
   const perStaff = staff.map(s => {
-    const mine = bookings.filter(b => b.staffId === s.id);
+    const mine = scoped.filter(b => b.staffId === s.id);
     const rev = mine.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
     const rate = Number(s.commissionRate ?? 30) / 100;
     return { ...s, sessions: mine.length, revenue: rev, commission: Math.round(rev * rate) };
   }).sort((a, b) => b.revenue - a.revenue);
   const top = perStaff[0];
 
+  // Top services (by booking count)
+  const serviceTallies = useMemo(() => {
+    const m = new Map();
+    for (const b of scoped) {
+      const k = (b.treatment || '').trim();
+      if (!k) continue;
+      const cur = m.get(k) || { name: k, count: 0, revenue: 0 };
+      cur.count += 1;
+      cur.revenue += Number(b.price) || 0;
+      m.set(k, cur);
+    }
+    return Array.from(m.values()).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [scoped]);
+
+  // Peak hour analysis (by hour of bookings)
+  const peakHour = useMemo(() => {
+    const buckets = new Array(24).fill(0);
+    for (const b of scoped) {
+      const h = parseInt(String(b.time || '').split(':')[0], 10);
+      if (h >= 0 && h < 24) buckets[h] += 1;
+    }
+    let bestH = -1, bestC = 0;
+    buckets.forEach((c, h) => { if (c > bestC) { bestC = c; bestH = h; } });
+    return bestH < 0 ? null : { hour: bestH, count: bestC };
+  }, [scoped]);
+
+  const rangeLabel = range === 'week' ? t('thisWeek') : range === 'month' ? 'This Month' : 'All Time';
+
   return (
     <div>
       <div className="stats">
-        <div className="stat"><div className="v">{bookings.length}</div><div className="l">{labels.todayCount}</div></div>
+        <div className="stat"><div className="v">{scoped.length}</div><div className="l">{labels.bookingPlural}</div></div>
         <div className="stat"><div className="v">{staff.length}</div><div className="l">{labels.staffPlural}</div></div>
         <div className="stat"><div className="v">{violations.length}</div><div className="l">{t('sopNotesStat')}</div></div>
       </div>
 
       <div className="card">
-        <div className="card-head"><h3>{t('thisWeek')}</h3></div>
+        <div className="card-head">
+          <h3>{rangeLabel}</h3>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button className={`btn btn-sm ${range === 'week' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('week')}>7d</button>
+            <button className={`btn btn-sm ${range === 'month' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('month')}>30d</button>
+            <button className={`btn btn-sm ${range === 'all' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('all')}>All</button>
+          </div>
+        </div>
         <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">{currency}{fmt(totalRevenue)}</div></div></div>
         <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">{currency}{fmt(avgPerDay)}</div></div></div>
-        <div className="row"><CheckCircle size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{bookings.length} {labels.bookingPlural.toLowerCase()}</div></div></div>
+        <div className="row"><CheckCircle size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{scoped.length} {labels.bookingPlural.toLowerCase()}</div></div></div>
+        {peakHour && (
+          <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">Peak hour</div><div className="meta">{String(peakHour.hour).padStart(2,'0')}:00 · {peakHour.count} {labels.bookingPlural.toLowerCase()}</div></div></div>
+        )}
         {top && top.revenue > 0 && (
           <div className="row">
             <Avatar initial={top.avatar} color={top.color} size={32} />
@@ -3760,16 +3952,42 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
         )}
       </div>
 
+      {serviceTallies.length > 0 && (
+        <div className="card">
+          <h3>Top {labels.servicePlural || 'Services'}</h3>
+          {serviceTallies.map((s, idx) => {
+            const max = serviceTallies[0].count;
+            const pct = Math.round((s.count / max) * 100);
+            return (
+              <div key={s.name} className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <strong style={{ color: 'var(--ink)' }}>{idx + 1}. {s.name}</strong>
+                  <span className="meta">{s.count} · {currency}{fmt(s.revenue)}</span>
+                </div>
+                <div style={{ height: 6, background: 'var(--line)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: 'var(--gold)' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="card">
         <h3>{t('snapshot')}</h3>
         <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('lowStockItems')}</div><div className="meta">{lowStock.length} {t('flagged')}</div></div></div>
+        {inventoryValue > 0 && (
+          <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">Inventory value</div><div className="meta">{currency}{fmt(inventoryValue)}</div></div></div>
+        )}
         <div className="row"><Bell size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('pendingRequestsSnap')}</div><div className="meta">{requests.filter(r => r.status === 'pending').length}</div></div></div>
         <div className="row"><Megaphone size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('announcementsSent')}</div><div className="meta">{announcements.length}</div></div></div>
       </div>
 
       <div className="card">
         <h3>{t('team')} · {t('commission')}</h3>
-        {perStaff.map(s => (
+        {perStaff.length === 0 ? (
+          <div className="center-muted">No team members yet.</div>
+        ) : perStaff.map(s => (
           <div key={s.id} className="row">
             <Avatar initial={s.avatar} color={s.color} size={32} />
             <div className="grow">
@@ -3939,7 +4157,7 @@ function PrivacyPolicyScreen({ onBack }) {
       <p style={{ color: '#888', fontSize: 13, marginBottom: 32 }}>Last updated: {new Date().getFullYear()}</p>
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>1. Who We Are</h2>
-      <p>Viroxit ("we", "us", "our") provides business operations management software for service businesses. This policy explains how we handle your data.</p>
+      <p>Spapilot ("we", "us", "our") provides business operations management software for service businesses. This policy explains how we handle your data.</p>
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>2. What We Collect</h2>
       <ul>
@@ -3951,7 +4169,7 @@ function PrivacyPolicyScreen({ onBack }) {
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>3. How We Use It</h2>
       <ul>
-        <li>Provide and improve the Viroxit service</li>
+        <li>Provide and improve the Spapilot service</li>
         <li>Send password reset emails (only when you request them)</li>
         <li>Detect and prevent security threats</li>
         <li>Communicate service updates</li>
@@ -3973,16 +4191,16 @@ function PrivacyPolicyScreen({ onBack }) {
       <p>We use a single session token stored in your browser's local storage for authentication. No third-party tracking cookies.</p>
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>7. Children</h2>
-      <p>Viroxit is not directed at children under 13. We do not knowingly collect data from children.</p>
+      <p>Spapilot is not directed at children under 13. We do not knowingly collect data from children.</p>
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>8. Changes</h2>
       <p>We may update this policy. Continued use after changes means acceptance. We will notify users of material changes by email.</p>
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>9. Contact</h2>
-      <p>Questions? Email us at: <a href="mailto:privacy@viroxit.org" style={{ color: '#2d5a4a' }}>privacy@viroxit.org</a></p>
+      <p>Questions? Email us at: <a href="mailto:privacy@spapilot.app" style={{ color: '#2d5a4a' }}>privacy@spapilot.app</a></p>
 
       <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #eee', fontSize: 12, color: '#aaa' }}>
-        © {new Date().getFullYear()} Viroxit. All rights reserved.
+        © {new Date().getFullYear()} Spapilot. All rights reserved.
       </div>
     </div>
   );
@@ -4228,17 +4446,40 @@ function AppInner() {
     sops.reload(); services.reload();
   };
 
+  // Hooks must run on every render — keep before any conditional early return.
+  const lowStockCount = useMemo(
+    () => inventory.data.filter(i => i.stock <= i.threshold).length,
+    [inventory.data]
+  );
+  const pendingCount = useMemo(
+    () => requests.data.filter(r => r.status === 'pending').length,
+    [requests.data]
+  );
+
   const submitRequest = async (data) => {
     await api('/api/requests', { method: 'POST', body: data });
     requests.reload();
   };
 
   // On mount: restore session if token present.
+  // Also refetch profile if returning from Stripe checkout (?subscribed=1) so the
+  // PaymentRequired gate dismisses as soon as the webhook updates subscription_status.
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const justSubscribed = params.get('subscribed') === '1';
     const token = getToken();
     if (!token) { setAuthChecking(false); return; }
     api('/api/auth/me')
-      .then(u => { setUser(u); setAuthChecking(false); })
+      .then(u => {
+        setUser(u);
+        setAuthChecking(false);
+        if (justSubscribed) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('subscribed');
+          window.history.replaceState({}, '', url.toString());
+          setToastMsg('Subscription activated. Welcome aboard!');
+        }
+      })
       .catch(() => { setToken(null); setAuthChecking(false); });
   }, []);
 
@@ -4274,6 +4515,8 @@ function AppInner() {
     setBusiness(null);
     setOnboardingChoice(null);
     setAuthMode(null);
+    // Avoid leaking one user's checklist to the next user on a shared device.
+    try { localStorage.removeItem('app_checklist'); } catch {}
   };
 
   // Load business when user has businessId
@@ -4376,18 +4619,10 @@ function AppInner() {
     return true;
   });
   // Filter manager nav by biz-type defaults (gym hides SOP, etc.).
-  const bizType = business?.type || 'spa';
+  const bizType = business?.type || 'services';
   const hiddenTabs = BIZ_HIDDEN_TABS[bizType] || [];
   const filteredManagerNav = MANAGER_NAV.filter(item => !hiddenTabs.includes(item.id));
   const nav = role === 'manager' ? filteredManagerNav : role === 'staff' ? filteredStaffNav : OWNER_NAV;
-  const lowStockCount = useMemo(
-    () => inventory.data.filter(i => i.stock <= i.threshold).length,
-    [inventory.data]
-  );
-  const pendingCount = useMemo(
-    () => requests.data.filter(r => r.status === 'pending').length,
-    [requests.data]
-  );
   const alertBadge = lowStockCount + pendingCount;
 
   const anyLoading = staff.loading || bookings.loading || inventory.loading
@@ -4405,21 +4640,24 @@ function AppInner() {
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
         <div>
-          <div className="brand">{business?.name || <span style={{ color: 'var(--gold)' }}>●</span>}</div>
+          <div className="brand">{business?.name || 'Spapilot'}</div>
           <div className="sub">{t(role)} · {(user.email || '').split('@')[0]}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="topbar-actions">
           <LangToggle />
           {user.role === 'manager' && (
-            <button className="switch" onClick={() => setRole(null)} aria-label="switch role">
-              {t('switch')}
+            <button className="switch" onClick={() => setRole(null)} aria-label={t('switch')} title={t('switch')}>
+              <RefreshCw size={14} />
+              <span className="topbar-label">{t('switch')}</span>
             </button>
           )}
-          <button className="switch" onClick={() => setShowSettings(true)} aria-label="settings">
-            {t('settings')}
+          <button className="switch" onClick={() => setShowSettings(true)} aria-label={t('settings')} title={t('settings')}>
+            <ShieldCheck size={14} />
+            <span className="topbar-label">{t('settings')}</span>
           </button>
-          <button className="switch" onClick={logout} aria-label="sign out">
-            <LogOut size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> {t('signOut')}
+          <button className="switch" onClick={logout} aria-label={t('signOut')} title={t('signOut')}>
+            <LogOut size={14} />
+            <span className="topbar-label">{t('signOut')}</span>
           </button>
         </div>
       </header>
