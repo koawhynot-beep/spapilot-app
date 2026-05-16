@@ -293,24 +293,6 @@
   transition: color 0.15s, transform 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.tutorial-spot {
-  background: rgba(255,255,255,0.13);
-  border-radius: 12px;
-  color: #a78bfa !important;
-  animation: tutorial-pulse 1.4s ease-in-out infinite;
-}
-@keyframes tutorial-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(167,139,250,0.7); }
-  50%       { box-shadow: 0 0 0 7px rgba(167,139,250,0); }
-}
-@keyframes bounce-down {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(10px); }
-}
-@keyframes tour-bounce {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(8px); }
-}
 .nav-item:active { transform: scale(0.94); }
 .nav-item.active { color: var(--emerald); }
 .nav-item.active .dot {
@@ -383,17 +365,6 @@
   padding: 4px 10px; border-radius: 8px; font-size: 12px;
   margin-top: 6px;
 }
-
-/* Quote / callout */
-.quote {
-  background: linear-gradient(135deg, var(--emerald) 0%, var(--emerald-dark) 100%);
-  color: var(--cream);
-  padding: 22px 20px; border-radius: var(--radius);
-  font-family: 'Fraunces', serif; font-size: 17px; line-height: 1.5;
-  box-shadow: var(--shadow); margin-bottom: 14px;
-  position: relative; overflow: hidden;
-}
-.quote .src { display: block; margin-top: 8px; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--gold-soft); letter-spacing: 0.06em; }
 
 .note-chip {
   display: inline-block; background: var(--gold-soft); color: #6b4a1c;
@@ -545,46 +516,6 @@
 }
 .chip:active { transform: scale(0.95); }
 .chip.active { background: var(--emerald); color: #fff; border-color: var(--emerald); }
-
-/* PIN login */
-.pin-dots {
-  display: flex; gap: 14px; justify-content: center;
-  padding: 8px 0;
-}
-.pin-dot {
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid var(--line);
-  background: #fff;
-  transition: all 0.2s;
-}
-.pin-dot.filled {
-  background: var(--emerald);
-  border-color: var(--emerald);
-  transform: scale(1.1);
-}
-.keypad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 8px;
-}
-.key {
-  height: 56px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  font-family: 'Fraunces', serif;
-  font-size: 22px; font-weight: 500;
-  color: var(--ink);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.12s;
-  -webkit-tap-highlight-color: transparent;
-}
-.key:hover { border-color: var(--gold); }
-.key:active { background: var(--emerald-soft); transform: scale(0.95); }
-.key-blank { visibility: hidden; pointer-events: none; }
-.key-del { color: var(--muted); }
 
 /* Smooth tap feedback on all cards */
 .role-btn, .sched-block, .row { -webkit-tap-highlight-color: transparent; }
