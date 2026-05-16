@@ -4,7 +4,7 @@ import {
   CheckCircle, RefreshCw, Bell, User, ShieldCheck, Send, Home, Inbox,
   Plus, Trash2, Edit2, X, LogOut, Megaphone, PhoneCall, CalendarOff,
   Repeat, Leaf, Sparkles, Gem, Check, Lock,
-  Building2, Mail, Search, Download, Globe,
+  Building2, Mail, Search, Download, Globe, Settings as SettingsIcon,
 } from 'lucide-react';
 import './App.css';
 
@@ -213,6 +213,18 @@ const TRANSLATIONS = {
     joinStep2: 'Create your free account (email + password)',
     joinStep3: 'Pick "I work as staff" and enter the code given by the business owner',
     joinTeamCta: 'Join your team →',
+    upcomingLabel: 'Upcoming',
+    addFirstOne: 'Add your first one →',
+    pickFromCatalog: 'Pick from catalog (optional)',
+    chooseAService: '— Choose a service —',
+    lastVisitLabel: 'Last visit',
+    skipThisStep: 'Skip this step →',
+    skipTour: 'Skip tour',
+    withPerson: 'with',
+    qtyLabel: 'qty',
+    statusPending: 'pending',
+    statusApproved: 'approved',
+    statusDeclined: 'declined',
     search: 'Search', sortBy: 'Sort by', filterCategory: 'Filter category', allCategories: 'All',
     timeAsc: 'Time ↑', timeDesc: 'Time ↓', exportCsv: '⬇ Download Spreadsheet',
     language: 'Language', english: 'English', indonesian: 'Bahasa',
@@ -466,6 +478,18 @@ const TRANSLATIONS = {
     joinStep2: 'Buat akun gratis Anda (email + kata sandi)',
     joinStep3: 'Pilih "Saya bekerja sebagai staf" dan masukkan kode dari pemilik bisnis',
     joinTeamCta: 'Gabung tim Anda →',
+    upcomingLabel: 'Mendatang',
+    addFirstOne: 'Tambah yang pertama →',
+    pickFromCatalog: 'Pilih dari katalog (opsional)',
+    chooseAService: '— Pilih layanan —',
+    lastVisitLabel: 'Kunjungan terakhir',
+    skipThisStep: 'Lewati langkah ini →',
+    skipTour: 'Lewati tur',
+    withPerson: 'dengan',
+    qtyLabel: 'jumlah',
+    statusPending: 'menunggu',
+    statusApproved: 'disetujui',
+    statusDeclined: 'ditolak',
     search: 'Cari', sortBy: 'Urutkan', filterCategory: 'Filter kategori', allCategories: 'Semua',
     timeAsc: 'Waktu ↑', timeDesc: 'Waktu ↓', exportCsv: '⬇ Unduh Spreadsheet',
     language: 'Bahasa', english: 'English', indonesian: 'Bahasa',
@@ -1913,6 +1937,25 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
 function ManagerDashboard({ staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
   const { t } = useT();
   const { labels } = useBiz();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  // C1 fix: count only TODAY's bookings, not all-time. Stat card label says "Today's Bookings"
+  // so it must actually reflect today.
+  const todayBookings = useMemo(
+    () => bookings.filter(b => (b.date || todayStr) === todayStr),
+    [bookings, todayStr]
+  );
+  // C4 fix: upcoming = today onwards, sorted by date+time ascending. Drops past bookings.
+  const upcomingBookings = useMemo(
+    () => bookings
+      .filter(b => (b.date || todayStr) >= todayStr)
+      .sort((a, b) => {
+        const dateA = a.date || todayStr;
+        const dateB = b.date || todayStr;
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        return (a.time || '').localeCompare(b.time || '');
+      }),
+    [bookings, todayStr]
+  );
   const lowStock = inventory.filter(i => i.stock <= i.threshold);
   const pending  = requests.filter(r => r.status === 'pending');
   const [busy, setBusy] = useState(false);
@@ -1930,9 +1973,9 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
   };
 
   const stats = [
-    { v: bookings.length, l: bookingLabel,       i: <Calendar size={16} /> },
-    { v: staff.length,    l: t('activeStaff'),    i: <Users size={16} /> },
-    { v: lowStock.length, l: t('lowStock'),       i: <Package size={16} /> },
+    { v: todayBookings.length, l: bookingLabel,    i: <Calendar size={16} /> },
+    { v: staff.length,         l: t('activeStaff'), i: <Users size={16} /> },
+    { v: lowStock.length,      l: t('lowStock'),    i: <Package size={16} /> },
   ];
 
   const CHECKLIST_KEY = 'app_checklist';
@@ -1996,22 +2039,24 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
       )}
 
       <div className="card">
-        <div className="card-head"><h3>Upcoming {labels.bookingPlural}</h3>
+        <div className="card-head"><h3>{t('upcomingLabel')} {labels.bookingPlural}</h3>
           <button className="btn btn-ghost btn-sm" onClick={() => onGoto('schedule')}>{t('viewAll')}</button>
         </div>
-        {bookings.length === 0 ? (
+        {upcomingBookings.length === 0 ? (
           <div className="center-muted" style={{ padding: '20px 0', fontSize: 14 }}>
-            No {labels.bookingPlural.toLowerCase()} yet. <button
+            {t('noBookings')} <button
               onClick={() => onGoto('schedule')}
-              style={{ background: 'none', border: 'none', color: 'var(--emerald)', cursor: 'pointer', textDecoration: 'underline', fontSize: 14, padding: 0 }}
-            >Add your first one →</button>
+              className="btn-link"
+              style={{ fontSize: 14 }}
+            >{t('addFirstOne')}</button>
           </div>
-        ) : bookings.slice(0, 5).map(b => {
+        ) : upcomingBookings.slice(0, 5).map(b => {
           const m = staff.find(s => s.id === b.staffId);
+          const isToday = (b.date || todayStr) === todayStr;
           return (
             <div key={b.id} className="row">
-              <div style={{ color: 'var(--gold)', fontWeight: 700, minWidth: 48, fontFamily: 'Fraunces, serif' }}>
-                {b.time}
+              <div style={{ color: 'var(--gold)', fontWeight: 700, minWidth: 64, fontFamily: 'Fraunces, serif', fontSize: 13 }}>
+                {isToday ? b.time : `${b.date} · ${b.time}`}
               </div>
               <div className="grow">
                 <div className="title">{b.client}</div>
@@ -2045,9 +2090,9 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
             }}>{item.text}</div>
             <button
               onClick={e => { e.stopPropagation(); removeItem(item.id); }}
-              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4 }}
-              aria-label="remove"
-            ><X size={14} /></button>
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 10, minWidth: 36, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}
+              aria-label={t('remove')}
+            ><X size={16} /></button>
           </div>
         ))}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -2181,7 +2226,17 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   const exportCsv = () => {
     const rows = filtered.map(b => {
       const m = staff.find(s => s.id === b.staffId);
-      return { time: b.time, client: b.client, treatment: b.treatment, duration: b.duration, therapist: m?.name || '', notes: b.notes || '' };
+      // C5 fix: include date column so multi-day exports are usable.
+      return {
+        date: b.date || '',
+        time: b.time,
+        client: b.client,
+        service: b.treatment,
+        duration: b.duration,
+        price: b.price || 0,
+        staff: m?.name || '',
+        notes: b.notes || '',
+      };
     });
     downloadCSV(`bookings-${new Date().toISOString().slice(0,10)}.csv`, rows);
   };
@@ -2260,7 +2315,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
               <div className="grow">
                 <div className="title">{b.client}</div>
                 <div className="meta">{b.treatment} · {b.duration}min{b.price > 0 ? ` · $${b.price}` : ''}</div>
-                {m && <div className="meta" style={{ marginTop: 4 }}>{lang === 'id' ? 'dengan' : 'with'} <strong>{m.name}</strong></div>}
+                {m && <div className="meta" style={{ marginTop: 4 }}>{t('withPerson')} <strong>{m.name}</strong></div>}
                 {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('overlapsWithAnother')}</div>}
                 {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
                 {b.notes && <div className="note-chip">{t('notes')}: {b.notes}</div>}
@@ -2303,7 +2358,9 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
 function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
   const { t } = useT();
   const { labels, business } = useBiz();
-  const showAllergies = ['spa', 'salon', 'clinic'].includes(business?.type || 'spa');
+  // C6 fix: allow allergies field for new generic business categories too.
+  // Was only ['spa','salon','clinic'] → new users with type='services' lost the field.
+  const showAllergies = ['spa', 'salon', 'clinic', 'services', 'mix'].includes(business?.type || 'services');
   const hasStaff = staff && staff.length > 0;
   const hasServices = services && services.length > 0;
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -2354,9 +2411,9 @@ function BookingModal({ booking, staff, services = [], onClose, onSaved }) {
         <div className="field"><label>{labels.client}</label>
           <input className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} /></div>
         {hasServices && (
-          <div className="field"><label>Pick from catalog (optional)</label>
+          <div className="field"><label>{t('pickFromCatalog')}</label>
             <select className="select" value="" onChange={e => e.target.value && pickService(e.target.value)}>
-              <option value="">— Choose a service —</option>
+              <option value="">{t('chooseAService')}</option>
               {services.map(s => (
                 <option key={s.id} value={s.id}>{s.name} · {s.durationMin}min · ${Number(s.price).toFixed(2)}</option>
               ))}
@@ -2534,7 +2591,7 @@ function ClientsTab({ bookings, staff, toast }) {
             <div className="stats" style={{ marginBottom: 14 }}>
               <div className="stat"><div className="v">{detail.visits}</div><div className="l">{labels.bookingPlural}</div></div>
               <div className="stat"><div className="v">${detail.totalSpend}</div><div className="l">{t('revenue')}</div></div>
-              <div className="stat"><div className="v">{detail.lastVisit || '—'}</div><div className="l">Last visit</div></div>
+              <div className="stat"><div className="v">{detail.lastVisit || '—'}</div><div className="l">{t('lastVisitLabel')}</div></div>
             </div>
 
             {detail.allergies && (
@@ -3380,7 +3437,7 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
                     <div className="title">{formatType(req.type)} · {s ? s.name : `${t('staffPerson')} #${req.staffId}`}</div>
                     <div className="meta">
                       {req.type === 'stock_request'
-                        ? `${inventory.find(i => i.id === req.productId)?.name || t('product')} · qty ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
+                        ? `${inventory.find(i => i.id === req.productId)?.name || t('product')} · ${t('qtyLabel')} ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
                         : `${req.date} · ${req.reason || t('noReason')}`}
                     </div>
                   </div>
@@ -3535,10 +3592,14 @@ function AnnouncementModal({ defaultFrom, onClose, onSaved }) {
 
 // ================= STAFF VIEWS =================
 
-function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast }) {
+function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast, perms }) {
   const { t } = useT();
   const me = staff.find(s => s.id === staffId);
-  const myBookings = bookings.filter(b => b.staffId === staffId);
+  // C2 fix: filter to today's bookings only. Was showing all bookings as "today's sessions".
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const myBookings = bookings.filter(b => b.staffId === staffId && (b.date || todayStr) === todayStr);
+  // M28 fix: respect canViewSchedule permission — staff without it shouldn't see booking list
+  const canSeeSchedule = perms ? perms.canViewSchedule !== false : true;
   // Re-pick daily SOP whenever sops list size changes (first load arrives async).
   // Stable per day per session: same staff sees the same one on refreshes.
   const sop = useMemo(() => {
@@ -3599,6 +3660,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
         </div>
       )}
 
+      {canSeeSchedule && (
       <div className="card">
         <h3>{t('yourSessions')}</h3>
         {myBookings.length === 0
@@ -3620,13 +3682,16 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
             </div>
           ))}
       </div>
+      )}
     </div>
   );
 }
 
 function StaffScheduleView({ staff, bookings, staffId }) {
   const { t, lang } = useT();
-  const mine = bookings.filter(b => b.staffId === staffId);
+  // C3 fix: filter to today's bookings only; "Today's Sessions" was showing all.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const mine = bookings.filter(b => b.staffId === staffId && (b.date || todayStr) === todayStr);
   const me = staff.find(s => s.id === staffId);
   const others = staff.filter(s => s.id !== staffId);
   const workDays = me?.schedule || [];
@@ -3737,11 +3802,11 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
               <div className="title">{r.type === 'sick' ? t('sickCall') : r.type === 'dayoff' ? t('dayOff') : r.type === 'stock_request' ? t('stockRequest') : t('shiftSwap')}</div>
               <div className="meta">
                 {r.type === 'stock_request'
-                  ? `${(inventory || []).find(i => i.id === r.productId)?.name || 'Product'} · qty ${r.quantity}`
+                  ? `${(inventory || []).find(i => i.id === r.productId)?.name || t('product')} · ${t('qtyLabel')} ${r.quantity}`
                   : `${r.date || '—'} · ${r.reason || '—'}`}
               </div>
             </div>
-            <Badge label={r.status} type={r.status === 'approved' ? 'success' : r.status === 'declined' ? 'danger' : 'pending'} />
+            <Badge label={t(`status${r.status.charAt(0).toUpperCase() + r.status.slice(1)}`) || r.status} type={r.status === 'approved' ? 'success' : r.status === 'declined' ? 'danger' : 'pending'} />
           </div>
         ))}
       </div>
@@ -4176,14 +4241,17 @@ function WelcomeSlideshow({ onDone }) {
         boxShadow: '0 12px 60px rgba(0,0,0,0.4)',
         textAlign: 'center',
         animation: 'fadein 0.3s ease',
+        position: 'relative',
       }}>
-        {/* Skip top-right */}
+        {/* Skip top-right — positioned within card so it stays visible on cream bg */}
         <button
           onClick={onDone}
+          aria-label="Skip onboarding"
           style={{
-            position: 'absolute', top: 22, right: 26,
-            background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)',
-            border: 'none', borderRadius: 18, padding: '5px 12px',
+            position: 'absolute', top: 10, right: 12,
+            background: 'transparent', color: 'var(--muted)',
+            border: '1px solid var(--line)', borderRadius: 999,
+            padding: '6px 12px', minHeight: 32,
             fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
           }}
         >Skip</button>
@@ -4245,7 +4313,7 @@ function PrivacyPolicyScreen({ onBack }) {
         ← Back
       </button>
       <h1 style={{ fontSize: 24, marginBottom: 4 }}>Privacy Policy</h1>
-      <p style={{ color: '#888', fontSize: 13, marginBottom: 32 }}>Last updated: {new Date().getFullYear()}</p>
+      <p style={{ color: 'var(--muted, #6b5d4a)', fontSize: 13, marginBottom: 32 }}>Last updated: May 2026</p>
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>1. Who We Are</h2>
       <p>Spapilot ("we", "us", "our") provides business operations management software for service businesses. This policy explains how we handle your data.</p>
@@ -4298,6 +4366,7 @@ function PrivacyPolicyScreen({ onBack }) {
 }
 
 function TourOverlay({ onDone }) {
+  const { t } = useT();
   // Filter tour steps to only include tabs visible for this business type.
   // (gym hides SOP, etc — pointing at hidden tabs would hang the tour.)
   const { hiddenTabs } = useBiz();
@@ -4453,7 +4522,7 @@ function TourOverlay({ onDone }) {
               padding: '9px 20px', cursor: 'pointer',
               fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
             }}
-          >Skip this step →</button>
+          >{t('skipThisStep')}</button>
         </div>
       )}
 
@@ -4462,12 +4531,12 @@ function TourOverlay({ onDone }) {
         onClick={onDone}
         style={{
           position: 'fixed', top: 14, right: 14, zIndex: 9999,
-          background: 'rgba(28,28,30,0.9)', color: 'rgba(255,255,255,0.8)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          borderRadius: 20, padding: '6px 14px', fontSize: 13,
+          background: 'rgba(28,28,30,0.9)', color: 'rgba(255,255,255,0.95)',
+          border: '1px solid rgba(255,255,255,0.25)',
+          borderRadius: 20, padding: '8px 16px', fontSize: 13, minHeight: 36,
           cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em',
         }}
-      >Skip tour</button>
+      >{t('skipTour')}</button>
 
       {/* Step progress dots */}
       <div style={{
@@ -4743,7 +4812,7 @@ function AppInner() {
             </button>
           )}
           <button className="switch" onClick={() => setShowSettings(true)} aria-label={t('settings')} title={t('settings')}>
-            <ShieldCheck size={14} />
+            <SettingsIcon size={14} />
             <span className="topbar-label">{t('settings')}</span>
           </button>
           <button className="switch" onClick={logout} aria-label={t('signOut')} title={t('signOut')}>
@@ -4820,7 +4889,7 @@ function AppInner() {
             <>
               {tab === 'today' && (
                 <StaffTodayView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} sops={sops.data}
-                  onSubmitRequest={submitRequest} toast={toast} />
+                  onSubmitRequest={submitRequest} toast={toast} perms={staffPerms} />
               )}
               {tab === 'schedule' && staffPerms.canViewSchedule && (
                 <StaffScheduleView staff={staff.data} bookings={bookings.data} staffId={currentStaffId} />

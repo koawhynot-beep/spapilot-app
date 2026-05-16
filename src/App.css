@@ -428,12 +428,15 @@
 .modal h3 { margin: 0 0 14px; color: var(--emerald); font-size: 20px; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 .modal-close {
-  background: transparent; border: none; padding: 4px 6px; cursor: pointer;
-  color: var(--muted); border-radius: 6px;
+  background: transparent; border: none; padding: 0; cursor: pointer;
+  min-width: 44px; min-height: 44px;
+  color: var(--muted); border-radius: 8px;
   display: inline-flex; align-items: center; justify-content: center;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
 }
 .modal-close:hover { color: var(--danger); background: rgba(168,56,56,0.08); }
+.modal-close:active { transform: scale(0.94); }
 
 /* Quick actions */
 .qa-grid {
