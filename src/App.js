@@ -2845,13 +2845,18 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
 
   return (
     <Modal title={booking ? `${t('edit')} ${labels.booking.toLowerCase()}` : `${t('add')} ${labels.booking.toLowerCase()}`} onClose={onClose}>
-      <form onSubmit={save}>
+      <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{labels.client}</label>
           <input className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} /></div>
         {hasServices && (
           <div className="field"><label>{t('pickFromCatalog')}</label>
-            <select className="select" value="" onChange={e => e.target.value && pickService(e.target.value)}>
+            {/* Persist selection so picker shows what was chosen (was resetting to placeholder — confusing). */}
+            <select
+              className="select"
+              value={services.find(s => (s.name || '').toLowerCase() === (f.treatment || '').toLowerCase())?.id || ''}
+              onChange={e => e.target.value && pickService(e.target.value)}
+            >
               <option value="">{t('chooseAService')}</option>
               {services.map(s => (
                 <option key={s.id} value={s.id}>{s.name} · {fmtDuration(s.durationMin, lang)} · {fmtMoney(s.price, lang)}</option>
@@ -3212,7 +3217,7 @@ function StaffModal({ member, onClose, onSaved }) {
 
   return (
     <Modal title={member ? t('editTeamMember') : t('addTeamMember')} onClose={onClose}>
-      <form onSubmit={save}>
+      <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
@@ -3390,7 +3395,7 @@ function ServiceModal({ service, onClose, onSaved }) {
 
   return (
     <Modal title={service ? `${t('edit')} ${labels.service.toLowerCase()}` : `${t('add')} ${labels.service.toLowerCase()}`} onClose={onClose}>
-      <form onSubmit={save}>
+      <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
@@ -3631,7 +3636,7 @@ function InventoryModal({ item, onClose, onSaved }) {
 
   return (
     <Modal title={item ? t('editItem') : t('addItem')} onClose={onClose}>
-      <form onSubmit={save}>
+      <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
@@ -3796,7 +3801,7 @@ function SOPRuleModal({ onClose, onSaved }) {
 
   return (
     <Modal title={t('addSopRule')} onClose={onClose}>
-      <form onSubmit={save}>
+      <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} /> {err}</div>}
         <div className="field">
           <label>{t('sopRuleTitle')}</label>
@@ -3863,7 +3868,7 @@ function ViolationModal({ staff, sops, onClose, onSaved }) {
 
   return (
     <Modal title={t('logSopViolation')} onClose={onClose}>
-      <form onSubmit={save}>
+      <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('staffPerson')}</label>
           <select className="select" value={f.staffId} onChange={e => setF({ ...f, staffId: Number(e.target.value) })}>
@@ -4081,7 +4086,7 @@ function AnnouncementModal({ defaultFrom, onClose, onSaved }) {
   };
   return (
     <Modal title={t('newAnnouncement')} onClose={onClose}>
-      <form onSubmit={save}>
+      <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
         <div className="field"><label>{t('title')}</label>
           <input className="input" required value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></div>
