@@ -502,6 +502,41 @@
   text-decoration: none; font-weight: 600;
 }
 .skip-link:focus { top: 8px; }
+/* scroll-margin so sticky topbar + bottom-nav don't cover keyboard-focused element (WCAG 2.4.11) */
+*:focus-visible, [tabindex]:focus { scroll-margin-top: 80px; scroll-margin-bottom: 100px; }
+/* Windows High Contrast / forced-colors support (WCAG 1.4.1, 1.4.11) */
+@media (forced-colors: active) {
+  .nav-item.active { outline: 2px solid ButtonText; outline-offset: -2px; }
+  .nav-item.active .dot { background: ButtonText !important; }
+  .swatch.active { outline: 2px solid Highlight; forced-color-adjust: none; }
+  .sched-block.sched-conflict { border: 2px solid Mark !important; }
+  .btn-primary, .btn-gold { border: 1px solid ButtonText; }
+  *:focus-visible { outline: 3px solid Highlight !important; outline-offset: 2px !important; }
+  .badge-danger, .badge-warn, .badge-success, .badge-pending { border: 1px solid ButtonText; }
+}
+/* Dark mode (prefers-color-scheme dark) — reduces glare for low-vision users */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #1c1d20;
+    --cream-soft: #25272b;
+    --cream-deep: #2f3239;
+    --cream-2: #2a2d33;
+    --emerald: #74b69a;
+    --emerald-dark: #4e8e75;
+    --emerald-soft: #2a3a34;
+    --gold: #c9a36b;
+    --gold-soft: #44372a;
+    --ink: #ece7df;
+    --muted: #aaa097;
+    --line: #3a3d44;
+    --border: #3a3d44;
+    --text: #ece7df;
+    --danger: #e07474;
+    --success: #74b69a;
+    --warn: #d99c5a;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  }
+}
 @media (min-width: 720px) {
   .topbar { padding: 20px 36px; }
   .page { padding: 28px 28px 40px; }

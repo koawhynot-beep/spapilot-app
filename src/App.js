@@ -351,7 +351,9 @@ const TRANSLATIONS = {
     businessNamePh: 'e.g. Your Business Name',
     businessTypeLabel: 'Business type',
     bizTypeSpa: 'Spa', bizTypeSalon: 'Salon', bizTypeBarbershop: 'Barbershop',
-    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Clinic', bizTypeOther: 'Other',
+    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Clinic',
+    bizTypeRestaurant: 'Restaurant', bizTypeOther: 'Other',
+    minutesShort: 'min',
     numberOfStaff: 'Number of staff',
     createBusiness: 'Create business',
     joinBusiness: 'Join your business',
@@ -653,7 +655,9 @@ const TRANSLATIONS = {
     businessNamePh: 'misal Nama Bisnis Anda',
     businessTypeLabel: 'Jenis bisnis',
     bizTypeSpa: 'Spa', bizTypeSalon: 'Salon', bizTypeBarbershop: 'Pangkas Rambut',
-    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Klinik', bizTypeOther: 'Lainnya',
+    bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Klinik',
+    bizTypeRestaurant: 'Restoran', bizTypeOther: 'Lainnya',
+    minutesShort: 'mnt',
     numberOfStaff: 'Jumlah staf',
     createBusiness: 'Buat bisnis',
     joinBusiness: 'Gabung bisnis Anda',
@@ -715,6 +719,7 @@ const BIZ_LABELS = {
   gym:        { client: 'Member',   clientPlural: 'Members',   staffMember: 'Trainer',   staffPlural: 'Trainers',   service: 'Class',       servicePlural: 'Classes',      booking: 'Class',       bookingPlural: 'Classes',      todayCount: "Today's Classes" },
   hotel:      { client: 'Guest',    clientPlural: 'Guests',    staffMember: 'Staff',     staffPlural: 'Staff',      service: 'Stay',        servicePlural: 'Stays',        booking: 'Check-In',    bookingPlural: 'Check-Ins',    todayCount: "Today's Check-Ins" },
   clinic:     { client: 'Patient',  clientPlural: 'Patients',  staffMember: 'Provider',  staffPlural: 'Providers',  service: 'Appointment', servicePlural: 'Appointments', booking: 'Appointment', bookingPlural: 'Appointments', todayCount: "Today's Appointments" },
+  restaurant: { client: 'Guest',    clientPlural: 'Guests',    staffMember: 'Server',    staffPlural: 'Servers',    service: 'Menu item',   servicePlural: 'Menu',         booking: 'Reservation', bookingPlural: 'Reservations',todayCount: "Today's Reservations" },
   other:      { client: 'Customer', clientPlural: 'Customers', staffMember: 'Staff',     staffPlural: 'Staff',      service: 'Service',     servicePlural: 'Services',     booking: 'Booking',     bookingPlural: 'Bookings',     todayCount: "Today's Bookings" },
 };
 // Tabs hidden by default per business type.
@@ -725,6 +730,7 @@ const BIZ_HIDDEN_TABS = {
   mix:        [],
   spa:        [],
   salon:      [],
+  restaurant: ['sop'],
   barbershop: ['sop'],
   gym:        ['sop'],
   hotel:      [],
@@ -1002,21 +1008,62 @@ function appConfirm(opts) {
 }
 
 function Modal({ title, onClose, children }) {
+  const modalRef = useRef(null);
+  const titleId = useMemo(() => `modal-title-${Math.random().toString(36).slice(2)}`, []);
   useEffect(() => {
+    // Save trigger to restore focus on close (a11y: WCAG 2.4.3).
+    const trigger = document.activeElement;
     const esc = e => { if (e.key === 'Escape') onClose(); };
+    const focusTrap = e => {
+      if (e.key !== 'Tab' || !modalRef.current) return;
+      const focusables = modalRef.current.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     window.addEventListener('keydown', esc);
+    window.addEventListener('keydown', focusTrap);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // Move initial focus into the dialog (a11y: announce dialog opened).
+    setTimeout(() => {
+      if (modalRef.current) {
+        const firstFocusable = modalRef.current.querySelector(
+          'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
+        );
+        (firstFocusable || modalRef.current).focus();
+      }
+    }, 30);
     return () => {
       window.removeEventListener('keydown', esc);
+      window.removeEventListener('keydown', focusTrap);
       document.body.style.overflow = prevOverflow;
+      // Return focus to trigger (a11y: WCAG 2.4.3).
+      try { trigger && trigger.focus && trigger.focus(); } catch {}
     };
   }, [onClose]);
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        ref={modalRef}
+        className="modal"
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
         <div className="modal-head">
-          <h3>{title}</h3>
+          <h2 id={titleId} style={{ margin: 0, color: 'var(--emerald)', fontSize: 20, fontFamily: 'Fraunces, serif', fontWeight: 500 }}>{title}</h2>
           <button className="modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
         <div className="modal-body">{children}</div>
@@ -1575,13 +1622,18 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
           </div>
           <div className="field">
             <label>{t('businessTypeLabel')}</label>
-            {/* Broad work categories — every business fits exactly one. No "Other" needed. */}
+            {/* Industry-specific picker drives BIZ_LABELS so users see "Stylist/Appointment/Member/Class"
+                immediately, not generic "Provider/Booking". Falls back to "services" for generic case. */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
               {[
-                { id: 'services', icon: '🛠️', label: 'I provide services',     sub: 'Haircuts, training, consultations, cleaning, repairs' },
-                { id: 'products', icon: '🛍️', label: 'I sell products',       sub: 'Food, retail, drinks, goods' },
-                { id: 'space',    icon: '🏨',  label: 'I host or rent space',  sub: 'Hotels, venues, rentals, rooms' },
-                { id: 'mix',      icon: '🔄',  label: 'I do a mix of these',   sub: 'Combination of the above' },
+                { id: 'salon',      icon: '💇',  label: t('bizTypeSalon')      || 'Salon',      sub: 'Hair, beauty, nails' },
+                { id: 'spa',        icon: '💆',  label: t('bizTypeSpa')        || 'Spa',        sub: 'Massage, facials, wellness' },
+                { id: 'barbershop', icon: '💈',  label: t('bizTypeBarbershop') || 'Barbershop', sub: 'Cuts, shaves, grooming' },
+                { id: 'gym',        icon: '🏋️',  label: t('bizTypeGym')        || 'Gym',        sub: 'Fitness, classes, training' },
+                { id: 'clinic',     icon: '🩺',  label: t('bizTypeClinic')     || 'Clinic',     sub: 'Medical, dental, therapy' },
+                { id: 'hotel',      icon: '🏨',  label: t('bizTypeHotel')      || 'Hotel',      sub: 'Rooms, venues, rentals' },
+                { id: 'restaurant', icon: '🍽️',  label: 'Restaurant',                           sub: 'Reservations, kitchen, service' },
+                { id: 'services',   icon: '🛠️',  label: 'Other service business',               sub: 'Consultations, repairs, anything else' },
               ].map(opt => (
                 <button
                   key={opt.id}
@@ -5127,7 +5179,7 @@ function AppInner() {
       )}
 
       <main id="main" className="page fade" tabIndex={-1}>
-        <div className="page-title">{pageTitle}</div>
+        <h1 className="page-title">{pageTitle}</h1>
 
         <LoadState loading={anyLoading} error={anyError} reload={reloadAll}>
           {role === 'manager' && (
