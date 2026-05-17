@@ -365,6 +365,21 @@ const TRANSLATIONS = {
     bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Clinic',
     bizTypeRestaurant: 'Restaurant', bizTypeOther: 'Other',
     minutesShort: 'min',
+    filterAll: 'All', filterLowOnly: 'Low only', filterOutOnly: 'Out only',
+    sortNameAZ: 'Name A-Z', sortStockAsc: 'Stock ↑', sortStockDesc: 'Stock ↓', sortValueDesc: 'Value ↓',
+    statOut: 'Out', range7d: '7d', range30d: '30d', rangeAll: 'All',
+    stockLeftLabel: 'left',
+    bizSubSalon: 'Hair, beauty, nails',
+    bizSubSpa: 'Massage, facials, wellness',
+    bizSubBarbershop: 'Cuts, shaves, grooming',
+    bizSubGym: 'Fitness, classes, training',
+    bizSubClinic: 'Medical, dental, therapy',
+    bizSubHotel: 'Rooms, venues, rentals',
+    bizSubRestaurant: 'Reservations, kitchen, service',
+    bizSubServices: 'Consultations, repairs, anything else',
+    bizTypeOtherFull: 'Other service business',
+    previousDay: 'Previous day', nextDay: 'Next day',
+    closeLabel: 'Close',
     numberOfStaff: 'Number of staff',
     createBusiness: 'Create business',
     joinBusiness: 'Join your business',
@@ -669,6 +684,21 @@ const TRANSLATIONS = {
     bizTypeGym: 'Gym', bizTypeHotel: 'Hotel', bizTypeClinic: 'Klinik',
     bizTypeRestaurant: 'Restoran', bizTypeOther: 'Lainnya',
     minutesShort: 'mnt',
+    filterAll: 'Semua', filterLowOnly: 'Hanya menipis', filterOutOnly: 'Hanya habis',
+    sortNameAZ: 'Nama A-Z', sortStockAsc: 'Stok ↑', sortStockDesc: 'Stok ↓', sortValueDesc: 'Nilai ↓',
+    statOut: 'Habis', range7d: '7h', range30d: '30h', rangeAll: 'Semua',
+    stockLeftLabel: 'tersisa',
+    bizSubSalon: 'Rambut, kecantikan, kuku',
+    bizSubSpa: 'Pijat, facial, kesehatan',
+    bizSubBarbershop: 'Potong, cukur, grooming',
+    bizSubGym: 'Kebugaran, kelas, latihan',
+    bizSubClinic: 'Medis, gigi, terapi',
+    bizSubHotel: 'Kamar, tempat, sewa',
+    bizSubRestaurant: 'Reservasi, dapur, layanan',
+    bizSubServices: 'Konsultasi, perbaikan, lainnya',
+    bizTypeOtherFull: 'Bisnis jasa lainnya',
+    previousDay: 'Hari sebelumnya', nextDay: 'Hari berikutnya',
+    closeLabel: 'Tutup',
     numberOfStaff: 'Jumlah staf',
     createBusiness: 'Buat bisnis',
     joinBusiness: 'Gabung bisnis Anda',
@@ -1695,14 +1725,14 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
                 immediately, not generic "Provider/Booking". Falls back to "services" for generic case. */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
               {[
-                { id: 'salon',      icon: '💇',  label: t('bizTypeSalon')      || 'Salon',      sub: 'Hair, beauty, nails' },
-                { id: 'spa',        icon: '💆',  label: t('bizTypeSpa')        || 'Spa',        sub: 'Massage, facials, wellness' },
-                { id: 'barbershop', icon: '💈',  label: t('bizTypeBarbershop') || 'Barbershop', sub: 'Cuts, shaves, grooming' },
-                { id: 'gym',        icon: '🏋️',  label: t('bizTypeGym')        || 'Gym',        sub: 'Fitness, classes, training' },
-                { id: 'clinic',     icon: '🩺',  label: t('bizTypeClinic')     || 'Clinic',     sub: 'Medical, dental, therapy' },
-                { id: 'hotel',      icon: '🏨',  label: t('bizTypeHotel')      || 'Hotel',      sub: 'Rooms, venues, rentals' },
-                { id: 'restaurant', icon: '🍽️',  label: 'Restaurant',                           sub: 'Reservations, kitchen, service' },
-                { id: 'services',   icon: '🛠️',  label: 'Other service business',               sub: 'Consultations, repairs, anything else' },
+                { id: 'salon',      icon: '💇',  label: t('bizTypeSalon'),       sub: t('bizSubSalon') },
+                { id: 'spa',        icon: '💆',  label: t('bizTypeSpa'),         sub: t('bizSubSpa') },
+                { id: 'barbershop', icon: '💈',  label: t('bizTypeBarbershop'),  sub: t('bizSubBarbershop') },
+                { id: 'gym',        icon: '🏋️',  label: t('bizTypeGym'),         sub: t('bizSubGym') },
+                { id: 'clinic',     icon: '🩺',  label: t('bizTypeClinic'),      sub: t('bizSubClinic') },
+                { id: 'hotel',      icon: '🏨',  label: t('bizTypeHotel'),       sub: t('bizSubHotel') },
+                { id: 'restaurant', icon: '🍽️',  label: t('bizTypeRestaurant'),  sub: t('bizSubRestaurant') },
+                { id: 'services',   icon: '🛠️',  label: t('bizTypeOtherFull'),   sub: t('bizSubServices') },
               ].map(opt => (
                 <button
                   key={opt.id}
@@ -2600,14 +2630,14 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
 
         {/* Date picker with prev/next + jump-to-today */}
         <div className="date-nav">
-          <button className="btn-icon" onClick={() => shiftDate(-1)} aria-label="Previous day">‹</button>
+          <button className="btn-icon" onClick={() => shiftDate(-1)} aria-label={t('previousDay')}>‹</button>
           <input
             type="date"
             className="input date-nav-input"
             value={selectedDate}
             onChange={e => setSelectedDate(e.target.value || todayStr)}
           />
-          <button className="btn-icon" onClick={() => shiftDate(1)} aria-label="Next day">›</button>
+          <button className="btn-icon" onClick={() => shiftDate(1)} aria-label={t('nextDay')}>›</button>
           {selectedDate !== todayStr && (
             <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDate(todayStr)}>{t('today')}</button>
           )}
@@ -2847,7 +2877,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
           <div className="field" style={{ flex: 1 }}><label>{labels.client} · {t('phoneShort') || 'phone'}</label>
             <input className="input" type="tel" placeholder={t('phonePlaceholder')} value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
-            <input className="input" type="number" min="0" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
+            <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         </div>
         {/* Allergies field only relevant for spa/salon/clinic. Hide for gym/hotel/barbershop/other. */}
         {showAllergies && (
@@ -3469,7 +3499,7 @@ function InventoryTab({ inventory, onReload, toast }) {
           <div className="day-stat"><span className="v">{summary.totalItems}</span><span className="l">{t('inventory')}</span></div>
           {summary.totalValue > 0 && <div className="day-stat"><span className="v">{fmtMoney(summary.totalValue, lang)}</span><span className="l">{t('inventoryValue')}</span></div>}
           {summary.lowCount > 0 && <div className="day-stat day-stat-warn"><span className="v">{summary.lowCount}</span><span className="l">{t('low')}</span></div>}
-          {summary.outCount > 0 && <div className="day-stat day-stat-warn"><span className="v">{summary.outCount}</span><span className="l">Out</span></div>}
+          {summary.outCount > 0 && <div className="day-stat day-stat-warn"><span className="v">{summary.outCount}</span><span className="l">{t('statOut')}</span></div>}
         </div>
       )}
       <div className="card">
@@ -3487,15 +3517,15 @@ function InventoryTab({ inventory, onReload, toast }) {
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select className="select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label={t('filterCategory')}>
-            <option value="all">All</option>
-            <option value="low">Low only</option>
-            <option value="out">Out only</option>
+            <option value="all">{t('filterAll')}</option>
+            <option value="low">{t('filterLowOnly')}</option>
+            <option value="out">{t('filterOutOnly')}</option>
           </select>
           <select className="select" value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label={t('sortBy')}>
-            <option value="name">Name A-Z</option>
-            <option value="stock-asc">Stock ↑</option>
-            <option value="stock-desc">Stock ↓</option>
-            <option value="value">Value ↓</option>
+            <option value="name">{t('sortNameAZ')}</option>
+            <option value="stock-asc">{t('sortStockAsc')}</option>
+            <option value="stock-desc">{t('sortStockDesc')}</option>
+            <option value="value">{t('sortValueDesc')}</option>
           </select>
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
             <Download size={12} /> {t('exportCsv')}
@@ -4391,7 +4421,7 @@ function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSu
               ? <option value="">{t('emptyInventoryTitle')}</option>
               : inventory.map(i => (
                 <option key={i.id} value={i.id}>
-                  {i.name} ({i.stock} {i.unit} left)
+                  {i.name} ({i.stock} {i.unit} {t('stockLeftLabel')})
                 </option>
               ))}
           </select>
@@ -4550,9 +4580,9 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
         <div className="card-head">
           <h3>{rangeLabel}</h3>
           <div style={{ display: 'flex', gap: 4 }}>
-            <button className={`btn btn-sm ${range === 'week' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('week')}>7d</button>
-            <button className={`btn btn-sm ${range === 'month' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('month')}>30d</button>
-            <button className={`btn btn-sm ${range === 'all' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('all')}>All</button>
+            <button className={`btn btn-sm ${range === 'week' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('week')}>{t('range7d')}</button>
+            <button className={`btn btn-sm ${range === 'month' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('month')}>{t('range30d')}</button>
+            <button className={`btn btn-sm ${range === 'all' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('all')}>{t('rangeAll')}</button>
           </div>
         </div>
         <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">{currency}{fmt(totalRevenue)}</div></div></div>
