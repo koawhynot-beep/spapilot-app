@@ -1280,7 +1280,7 @@ function LangToggle({ floating = false, large = false }) {
     return (
       <button
         onClick={() => setLang(lang === 'en' ? 'id' : 'en')}
-        aria-label="toggle language"
+        aria-label={t('language')}
         title={lang === 'en' ? 'Bahasa Indonesia' : 'English'}
         style={{
           position: 'fixed',
@@ -1312,7 +1312,7 @@ function LangToggle({ floating = false, large = false }) {
     <button
       className={className}
       onClick={() => setLang(lang === 'en' ? 'id' : 'en')}
-      aria-label="toggle language"
+      aria-label={t('language')}
       title={lang === 'en' ? 'Bahasa Indonesia' : 'English'}
     >
       <Globe size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
@@ -2061,12 +2061,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
         </div>
       )}
 
-      <div className="field">
-        <button className="btn btn-ghost" style={{ width: '100%' }} disabled={busy} onClick={switchType}>
-          {t('switchAccountType')}
-        </button>
-      </div>
-
+      {/* Restart tutorial — promoted above destructive switch-account-type so help is easier to find */}
       <div className="field">
         <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13 }} onClick={() => {
           // Clear both legacy global key + this user's per-user keys so tutorial replays
@@ -2079,6 +2074,12 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
           window.location.reload();
         }}>
           {t('restartTutorial')}
+        </button>
+      </div>
+
+      <div className="field">
+        <button className="btn btn-ghost" style={{ width: '100%' }} disabled={busy} onClick={switchType}>
+          {t('switchAccountType')}
         </button>
       </div>
 
@@ -3237,7 +3238,8 @@ function StaffModal({ member, onClose, onSaved }) {
             ))}
           </div>
         </div>
-        <div className="field"><label>{t('workingDays')}</label>
+        <fieldset className="field" style={{ border: 'none', padding: 0, margin: '0 0 12px' }}>
+          <legend style={{ fontSize: 12, fontWeight: 600, color: 'var(--emerald)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{t('workingDays')}</legend>
           <div className="chip-row">
             {DAYS.map(d => (
               <button
@@ -3251,9 +3253,9 @@ function StaffModal({ member, onClose, onSaved }) {
               </button>
             ))}
           </div>
-        </div>
-        <div className="field">
-          <label>{t('permissionsLabel')}</label>
+        </fieldset>
+        <fieldset className="field" style={{ border: 'none', padding: 0, margin: '0 0 12px' }}>
+          <legend style={{ fontSize: 12, fontWeight: 600, color: 'var(--emerald)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{t('permissionsLabel')}</legend>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
             {PERMISSION_DEFS.map(p => {
               const val = f.permissions ? (p.key in f.permissions ? f.permissions[p.key] : STAFF_DEFAULT_PERMISSIONS[p.key]) : STAFF_DEFAULT_PERMISSIONS[p.key];
@@ -3267,7 +3269,7 @@ function StaffModal({ member, onClose, onSaved }) {
               );
             })}
           </div>
-        </div>
+        </fieldset>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('saving') : t('save')}</button>
