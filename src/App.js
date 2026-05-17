@@ -1811,6 +1811,20 @@ function PaymentRequired({ user, onLogout }) {
     try {
       const { checkoutUrl } = await api('/api/billing/subscribe', { method: 'POST', body: {} });
       if (checkoutUrl) {
+        // Security: validate Stripe origin to prevent open-redirect.
+        try {
+          const u = new URL(checkoutUrl, window.location.origin);
+          const allowed = ['checkout.stripe.com', 'billing.stripe.com'];
+          if (!allowed.includes(u.hostname)) {
+            setErr(t('subscriptionUnavailable'));
+            setBusy(false);
+            return;
+          }
+        } catch {
+          setErr(t('subscriptionUnavailable'));
+          setBusy(false);
+          return;
+        }
         window.location.href = checkoutUrl;
         return;
       }
@@ -3338,19 +3352,16 @@ function ServiceModal({ service, onClose, onSaved }) {
             <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></div>
         </div>
         <div className="field"><label>{t('colorLabel')}</label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="color-swatches">
             {COLOR_OPTIONS.map(c => (
               <button
                 key={c}
                 type="button"
+                className={`swatch ${f.color === c ? 'active' : ''}`}
                 aria-label={COLOR_NAMES[c] || `Color ${c}`}
                 aria-pressed={f.color === c}
                 onClick={() => setF({ ...f, color: c })}
-                style={{
-                  width: 28, height: 28, borderRadius: 6, background: c,
-                  border: f.color === c ? '2px solid var(--ink)' : '1px solid var(--border)',
-                  cursor: 'pointer', padding: 0,
-                }}
+                style={{ background: c }}
               />
             ))}
           </div>
