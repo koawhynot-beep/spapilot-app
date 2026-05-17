@@ -742,14 +742,15 @@ const BIZ_HIDDEN_TABS = {
 const BizContext = createContext({ business: null, labels: BIZ_LABELS.services, hiddenTabs: [] });
 const useBiz = () => useContext(BizContext);
 function BizProvider({ business, children }) {
+  const { lang } = useT();
   const value = useMemo(() => {
     const type = business?.type || 'services';
     return {
       business,
-      labels: BIZ_LABELS[type] || BIZ_LABELS.services,
+      labels: getBizLabels(type, lang),
       hiddenTabs: BIZ_HIDDEN_TABS[type] || [],
     };
-  }, [business]);
+  }, [business, lang]);
   return <BizContext.Provider value={value}>{children}</BizContext.Provider>;
 }
 
@@ -778,6 +779,33 @@ function fmtMoney(amount, lang) {
     return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n);
   }
   return '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+
+// Duration helper — Indonesian users see "60 mnt" instead of English "60min".
+function fmtDuration(n, lang) {
+  const num = Number(n) || 0;
+  return `${num} ${lang === 'id' ? 'mnt' : 'min'}`;
+}
+
+// Per-language localized BIZ_LABELS lookup — Indonesian users see "Anggota/Pelatih/Kelas",
+// English see "Member/Trainer/Class". Falls back to English values.
+const BIZ_LABELS_ID = {
+  services:   { client: 'Klien',      clientPlural: 'Klien',      staffMember: 'Penyedia', staffPlural: 'Penyedia',  service: 'Layanan',     servicePlural: 'Layanan',      booking: 'Pemesanan',  bookingPlural: 'Pemesanan',     todayCount: 'Pemesanan Hari Ini' },
+  products:   { client: 'Pelanggan',  clientPlural: 'Pelanggan',  staffMember: 'Staf',     staffPlural: 'Staf',      service: 'Produk',      servicePlural: 'Produk',       booking: 'Pesanan',    bookingPlural: 'Pesanan',       todayCount: 'Pesanan Hari Ini' },
+  space:      { client: 'Tamu',       clientPlural: 'Tamu',       staffMember: 'Staf',     staffPlural: 'Staf',      service: 'Penginapan',  servicePlural: 'Penginapan',   booking: 'Check-In',   bookingPlural: 'Check-In',      todayCount: 'Check-In Hari Ini' },
+  mix:        { client: 'Pelanggan',  clientPlural: 'Pelanggan',  staffMember: 'Staf',     staffPlural: 'Staf',      service: 'Layanan',     servicePlural: 'Layanan',      booking: 'Pemesanan',  bookingPlural: 'Pemesanan',     todayCount: 'Pemesanan Hari Ini' },
+  spa:        { client: 'Klien',      clientPlural: 'Klien',      staffMember: 'Terapis',  staffPlural: 'Terapis',   service: 'Perawatan',   servicePlural: 'Perawatan',    booking: 'Pemesanan',  bookingPlural: 'Pemesanan',     todayCount: 'Pemesanan Hari Ini' },
+  salon:      { client: 'Klien',      clientPlural: 'Klien',      staffMember: 'Penata',   staffPlural: 'Penata',    service: 'Layanan',     servicePlural: 'Layanan',      booking: 'Janji Temu', bookingPlural: 'Janji Temu',    todayCount: 'Janji Temu Hari Ini' },
+  barbershop: { client: 'Klien',      clientPlural: 'Klien',      staffMember: 'Barber',   staffPlural: 'Barber',    service: 'Cukur',       servicePlural: 'Layanan',      booking: 'Janji Temu', bookingPlural: 'Janji Temu',    todayCount: 'Janji Temu Hari Ini' },
+  gym:        { client: 'Anggota',    clientPlural: 'Anggota',    staffMember: 'Pelatih',  staffPlural: 'Pelatih',   service: 'Kelas',       servicePlural: 'Kelas',        booking: 'Kelas',      bookingPlural: 'Kelas',         todayCount: 'Kelas Hari Ini' },
+  hotel:      { client: 'Tamu',       clientPlural: 'Tamu',       staffMember: 'Staf',     staffPlural: 'Staf',      service: 'Menginap',    servicePlural: 'Menginap',     booking: 'Check-In',   bookingPlural: 'Check-In',      todayCount: 'Check-In Hari Ini' },
+  clinic:     { client: 'Pasien',     clientPlural: 'Pasien',     staffMember: 'Dokter',   staffPlural: 'Dokter',    service: 'Janji Temu',  servicePlural: 'Janji Temu',   booking: 'Janji Temu', bookingPlural: 'Janji Temu',    todayCount: 'Janji Temu Hari Ini' },
+  restaurant: { client: 'Tamu',       clientPlural: 'Tamu',       staffMember: 'Pelayan',  staffPlural: 'Pelayan',   service: 'Menu',        servicePlural: 'Menu',         booking: 'Reservasi',  bookingPlural: 'Reservasi',     todayCount: 'Reservasi Hari Ini' },
+  other:      { client: 'Pelanggan',  clientPlural: 'Pelanggan',  staffMember: 'Staf',     staffPlural: 'Staf',      service: 'Layanan',     servicePlural: 'Layanan',      booking: 'Pemesanan',  bookingPlural: 'Pemesanan',     todayCount: 'Pemesanan Hari Ini' },
+};
+function getBizLabels(type, lang) {
+  const pool = lang === 'id' ? BIZ_LABELS_ID : BIZ_LABELS;
+  return pool[type] || pool.services || BIZ_LABELS.services;
 }
 
 // ---------- CSV export ----------
@@ -2172,7 +2200,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
 // ================= MANAGER VIEWS =================
 
 function ManagerDashboard({ staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { labels } = useBiz();
   const todayStr = new Date().toISOString().slice(0, 10);
   // C1 fix: count only TODAY's bookings, not all-time. Stat card label says "Today's Bookings"
@@ -2307,7 +2335,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
               </div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment}{b.duration ? ` · ${b.duration}min` : ''}</div>
+                <div className="meta">{b.treatment}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}</div>
               </div>
               {m && <Avatar initial={m.avatar} color={m.color} size={28} />}
             </div>
@@ -2561,7 +2589,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
               <div className="time" style={{ color: accent }}>{b.time}</div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment}{b.duration ? ` · ${b.duration}min` : ''}{b.price > 0 ? ` · ${fmtMoney(b.price, lang)}` : ''}</div>
+                <div className="meta">{b.treatment}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}{b.price > 0 ? ` · ${fmtMoney(b.price, lang)}` : ''}</div>
                 {m && <div className="meta" style={{ marginTop: 4 }}>{t('withPerson')} <strong>{m.name}</strong></div>}
                 {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('overlapsWithAnother')}</div>}
                 {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
@@ -2665,7 +2693,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
     if (conflict) {
       const ok = await appConfirm({
         title: t('overlapsWithAnother'),
-        body: `${conflict.client} @ ${conflict.time} (${conflict.duration}min). ${t('save')}?`,
+        body: `${conflict.client} @ ${conflict.time} (${fmtDuration(conflict.duration, lang)}). ${t('save')}?`,
         confirmLabel: t('save'),
         cancelLabel: t('cancel'),
         danger: true,
@@ -2709,7 +2737,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
             <select className="select" value="" onChange={e => e.target.value && pickService(e.target.value)}>
               <option value="">{t('chooseAService')}</option>
               {services.map(s => (
-                <option key={s.id} value={s.id}>{s.name} · {s.durationMin}min · {fmtMoney(s.price, lang)}</option>
+                <option key={s.id} value={s.id}>{s.name} · {fmtDuration(s.durationMin, lang)} · {fmtMoney(s.price, lang)}</option>
               ))}
             </select>
           </div>
@@ -2905,7 +2933,7 @@ function ClientsTab({ bookings, staff, toast }) {
                   <Calendar size={16} color="var(--gold)" />
                   <div className="grow">
                     <div className="title">{b.treatment}</div>
-                    <div className="meta">{b.time}{b.duration ? ` · ${b.duration}min` : ''}{m ? ` · ${m.name}` : ''}</div>
+                    <div className="meta">{b.time}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}{m ? ` · ${m.name}` : ''}</div>
                   </div>
                   {b.price > 0 && <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>{fmtMoney(b.price, lang)}</div>}
                 </div>
@@ -3952,7 +3980,7 @@ function AnnouncementModal({ defaultFrom, onClose, onSaved }) {
 // ================= STAFF VIEWS =================
 
 function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast, perms }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const me = staff.find(s => s.id === staffId);
   // C2 fix: filter to today's bookings only. Was showing all bookings as "today's sessions".
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -4029,7 +4057,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
               <div className="time">{b.time}</div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment}{b.duration ? ` · ${b.duration}min` : ''}</div>
+                <div className="meta">{b.treatment}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}</div>
                 {b.allergies && (
                   <div className="note-chip" style={{ background: '#fbecec', color: 'var(--danger)' }}>
                     <AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
@@ -4079,7 +4107,7 @@ function StaffScheduleView({ staff, bookings, staffId }) {
             <div className="time">{b.time}</div>
             <div className="grow">
               <div className="title">{b.client}</div>
-              <div className="meta">{b.treatment} · {b.duration}min</div>
+              <div className="meta">{b.treatment} · {fmtDuration(b.duration, lang)}</div>
             </div>
           </div>
         ))}
