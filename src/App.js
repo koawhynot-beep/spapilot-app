@@ -25,6 +25,17 @@ class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      // Class component — can't useT() (context may also be broken). Read lang from localStorage directly.
+      const lang = (typeof localStorage !== 'undefined' && localStorage.getItem('app_lang')) || 'en';
+      const txt = lang === 'id' ? {
+        title: 'Terjadi kesalahan',
+        body: 'Aplikasi mengalami error. Coba muat ulang.',
+        btn: 'Muat ulang aplikasi',
+      } : {
+        title: 'Something went wrong',
+        body: 'The app encountered an error. Try reloading.',
+        btn: 'Reload App',
+      };
       return (
         <div role="alert" aria-live="assertive" style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -32,8 +43,8 @@ class ErrorBoundary extends Component {
           fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--ink, #2b2623)'
         }}>
           <AlertTriangle size={48} color="var(--danger, #a83838)" style={{ marginBottom: '16px' }} />
-          <h1 style={{ color: 'var(--danger, #a83838)', marginBottom: '8px', fontSize: 22, fontFamily: 'Fraunces, Georgia, serif' }}>Something went wrong</h1>
-          <p style={{ color: 'var(--muted, #6b5d4a)', marginBottom: '20px', fontSize: 14 }}>The app encountered an error. Try reloading.</p>
+          <h1 style={{ color: 'var(--danger, #a83838)', marginBottom: '8px', fontSize: 22, fontFamily: 'Fraunces, Georgia, serif' }}>{txt.title}</h1>
+          <p style={{ color: 'var(--muted, #6b5d4a)', marginBottom: '20px', fontSize: 14 }}>{txt.body}</p>
           <button
             onClick={() => window.location.reload()}
             style={{
@@ -41,7 +52,7 @@ class ErrorBoundary extends Component {
               border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 600,
             }}
           >
-            Reload App
+            {txt.btn}
           </button>
           {process.env.NODE_ENV === 'development' && this.state.error && (
             <pre style={{ marginTop: '20px', padding: '10px', background: '#f5f5f5', overflow: 'auto', maxWidth: '100%', fontSize: 11 }}>
@@ -829,6 +840,11 @@ function downloadCSV(filename, rows) {
 function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function setToken(t) { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }
 
+// Lang-aware error message helper for use outside React tree (api() helper).
+function apiErr(en, id) {
+  const lang = (typeof localStorage !== 'undefined' && localStorage.getItem(LANG_KEY)) || 'en';
+  return lang === 'id' ? id : en;
+}
 async function api(path, opts = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -847,9 +863,15 @@ async function api(path, opts = {}) {
     // Network failures (server down, DNS, offline) produce TypeError "Failed to fetch".
     // Translate to a human-readable message so users know what to do.
     if (!navigator.onLine) {
-      throw new Error("You're offline. Check your internet connection and try again.");
+      throw new Error(apiErr(
+        "You're offline. Check your internet connection and try again.",
+        "Anda offline. Periksa koneksi internet dan coba lagi."
+      ));
     }
-    throw new Error("Can't reach the server. It may be starting up — please try again in a moment.");
+    throw new Error(apiErr(
+      "Can't reach the server. It may be starting up — please try again in a moment.",
+      "Tidak dapat terhubung ke server. Mungkin sedang menyalakan — coba lagi sebentar."
+    ));
   }
   if (res.status === 401) {
     setToken(null);
@@ -860,7 +882,10 @@ async function api(path, opts = {}) {
     let serverErr = null;
     try { const d = await res.json(); serverErr = d.error || null; msg = serverErr || msg; } catch {}
     // Surface server-provided error if any; only fall back to generic for true unknown 5xx
-    if (res.status >= 500 && !serverErr) msg = `Server error (${res.status}). Please try again.`;
+    if (res.status >= 500 && !serverErr) msg = apiErr(
+      `Server error (${res.status}). Please try again.`,
+      `Kesalahan server (${res.status}). Coba lagi.`
+    );
     throw new Error(msg);
   }
   if (res.status === 204) return null;
@@ -2349,23 +2374,35 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
           <div className="center-muted" style={{ padding: '12px 0', fontSize: 14 }}>{t('checklistEmpty')}</div>
         )}
         {checkItems.map(item => (
-          <div key={item.id} className="row" style={{ cursor: 'pointer' }} onClick={() => toggleItem(item.id)}>
-            <div style={{
-              width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-              border: '2px solid ' + (item.done ? 'var(--emerald)' : 'var(--line)'),
-              background: item.done ? 'var(--emerald)' : 'transparent',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {item.done && <Check size={12} color="#fff" />}
-            </div>
-            <div className="grow" style={{
-              textDecoration: item.done ? 'line-through' : 'none',
-              color: item.done ? 'var(--muted)' : 'var(--ink)',
-              fontSize: 15,
-            }}>{item.text}</div>
+          <div key={item.id} className="row" style={{ padding: 0 }}>
             <button
-              onClick={e => { e.stopPropagation(); removeItem(item.id); }}
-              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 10, minWidth: 36, minHeight: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}
+              type="button"
+              onClick={() => toggleItem(item.id)}
+              aria-pressed={item.done}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, flex: 1, minHeight: 44,
+                background: 'none', border: 'none', padding: '12px 0', cursor: 'pointer',
+                textAlign: 'left', font: 'inherit', color: 'inherit',
+              }}
+            >
+              <span style={{
+                width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                border: '2px solid ' + (item.done ? 'var(--emerald)' : 'var(--line)'),
+                background: item.done ? 'var(--emerald)' : 'transparent',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {item.done && <Check size={12} color="#fff" />}
+              </span>
+              <span className="grow" style={{
+                textDecoration: item.done ? 'line-through' : 'none',
+                color: item.done ? 'var(--muted)' : 'var(--ink)',
+                fontSize: 15,
+              }}>{item.text}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => removeItem(item.id)}
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}
               aria-label={t('remove')}
             ><X size={16} /></button>
           </div>
@@ -2876,7 +2913,15 @@ function ClientsTab({ bookings, staff, toast }) {
         ) : filtered.length === 0 ? (
           <div className="center-muted">{t('noResults')}</div>
         ) : filtered.map(c => (
-          <div key={c.key} className="row" style={{ cursor: 'pointer' }} onClick={() => setOpen(c.key)}>
+          <div
+            key={c.key}
+            className="row"
+            role="button"
+            tabIndex={0}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setOpen(c.key)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(c.key); } }}
+          >
             <Avatar initial={c.name[0]} color="#5b8a72" size={40} />
             <div className="grow">
               <div className="title">{c.name}</div>
