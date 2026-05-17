@@ -87,15 +87,16 @@ const TOUR_DONE_KEY = 'spapilot-tutorial-done-v2';
 // Per-user tour key so every new account sees the tour fresh, even on shared browsers.
 const tourKeyFor = (user) => user?.id ? `spapilot-tutorial-done-u${user.id}` : TOUR_DONE_KEY;
 
+// Tour step targets — messages resolved at render via t(messageKey) for i18n.
 const TOUR_STEPS = [
-  { targetId: 'tab-dashboard',     message: "Your dashboard — today's overview lives here", position: 'top' },
-  { targetId: 'tab-schedule',      message: 'Schedule — manage every booking and shift',    position: 'top' },
-  { targetId: 'tab-clients',       message: 'Clients — see everyone you serve, with full visit history', position: 'top' },
-  { targetId: 'tab-staff',         message: 'Staff — your team, their roles, and schedules', position: 'top' },
-  { targetId: 'tab-inventory',     message: 'Stock — track supplies and get low-stock alerts', position: 'top' },
-  { targetId: 'tab-alerts',        message: 'Alerts — staff requests and stock warnings land here', position: 'top' },
-  { targetId: 'tab-sop',           message: 'SOPs — your standards, and any violations to log', position: 'top' },
-  { targetId: 'tab-announcements', message: 'Send — broadcast announcements to your team',  position: 'top' },
+  { targetId: 'tab-dashboard',     messageKey: 'tourDashboard',     position: 'top' },
+  { targetId: 'tab-schedule',      messageKey: 'tourSchedule',      position: 'top' },
+  { targetId: 'tab-clients',       messageKey: 'tourClients',       position: 'top' },
+  { targetId: 'tab-staff',         messageKey: 'tourStaff',         position: 'top' },
+  { targetId: 'tab-inventory',     messageKey: 'tourInventory',     position: 'top' },
+  { targetId: 'tab-alerts',        messageKey: 'tourAlerts',        position: 'top' },
+  { targetId: 'tab-sop',           messageKey: 'tourSop',           position: 'top' },
+  { targetId: 'tab-announcements', messageKey: 'tourAnnouncements', position: 'top' },
 ];
 
 // ---------- i18n ----------
@@ -380,6 +381,14 @@ const TRANSLATIONS = {
     bizTypeOtherFull: 'Other service business',
     previousDay: 'Previous day', nextDay: 'Next day',
     closeLabel: 'Close',
+    tourDashboard: "Your dashboard — today's overview lives here",
+    tourSchedule: 'Schedule — manage every booking and shift',
+    tourClients: 'Clients — see everyone you serve, with full visit history',
+    tourStaff: 'Staff — your team, their roles, and schedules',
+    tourInventory: 'Stock — track supplies and get low-stock alerts',
+    tourAlerts: 'Alerts — staff requests and stock warnings land here',
+    tourSop: 'Rules — house standards your team follows',
+    tourAnnouncements: 'Send — broadcast announcements to your team',
     numberOfStaff: 'Number of staff',
     createBusiness: 'Create business',
     joinBusiness: 'Join your business',
@@ -699,6 +708,14 @@ const TRANSLATIONS = {
     bizTypeOtherFull: 'Bisnis jasa lainnya',
     previousDay: 'Hari sebelumnya', nextDay: 'Hari berikutnya',
     closeLabel: 'Tutup',
+    tourDashboard: 'Dasbor Anda — ringkasan hari ini ada di sini',
+    tourSchedule: 'Jadwal — kelola setiap pemesanan dan shift',
+    tourClients: 'Klien — lihat semua orang yang Anda layani, dengan riwayat lengkap',
+    tourStaff: 'Staf — tim Anda, peran, dan jadwal mereka',
+    tourInventory: 'Stok — lacak persediaan dan dapatkan peringatan stok rendah',
+    tourAlerts: 'Peringatan — permintaan staf dan peringatan stok masuk ke sini',
+    tourSop: 'Aturan — standar rumah yang diikuti tim Anda',
+    tourAnnouncements: 'Kirim — broadcast pengumuman ke tim Anda',
     numberOfStaff: 'Jumlah staf',
     createBusiness: 'Buat bisnis',
     joinBusiness: 'Gabung bisnis Anda',
@@ -1101,6 +1118,7 @@ function appConfirm(opts) {
 }
 
 function Modal({ title, onClose, children }) {
+  const { t } = useT();
   const modalRef = useRef(null);
   const titleId = useMemo(() => `modal-title-${Math.random().toString(36).slice(2)}`, []);
   useEffect(() => {
@@ -1157,7 +1175,7 @@ function Modal({ title, onClose, children }) {
       >
         <div className="modal-head">
           <h2 id={titleId} style={{ margin: 0, color: 'var(--emerald)', fontSize: 20, fontFamily: 'Fraunces, serif', fontWeight: 500 }}>{title}</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button className="modal-close" onClick={onClose} aria-label={t('closeLabel')}><X size={18} /></button>
         </div>
         <div className="modal-body">{children}</div>
       </div>
@@ -1166,6 +1184,7 @@ function Modal({ title, onClose, children }) {
 }
 
 function Toast({ payload, onDone }) {
+  const { t } = useT();
   const msg = typeof payload === 'string' ? payload : payload?.message;
   const action = typeof payload === 'object' && payload ? payload : null;
   const [paused, setPaused] = useState(false);
@@ -1174,8 +1193,8 @@ function Toast({ payload, onDone }) {
     if (paused) return;
     // WCAG 2.2.1: bumped from 2.4s -> 5s; undo variant stays 10s. Pause on hover/focus.
     const ttl = action?.undo ? 10000 : 5000;
-    const t = setTimeout(onDone, ttl);
-    return () => clearTimeout(t);
+    const timer = setTimeout(onDone, ttl);
+    return () => clearTimeout(timer);
   }, [msg, action, onDone, paused]);
   if (!msg) return null;
   return (
@@ -1199,7 +1218,7 @@ function Toast({ payload, onDone }) {
       <button
         className="toast-close"
         onClick={onDone}
-        aria-label="Close"
+        aria-label={t('closeLabel')}
         style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', padding: 4, marginLeft: 4, fontSize: 16, lineHeight: 1 }}
       >×</button>
     </div>
@@ -4774,10 +4793,11 @@ function WelcomeSlideshow({ onDone }) {
 
 // ================= PRIVACY POLICY =================
 function PrivacyPolicyScreen({ onBack }) {
+  const { t } = useT();
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px', fontFamily: 'system-ui', lineHeight: 1.7, color: '#333' }}>
       <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2d5a4a', fontSize: 14, marginBottom: 24, padding: 0 }}>
-        ← Back
+        ← {t('back')}
       </button>
       <h1 style={{ fontSize: 24, marginBottom: 4 }}>Privacy Policy</h1>
       <p style={{ color: 'var(--muted, #6b5d4a)', fontSize: 13, marginBottom: 32 }}>Last updated: May 2026</p>
@@ -4964,7 +4984,7 @@ function TourOverlay({ onDone }) {
           boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
           border: '1px solid rgba(255,255,255,0.08)',
         }}>
-          {currentStep.message}
+          {t(currentStep.messageKey)}
         </div>
       )}
 
@@ -4980,7 +5000,7 @@ function TourOverlay({ onDone }) {
           border: '1px solid rgba(255,255,255,0.08)',
         }}>
           <div style={{ marginBottom: 16, lineHeight: 1.6 }}>
-            Navigate to find: <strong style={{ color: GOLD }}>{currentStep.message.toLowerCase()}</strong>
+            <strong style={{ color: GOLD }}>{t(currentStep.messageKey).toLowerCase()}</strong>
           </div>
           <button
             onClick={() => { const n = step + 1; if (n < visibleSteps.length) setStep(n); else onDone(); }}
