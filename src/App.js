@@ -934,6 +934,16 @@ function useCollection(path, enabled = true, pollMs = 0) {
 
 // ---------- Constants ----------
 const COLOR_OPTIONS = ['#2d5a4a', '#b8956a', '#8ba888', '#d4b896', '#6b8e7f', '#a17c52', '#c9a97a'];
+// Friendly names for screen-reader aria-labels (hex codes are meaningless to NVDA).
+const COLOR_NAMES = {
+  '#2d5a4a': 'Emerald',
+  '#b8956a': 'Gold',
+  '#8ba888': 'Sage',
+  '#d4b896': 'Sand',
+  '#6b8e7f': 'Pine',
+  '#a17c52': 'Bronze',
+  '#c9a97a': 'Wheat',
+};
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 // Convert "HH:MM" to minutes for overlap math
@@ -1312,19 +1322,25 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
         <BrandMark sub={mode === 'forgot' ? t('forgotPassword') : mode === 'login' ? t('welcomeBack') : t('createWorkspace')} />
 
         {mode !== 'forgot' && (
-          <div className="auth-tabs">
+          <div className="auth-tabs" role="tablist">
             <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'login'}
               className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
               onClick={() => switchMode('login')}
             >
-              {mode === 'login' && <span style={{ marginRight: 6, fontSize: 11 }}>●</span>}
+              {mode === 'login' && <span aria-hidden="true" style={{ marginRight: 6, fontSize: 11 }}>●</span>}
               {t('signIn')}
             </button>
             <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'signup'}
               className={`auth-tab ${mode === 'signup' ? 'active' : ''}`}
               onClick={() => switchMode('signup')}
             >
-              {mode === 'signup' && <span style={{ marginRight: 6, fontSize: 11 }}>●</span>}
+              {mode === 'signup' && <span aria-hidden="true" style={{ marginRight: 6, fontSize: 11 }}>●</span>}
               {t('createAccount')}
             </button>
           </div>
@@ -3151,7 +3167,7 @@ function StaffModal({ member, onClose, onSaved }) {
                 type="button"
                 className={`swatch ${f.color === c ? 'active' : ''}`}
                 style={{ background: c }}
-                aria-label={`Color ${c}`}
+                aria-label={COLOR_NAMES[c] || `Color ${c}`}
                 aria-pressed={f.color === c}
                 onClick={() => setF({ ...f, color: c })}
               />
@@ -3327,7 +3343,7 @@ function ServiceModal({ service, onClose, onSaved }) {
               <button
                 key={c}
                 type="button"
-                aria-label={`Color ${c}`}
+                aria-label={COLOR_NAMES[c] || `Color ${c}`}
                 aria-pressed={f.color === c}
                 onClick={() => setF({ ...f, color: c })}
                 style={{
@@ -5330,7 +5346,7 @@ function AppInner() {
         </LoadState>
       </main>
 
-      <nav className="bottom-nav">
+      <nav className="bottom-nav" aria-label="Primary">
         {nav.map(item => {
           const Icon = item.icon;
           const active = tab === item.id;

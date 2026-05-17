@@ -128,7 +128,7 @@
   margin-bottom: 14px;
   animation: fadein 0.3s ease;
 }
-.card h3 {
+.card h2, .card h3 {
   margin: 0 0 12px;
   font-size: 16px; color: var(--emerald);
 }
@@ -136,7 +136,7 @@
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   margin-bottom: 12px;
 }
-.card-head h3 { margin: 0; }
+.card-head h2, .card-head h3 { margin: 0; font-size: 16px; font-family: inherit; font-weight: 600; color: var(--emerald); }
 
 /* Buttons — min 44px touch target per Apple HIG */
 .btn {
