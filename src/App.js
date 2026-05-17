@@ -120,7 +120,7 @@ const TRANSLATIONS = {
     switch: 'Switch', loading: 'Loading…', retry: 'Retry',
     home: 'Home', schedule: 'Schedule', stock: 'Stock', alerts: 'Alerts', clients: 'Clients',
     services: 'Services',
-    sop: 'SOP', send: 'Send', today: 'Today', inbox: 'Inbox', profile: 'Profile',
+    sop: 'Rules', send: 'Send', today: 'Today', inbox: 'Inbox', profile: 'Profile',
     add: 'Add', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel',
     approve: 'Approve', decline: 'Decline', remove: 'Remove', reload: 'Reload',
     todaysBookings: "Today's Bookings", activeStaff: 'Active Staff', lowStock: 'Low Stock',
@@ -128,7 +128,7 @@ const TRANSLATIONS = {
     upcomingBookings: 'Upcoming Bookings', viewAll: 'View all',
     todaysChecklist: "Today's Checklist", latestAnnouncement: 'Latest Announcement',
     manage: 'Manage', noAnnouncements: 'No announcements yet.',
-    recentSopNotes: 'Recent SOP Notes', sopViolation: 'SOP violation logged',
+    recentSopNotes: 'Recent Rule Notes', sopViolation: 'Rule break logged',
     todaysSchedule: "Today's Schedule", noBookings: 'No bookings today.', weekOverview: 'Week Overview',
     deleteBooking: 'Delete this booking?', bookingDeleted: 'Booking deleted',
     bookingAdded: 'Booking added', bookingUpdated: 'Booking updated',
@@ -140,7 +140,7 @@ const TRANSLATIONS = {
     removeStaff: 'Remove this staff member?', staffRemoved: 'Staff removed',
     staffAdded: 'Staff added', staffUpdated: 'Staff updated',
     couldNotRemoveStaff: 'Could not remove staff',
-    sopNotes: 'SOP notes', sopNote: 'SOP note',
+    sopNotes: 'rule notes', sopNote: 'rule note',
     addTeamMember: 'Add Team Member', editTeamMember: 'Edit Team Member',
     name: 'Name', role: 'Role', birthday: 'Birthday', avatarColor: 'Avatar color',
     workingDays: 'Working days',
@@ -152,13 +152,13 @@ const TRANSLATIONS = {
     decrease: 'decrease', increase: 'increase', ordered: 'Ordered',
     low: 'Low', addItem: 'Add Item', editItem: 'Edit Item',
     category: 'Category', stockLevel: 'Stock', threshold: 'Low Stock Alert', unit: 'Unit', supplier: 'Supplier',
-    sopTitle: 'Standard Operating Procedures',
-    logSopViolation: 'Log SOP Violation', log: 'Log',
+    sopTitle: 'House Rules',
+    logSopViolation: 'Log Rule Break', log: 'Log',
     noViolations: 'No notes logged.', repeatOffenders: 'Needs Follow-up',
     notes_n: 'notes', notes_1: 'note',
-    removeViolation: 'Remove this violation note?', noteRemoved: 'Note removed',
-    couldNotRemoveNote: 'Could not remove note', violationLogged: 'Violation logged',
-    logViolation: 'Log Violation', staffPerson: 'Staff', sopRule: 'SOP', noteText: 'Note',
+    removeViolation: 'Remove this note?', noteRemoved: 'Note removed',
+    couldNotRemoveNote: 'Could not remove note', violationLogged: 'Rule break logged',
+    logViolation: 'Log Break', staffPerson: 'Staff', sopRule: 'Rule', noteText: 'Note',
     stockAlerts: 'Stock Alerts', allStockHealthy: 'All stock healthy',
     staffRequests: 'Staff Requests', noPendingReq: 'No pending requests',
     reorder: 'Reorder',
@@ -190,7 +190,7 @@ const TRANSLATIONS = {
     theirDay: 'Their day', reason: 'Reason', noteOptional: 'Note (optional)', submit: 'Submit',
     sickReasonRequired: 'Please explain why you are calling in sick.',
     sickCallNotice: 'Policy: call in sick at least 3 hours before your shift starts.',
-    daysWeek: 'Days / week', mySopNotes: 'My SOP Notes', cleanRecord: 'Clean record — well done.',
+    daysWeek: 'Days / week', mySopNotes: 'My Rule Notes', cleanRecord: 'Clean record — well done.',
     selectStaff: 'Select team member',
     noTeamMembersAskManager: 'No team members exist yet. Ask the manager to add you to the team first.',
     noOtherStaffAvailable: 'No other team members available. Decline this request or add a teammate first.',
@@ -279,9 +279,9 @@ const TRANSLATIONS = {
     language: 'Language', english: 'English', indonesian: 'Bahasa',
     failed: 'Failed', noResults: 'No results.',
     active: 'Active', leftLabel: 'left · quota',
-    todaySopReminder: "Today's SOP Reminder", yourSessions: 'Your Sessions',
+    todaySopReminder: "Today's Rule Reminder", yourSessions: 'Your Sessions',
     noteLabel: 'Note:', birthdayLabel: 'Birthday:',
-    teamSize: 'Team Size', sopNotesStat: 'SOP Notes',
+    teamSize: 'Team Size', sopNotesStat: 'Rule Notes',
     snapshot: 'Snapshot', lowStockItems: 'Low stock items', flagged: 'flagged',
     pendingRequestsSnap: 'Pending requests', announcementsSent: 'Announcements sent',
     team: 'Team', sessionsTodayStat: 'Sessions today',
@@ -289,7 +289,7 @@ const TRANSLATIONS = {
     checklistOpen: 'Unlock reception & diffuse oils',
     checklistBrief: 'Morning team briefing',
     checklistInventory: 'Check low-stock items',
-    checklistWrapup: 'End-of-day reconciliation',
+    checklistWrapup: 'Cash up and close',
     quickActionsBar: 'Quick Actions', reorderAll: 'Reorder all low stock',
     reviewRequests: 'Review sick calls', broadcast: 'Broadcast message',
     reorderAllDone: 'Reorder placed for all low-stock items',
@@ -302,7 +302,7 @@ const TRANSLATIONS = {
     avgPerDay: 'Avg / day', topTherapist: 'Top Performer',
     commission: 'Commission', commissionRate: 'Commission rate (%)',
     estEarnings: 'Est. earnings', deferred: 'Coming soon',
-    friction: 'Notes for your team:', waMsg: 'Hi, quick check-in from the team.',
+    friction: 'Notes for your team:', waMsg: 'Hey! Quick check-in.',
     days: { Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri', Sat: 'Sat', Sun: 'Sun' },
     forgotPassword: 'Forgot password?', sendResetLink: 'Send Reset Link',
     resetPassword: 'Reset Password', backToLogin: 'Back to login',
@@ -317,8 +317,8 @@ const TRANSLATIONS = {
     permCanSwapShifts: 'Can swap shifts',
     permCanRequestStock: 'Can request product stock',
     permCanRequestNewProducts: 'Can request new products',
-    permCanEditStock: 'Can directly edit stock levels',
-    permCanMarkViolations: 'Can mark SOP violations',
+    permCanEditStock: 'Can change stock counts',
+    permCanMarkViolations: 'Can log rule breaks',
     permCanPostAnnouncements: 'Can post announcements',
     emptyBookingsTitle: 'No bookings yet',
     emptyBookingsBody: 'Add your first appointment to see it on the schedule.',
@@ -326,15 +326,15 @@ const TRANSLATIONS = {
     emptyInventoryBody: 'Track supplies, ingredients, or anything that runs out.',
     emptyStaffTitle: 'No team members yet',
     emptyStaffBody: 'Add the people who work with you so you can assign bookings.',
-    emptySopTitle: 'No procedures yet',
+    emptySopTitle: 'No house rules yet',
     emptySopBody: 'Document the rules and routines your team should follow.',
     addFirstBooking: 'Add your first booking',
     addFirstProduct: 'Add your first product',
     addFirstTeamMember: 'Add your first team member',
-    addFirstSop: 'Add your first procedure',
+    addFirstSop: 'Add your first house rule',
     addSopRule: 'Add Rule', sopRuleAdded: 'Rule added', sopRuleRemoved: 'Rule removed',
     removeSopRule: 'Remove this rule?', sopRuleTitle: 'Rule title', sopRuleDesc: 'Description (optional)',
-    noSopsYetViolation: 'Add SOP rules first before logging a violation.',
+    noSopsYetViolation: 'Add a house rule first before logging a note.',
     landingHero: 'Service business management made simple.',
     landingSub: 'Schedule staff, track inventory, manage operations, reduce chaos.',
     featSchedTitle: 'Scheduling',
@@ -427,6 +427,55 @@ const TRANSLATIONS = {
     tutorialNext: 'Next',
     tutorialGetStarted: 'Get started',
     tutorialSkip: 'Skip tour',
+    // Iter 9 additions
+    catalogOf: '{item} catalog',
+    removedToast: '{item} removed',
+    savedCheck: 'Saved',
+    alertWhenBelow: '— alert when below',
+    costPerUnit: '— cost per {unit}',
+    unitFallback: 'unit',
+    allergiesPh: 'e.g. lavender, nuts',
+    categoryPh: 'e.g. Consultation, Haircut, Repair',
+    joinTeamLabel: 'Join a team',
+    joinTeamFree: "(it's free)",
+    privacyPolicyTitle: 'Privacy Policy',
+    privacyPolicyLink: 'Privacy Policy',
+    navPrimary: 'Primary',
+    skipOnboardingLabel: 'Skip onboarding',
+    confirmPromptDefault: 'Confirm?',
+    confirmDefault: 'Confirm',
+    restartTutorialConfirmTitle: 'Restart tutorial?',
+    restartTutorialConfirmBody: 'The welcome slides and on-screen tour will replay. Your data is unchanged.',
+    privacyLastUpdated: 'Last updated: May 2026',
+    privacy1Title: '1. Who We Are',
+    privacy1Body: 'Spapilot ("we", "us", "our") provides business operations management software for service businesses. This policy explains how we handle your data.',
+    privacy2Title: '2. What We Collect',
+    privacy2Acct: 'Account data: Email address and password (hashed — we never store plain-text passwords)',
+    privacy2Biz: 'Business data: Staff, bookings, inventory, SOPs, and announcements you create inside the app',
+    privacy2Usage: 'Usage data: Basic server logs (request paths, timestamps) for debugging and security',
+    privacy2Foot: 'We do not collect payment card details directly. Payments are handled by Stripe.',
+    privacy3Title: '3. How We Use It',
+    privacy3a: 'Provide and improve the Spapilot service',
+    privacy3b: 'Send password reset emails (only when you request them)',
+    privacy3c: 'Detect and prevent security threats',
+    privacy3d: 'Communicate service updates',
+    privacy3Foot: 'We do not sell your data. We do not share it with third parties except as required to operate the service (e.g., hosting provider, email delivery).',
+    privacy4Title: '4. Data Storage',
+    privacy4Body: 'Your data is stored on secure servers. Passwords are hashed using bcrypt. Connections use HTTPS. We retain your data for as long as your account is active.',
+    privacy5Title: '5. Your Rights',
+    privacy5a: 'Access: You can request a copy of your data at any time',
+    privacy5b: 'Deletion: You can request account deletion by emailing us',
+    privacy5c: 'Correction: You can update your account information in the app',
+    privacy5Foot: 'To exercise these rights, contact us at the email below.',
+    privacy6Title: '6. Cookies',
+    privacy6Body: "We use a single session token stored in your browser's local storage for authentication. No third-party tracking cookies.",
+    privacy7Title: '7. Children',
+    privacy7Body: 'Spapilot is not directed at children under 13. We do not knowingly collect data from children.',
+    privacy8Title: '8. Changes',
+    privacy8Body: 'We may update this policy. Continued use after changes means acceptance. We will notify users of material changes by email.',
+    privacy9Title: '9. Contact',
+    privacy9Body: 'Questions? Email us at:',
+    privacyRights: 'All rights reserved.',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -447,7 +496,7 @@ const TRANSLATIONS = {
     switch: 'Tukar', loading: 'Memuat…', retry: 'Coba lagi',
     home: 'Beranda', schedule: 'Jadwal', stock: 'Stok', alerts: 'Peringatan', clients: 'Klien',
     services: 'Layanan',
-    sop: 'SOP', send: 'Kirim', today: 'Hari ini', inbox: 'Kotak Masuk', profile: 'Profil',
+    sop: 'Aturan', send: 'Kirim', today: 'Hari ini', inbox: 'Kotak Masuk', profile: 'Profil',
     add: 'Tambah', edit: 'Ubah', delete: 'Hapus', save: 'Simpan', cancel: 'Batal',
     approve: 'Setujui', decline: 'Tolak', remove: 'Hapus', reload: 'Muat ulang',
     todaysBookings: 'Pemesanan Hari Ini', activeStaff: 'Staf Aktif', lowStock: 'Stok Menipis',
@@ -455,7 +504,7 @@ const TRANSLATIONS = {
     upcomingBookings: 'Pemesanan Mendatang', viewAll: 'Lihat semua',
     todaysChecklist: 'Daftar Periksa Hari Ini', latestAnnouncement: 'Pengumuman Terbaru',
     manage: 'Kelola', noAnnouncements: 'Belum ada pengumuman.',
-    recentSopNotes: 'Catatan SOP Terbaru', sopViolation: 'Pelanggaran SOP dicatat',
+    recentSopNotes: 'Catatan Aturan Terbaru', sopViolation: 'Pelanggaran aturan dicatat',
     todaysSchedule: 'Jadwal Hari Ini', noBookings: 'Tidak ada pemesanan hari ini.', weekOverview: 'Ringkasan Minggu',
     deleteBooking: 'Hapus pemesanan ini?', bookingDeleted: 'Pemesanan dihapus',
     bookingAdded: 'Pemesanan ditambahkan', bookingUpdated: 'Pemesanan diperbarui',
@@ -467,7 +516,7 @@ const TRANSLATIONS = {
     removeStaff: 'Hapus anggota staf ini?', staffRemoved: 'Staf dihapus',
     staffAdded: 'Staf ditambahkan', staffUpdated: 'Staf diperbarui',
     couldNotRemoveStaff: 'Tidak dapat menghapus staf',
-    sopNotes: 'catatan SOP', sopNote: 'catatan SOP',
+    sopNotes: 'catatan aturan', sopNote: 'catatan aturan',
     addTeamMember: 'Tambah Anggota Tim', editTeamMember: 'Ubah Anggota Tim',
     name: 'Nama', role: 'Peran', birthday: 'Ulang Tahun', avatarColor: 'Warna avatar',
     workingDays: 'Hari kerja',
@@ -479,13 +528,13 @@ const TRANSLATIONS = {
     decrease: 'kurangi', increase: 'tambah', ordered: 'Dipesan',
     low: 'Rendah', addItem: 'Tambah Item', editItem: 'Ubah Item',
     category: 'Kategori', stockLevel: 'Stok', threshold: 'Peringatan Stok Rendah', unit: 'Unit', supplier: 'Pemasok',
-    sopTitle: 'Prosedur Operasi Standar',
-    logSopViolation: 'Catat Pelanggaran SOP', log: 'Catat',
+    sopTitle: 'Aturan Rumah',
+    logSopViolation: 'Catat Pelanggaran Aturan', log: 'Catat',
     noViolations: 'Belum ada catatan.', repeatOffenders: 'Perlu Tindak Lanjut',
     notes_n: 'catatan', notes_1: 'catatan',
-    removeViolation: 'Hapus catatan pelanggaran ini?', noteRemoved: 'Catatan dihapus',
-    couldNotRemoveNote: 'Tidak dapat menghapus catatan', violationLogged: 'Pelanggaran dicatat',
-    logViolation: 'Catat Pelanggaran', staffPerson: 'Staf', sopRule: 'SOP', noteText: 'Catatan',
+    removeViolation: 'Hapus catatan ini?', noteRemoved: 'Catatan dihapus',
+    couldNotRemoveNote: 'Tidak dapat menghapus catatan', violationLogged: 'Pelanggaran aturan dicatat',
+    logViolation: 'Catat Pelanggaran', staffPerson: 'Staf', sopRule: 'Aturan', noteText: 'Catatan',
     stockAlerts: 'Peringatan Stok', allStockHealthy: 'Semua stok sehat',
     staffRequests: 'Permintaan Staf', noPendingReq: 'Tidak ada permintaan tertunda',
     reorder: 'Pesan ulang',
@@ -517,7 +566,7 @@ const TRANSLATIONS = {
     theirDay: 'Hari mereka', reason: 'Alasan', noteOptional: 'Catatan (opsional)', submit: 'Kirim',
     sickReasonRequired: 'Jelaskan mengapa Anda tidak bisa masuk.',
     sickCallNotice: 'Kebijakan: lapor sakit minimal 3 jam sebelum shift dimulai.',
-    daysWeek: 'Hari / minggu', mySopNotes: 'Catatan SOP Saya', cleanRecord: 'Catatan bersih — kerja bagus.',
+    daysWeek: 'Hari / minggu', mySopNotes: 'Catatan Aturan Saya', cleanRecord: 'Catatan bersih — kerja bagus.',
     selectStaff: 'Pilih anggota tim',
     noTeamMembersAskManager: 'Belum ada anggota tim. Minta manajer menambahkan Anda ke tim terlebih dahulu.',
     noOtherStaffAvailable: 'Tidak ada anggota tim lain. Tolak permintaan ini atau tambahkan rekan terlebih dahulu.',
@@ -606,9 +655,9 @@ const TRANSLATIONS = {
     language: 'Bahasa', english: 'English', indonesian: 'Bahasa',
     failed: 'Gagal', noResults: 'Tidak ada hasil.',
     active: 'Aktif', leftLabel: 'tersisa · kuota',
-    todaySopReminder: 'Pengingat SOP Hari Ini', yourSessions: 'Sesi Anda',
+    todaySopReminder: 'Pengingat Aturan Hari Ini', yourSessions: 'Sesi Anda',
     noteLabel: 'Catatan:', birthdayLabel: 'Ulang Tahun:',
-    teamSize: 'Jumlah Tim', sopNotesStat: 'Catatan SOP',
+    teamSize: 'Jumlah Tim', sopNotesStat: 'Catatan Aturan',
     snapshot: 'Ringkasan', lowStockItems: 'Item stok rendah', flagged: 'ditandai',
     pendingRequestsSnap: 'Permintaan tertunda', announcementsSent: 'Pengumuman terkirim',
     team: 'Tim', sessionsTodayStat: 'Sesi hari ini',
@@ -616,7 +665,7 @@ const TRANSLATIONS = {
     checklistOpen: 'Buka resepsi & nyalakan diffuser',
     checklistBrief: 'Briefing tim pagi',
     checklistInventory: 'Periksa item stok rendah',
-    checklistWrapup: 'Rekonsiliasi akhir hari',
+    checklistWrapup: 'Hitung kas dan tutup',
     quickActionsBar: 'Aksi Cepat', reorderAll: 'Pesan ulang semua stok menipis',
     reviewRequests: 'Tinjau panggilan sakit', broadcast: 'Kirim pengumuman',
     reorderAllDone: 'Pesanan ulang dibuat untuk semua item menipis',
@@ -629,7 +678,7 @@ const TRANSLATIONS = {
     avgPerDay: 'Rata-rata / hari', topTherapist: 'Staf Terbaik',
     commission: 'Komisi', commissionRate: 'Tingkat komisi (%)',
     estEarnings: 'Perkiraan pendapatan', deferred: 'Segera hadir',
-    friction: 'Catatan untuk tim Anda:', waMsg: 'Halo, pemberitahuan singkat dari tim.',
+    friction: 'Catatan untuk tim Anda:', waMsg: 'Halo! Sekadar menyapa.',
     days: { Mon: 'Sen', Tue: 'Sel', Wed: 'Rab', Thu: 'Kam', Fri: 'Jum', Sat: 'Sab', Sun: 'Min' },
     forgotPassword: 'Lupa kata sandi?', sendResetLink: 'Kirim Link Reset',
     resetPassword: 'Reset Kata Sandi', backToLogin: 'Kembali ke login',
@@ -643,9 +692,9 @@ const TRANSLATIONS = {
     permCanRequestTimeOff: 'Boleh minta cuti',
     permCanSwapShifts: 'Boleh tukar shift',
     permCanRequestStock: 'Boleh minta stok produk',
-    permCanEditStock: 'Boleh mengedit stok langsung',
+    permCanEditStock: 'Boleh mengubah jumlah stok',
     permCanRequestNewProducts: 'Boleh minta produk baru',
-    permCanMarkViolations: 'Boleh catat pelanggaran SOP',
+    permCanMarkViolations: 'Boleh catat pelanggaran aturan',
     permCanPostAnnouncements: 'Boleh kirim pengumuman',
     emptyBookingsTitle: 'Belum ada pemesanan',
     emptyBookingsBody: 'Tambahkan janji pertama Anda untuk melihatnya di jadwal.',
@@ -653,15 +702,15 @@ const TRANSLATIONS = {
     emptyInventoryBody: 'Lacak persediaan, bahan, atau apa pun yang sering habis.',
     emptyStaffTitle: 'Belum ada anggota tim',
     emptyStaffBody: 'Tambahkan orang yang bekerja dengan Anda agar bisa diberi pemesanan.',
-    emptySopTitle: 'Belum ada prosedur',
+    emptySopTitle: 'Belum ada aturan rumah',
     emptySopBody: 'Dokumentasikan aturan dan rutinitas yang harus diikuti tim.',
     addFirstBooking: 'Tambah pemesanan pertama',
     addFirstProduct: 'Tambah produk pertama',
     addFirstTeamMember: 'Tambah anggota tim pertama',
-    addFirstSop: 'Tambah prosedur pertama',
+    addFirstSop: 'Tambah aturan pertama',
     addSopRule: 'Tambah Aturan', sopRuleAdded: 'Aturan ditambahkan', sopRuleRemoved: 'Aturan dihapus',
     removeSopRule: 'Hapus aturan ini?', sopRuleTitle: 'Judul aturan', sopRuleDesc: 'Deskripsi (opsional)',
-    noSopsYetViolation: 'Tambahkan aturan SOP terlebih dahulu sebelum mencatat pelanggaran.',
+    noSopsYetViolation: 'Tambahkan aturan rumah dulu sebelum mencatat catatan.',
     landingHero: 'Manajemen bisnis jasa dipermudah.',
     landingSub: 'Atur jadwal staf, lacak inventaris, kelola operasional, kurangi kekacauan.',
     featSchedTitle: 'Penjadwalan',
@@ -754,6 +803,55 @@ const TRANSLATIONS = {
     tutorialNext: 'Lanjut',
     tutorialGetStarted: 'Mulai',
     tutorialSkip: 'Lewati',
+    // Iter 9 additions
+    catalogOf: 'Katalog {item}',
+    removedToast: '{item} dihapus',
+    savedCheck: 'Tersimpan',
+    alertWhenBelow: '— peringatkan jika di bawah',
+    costPerUnit: '— biaya per {unit}',
+    unitFallback: 'unit',
+    allergiesPh: 'misal lavender, kacang',
+    categoryPh: 'misal Konsultasi, Potong Rambut, Perbaikan',
+    joinTeamLabel: 'Gabung tim',
+    joinTeamFree: '(gratis)',
+    privacyPolicyTitle: 'Kebijakan Privasi',
+    privacyPolicyLink: 'Kebijakan Privasi',
+    navPrimary: 'Utama',
+    skipOnboardingLabel: 'Lewati onboarding',
+    confirmPromptDefault: 'Konfirmasi?',
+    confirmDefault: 'Konfirmasi',
+    restartTutorialConfirmTitle: 'Mulai ulang tutorial?',
+    restartTutorialConfirmBody: 'Slide selamat datang dan tur layar akan diputar ulang. Data Anda tidak berubah.',
+    privacyLastUpdated: 'Pembaruan terakhir: Mei 2026',
+    privacy1Title: '1. Tentang Kami',
+    privacy1Body: 'Spapilot ("kami") menyediakan perangkat lunak manajemen operasi bisnis untuk bisnis jasa. Kebijakan ini menjelaskan cara kami menangani data Anda.',
+    privacy2Title: '2. Yang Kami Kumpulkan',
+    privacy2Acct: 'Data akun: Alamat email dan kata sandi (di-hash — kami tidak menyimpan kata sandi dalam teks asli)',
+    privacy2Biz: 'Data bisnis: Staf, pemesanan, inventaris, SOP, dan pengumuman yang Anda buat di dalam aplikasi',
+    privacy2Usage: 'Data penggunaan: Log server dasar (jalur permintaan, stempel waktu) untuk debugging dan keamanan',
+    privacy2Foot: 'Kami tidak mengumpulkan detail kartu pembayaran secara langsung. Pembayaran ditangani oleh Stripe.',
+    privacy3Title: '3. Cara Kami Menggunakannya',
+    privacy3a: 'Menyediakan dan meningkatkan layanan Spapilot',
+    privacy3b: 'Mengirim email reset kata sandi (hanya saat Anda minta)',
+    privacy3c: 'Mendeteksi dan mencegah ancaman keamanan',
+    privacy3d: 'Menyampaikan pembaruan layanan',
+    privacy3Foot: 'Kami tidak menjual data Anda. Kami tidak membagikannya kepada pihak ketiga kecuali yang diperlukan untuk mengoperasikan layanan (misal penyedia hosting, pengiriman email).',
+    privacy4Title: '4. Penyimpanan Data',
+    privacy4Body: 'Data Anda disimpan di server yang aman. Kata sandi di-hash dengan bcrypt. Koneksi menggunakan HTTPS. Kami menyimpan data Anda selama akun Anda aktif.',
+    privacy5Title: '5. Hak Anda',
+    privacy5a: 'Akses: Anda dapat meminta salinan data Anda kapan saja',
+    privacy5b: 'Penghapusan: Anda dapat meminta penghapusan akun melalui email',
+    privacy5c: 'Koreksi: Anda dapat memperbarui informasi akun di dalam aplikasi',
+    privacy5Foot: 'Untuk menggunakan hak ini, hubungi kami di email di bawah.',
+    privacy6Title: '6. Cookie',
+    privacy6Body: 'Kami menggunakan satu token sesi yang disimpan di local storage browser Anda untuk autentikasi. Tidak ada cookie pelacakan pihak ketiga.',
+    privacy7Title: '7. Anak-Anak',
+    privacy7Body: 'Spapilot tidak ditujukan untuk anak di bawah 13 tahun. Kami tidak mengumpulkan data dari anak-anak secara sengaja.',
+    privacy8Title: '8. Perubahan',
+    privacy8Body: 'Kami dapat memperbarui kebijakan ini. Penggunaan berkelanjutan setelah perubahan berarti penerimaan. Kami akan memberi tahu pengguna mengenai perubahan signifikan melalui email.',
+    privacy9Title: '9. Kontak',
+    privacy9Body: 'Pertanyaan? Email kami di:',
+    privacyRights: 'Hak cipta dilindungi.',
   },
 };
 
@@ -965,6 +1063,8 @@ function useCollection(path, enabled = true, pollMs = 0) {
 
   // Optional background polling — only when tab visible and enabled, to keep manager
   // dashboards fresh (new requests / new low-stock alerts) without manual refresh.
+  // Also refresh once when the tab becomes visible again so users coming back from
+  // another app/tab don't see stale data while waiting for the next poll tick.
   useEffect(() => {
     if (!enabled || !pollMs) return undefined;
     const interval = setInterval(() => {
@@ -972,7 +1072,14 @@ function useCollection(path, enabled = true, pollMs = 0) {
         reload();
       }
     }, pollMs);
-    return () => clearInterval(interval);
+    const onVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') reload();
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [enabled, pollMs, reload]);
 
   // Expose `loading` true only for initial fetch; subsequent refreshes don't blank the UI.
@@ -1092,7 +1199,7 @@ function ConfirmProvider({ children }) {
           )}
           <div className="modal-actions">
             <button className="btn btn-ghost" onClick={() => close(false)}>
-              {state.cancelLabel || 'Cancel'}
+              {state.cancelLabel || apiErr('Cancel', 'Batal')}
             </button>
             <button
               className="btn btn-primary"
@@ -1100,7 +1207,7 @@ function ConfirmProvider({ children }) {
               onClick={() => close(true)}
               autoFocus
             >
-              {state.confirmLabel || 'Confirm'}
+              {state.confirmLabel || apiErr('Confirm', 'Konfirmasi')}
             </button>
           </div>
         </Modal>
@@ -1114,7 +1221,7 @@ const useConfirm = () => useContext(ConfirmContext) || ((opts) => Promise.resolv
 // App-level confirm helper for use outside React tree (rare). Routes through ConfirmProvider when mounted.
 function appConfirm(opts) {
   if (typeof window !== 'undefined' && window.__spapilotConfirm) return window.__spapilotConfirm(opts);
-  return Promise.resolve(window.confirm((opts && (opts.title || opts.body)) || 'Confirm?'));
+  return Promise.resolve(window.confirm((opts && (opts.title || opts.body)) || apiErr('Confirm?', 'Konfirmasi?')));
 }
 
 function Modal({ title, onClose, children }) {
@@ -1212,8 +1319,8 @@ function Toast({ payload, onDone }) {
         <button
           className="toast-btn"
           onClick={() => { action.undo(); onDone(); }}
-          aria-label={action.undoLabel || 'Undo'}
-        >{action.undoLabel || 'Undo'}</button>
+          aria-label={action.undoLabel || t('undo')}
+        >{action.undoLabel || t('undo')}</button>
       )}
       <button
         className="toast-close"
@@ -1276,11 +1383,15 @@ function LangToggle({ floating = false, large = false }) {
   const { lang, setLang, t } = useT();
   const langName = lang === 'en' ? 'English' : 'Bahasa';
 
+  const switchLabel = lang === 'en'
+    ? 'Language: English. Switch to Bahasa.'
+    : 'Bahasa. Ganti ke English.';
+
   if (large) {
     return (
       <button
         onClick={() => setLang(lang === 'en' ? 'id' : 'en')}
-        aria-label={t('language')}
+        aria-label={switchLabel}
         title={lang === 'en' ? 'Bahasa Indonesia' : 'English'}
         style={{
           position: 'fixed',
@@ -1301,7 +1412,7 @@ function LangToggle({ floating = false, large = false }) {
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         }}
       >
-        <Globe size={16} />
+        <Globe size={16} aria-hidden="true" />
         {t('language')}: {langName}
       </button>
     );
@@ -1312,10 +1423,10 @@ function LangToggle({ floating = false, large = false }) {
     <button
       className={className}
       onClick={() => setLang(lang === 'en' ? 'id' : 'en')}
-      aria-label={t('language')}
+      aria-label={switchLabel}
       title={lang === 'en' ? 'Bahasa Indonesia' : 'English'}
     >
-      <Globe size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+      <Globe size={12} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 4 }} />
       {lang === 'en' ? 'EN' : 'ID'}
     </button>
   );
@@ -1404,54 +1515,66 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
         ) : (
           <form onSubmit={submit} style={{ marginTop: 18 }}>
             <div className="field">
-              <label>{t('email')}</label>
+              <label htmlFor="auth-email">{t('email')}</label>
               <div className="input-wrap">
-                <Mail size={14} className="input-icon" />
+                <Mail size={14} className="input-icon" aria-hidden="true" />
                 <input
+                  id="auth-email"
                   className="input input-with-icon"
                   type="email"
                   autoFocus
                   autoCapitalize="none"
                   autoCorrect="off"
+                  autoComplete="email"
                   placeholder={t('emailPlaceholder')}
                   value={email}
                   onChange={e => { setErr(null); setEmail(e.target.value); }}
+                  aria-invalid={!!err}
+                  aria-describedby={err ? 'auth-error' : undefined}
                 />
               </div>
             </div>
             {mode !== 'forgot' && (
               <div className="field">
-                <label>{t('password')}</label>
+                <label htmlFor="auth-password">{t('password')}</label>
                 <div className="input-wrap">
-                  <Lock size={14} className="input-icon" />
+                  <Lock size={14} className="input-icon" aria-hidden="true" />
                   <input
+                    id="auth-password"
                     className="input input-with-icon"
                     type="password"
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                     placeholder={mode === 'signup' ? t('pwSignup') : t('pwLogin')}
                     value={password}
                     onChange={e => { setErr(null); setPassword(e.target.value); }}
+                    aria-invalid={!!err}
+                    aria-describedby={err ? 'auth-error' : undefined}
                   />
                 </div>
               </div>
             )}
             {mode === 'signup' && (
               <div className="field">
-                <label>{t('confirmPassword')}</label>
+                <label htmlFor="auth-confirm">{t('confirmPassword')}</label>
                 <div className="input-wrap">
-                  <Lock size={14} className="input-icon" />
+                  <Lock size={14} className="input-icon" aria-hidden="true" />
                   <input
+                    id="auth-confirm"
                     className="input input-with-icon"
                     type="password"
+                    autoComplete="new-password"
                     placeholder={t('confirmPassword')}
                     value={confirm}
                     onChange={e => { setErr(null); setConfirm(e.target.value); }}
+                    aria-invalid={!!err}
+                    aria-describedby={err ? 'auth-error' : undefined}
                   />
                 </div>
               </div>
             )}
             {err && (
-              <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}>
-                <AlertTriangle size={14} /> {err}
+              <div id="auth-error" role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}>
+                <AlertTriangle size={14} aria-hidden="true" /> {err}
               </div>
             )}
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
@@ -1521,18 +1644,20 @@ function ResetPasswordScreen({ token, onDone }) {
         ) : (
           <form onSubmit={submit} style={{ marginTop: 18 }}>
             <div className="field">
-              <label>{t('newPassword')}</label>
+              <label htmlFor="reset-new-password">{t('newPassword')}</label>
               <div className="input-wrap">
-                <Lock size={14} className="input-icon" />
-                <input className="input input-with-icon" type="password" autoFocus placeholder={t('pwSignup')}
+                <Lock size={14} className="input-icon" aria-hidden="true" />
+                <input id="reset-new-password" className="input input-with-icon" type="password" autoFocus
+                  autoComplete="new-password" placeholder={t('pwSignup')}
                   value={password} onChange={e => { setErr(null); setPassword(e.target.value); }} />
               </div>
             </div>
             <div className="field">
-              <label>{t('confirmPassword')}</label>
+              <label htmlFor="reset-confirm-password">{t('confirmPassword')}</label>
               <div className="input-wrap">
-                <Lock size={14} className="input-icon" />
-                <input className="input input-with-icon" type="password" placeholder={t('confirmPassword')}
+                <Lock size={14} className="input-icon" aria-hidden="true" />
+                <input id="reset-confirm-password" className="input input-with-icon" type="password"
+                  autoComplete="new-password" placeholder={t('confirmPassword')}
                   value={confirm} onChange={e => { setErr(null); setConfirm(e.target.value); }} />
               </div>
             </div>
@@ -1580,7 +1705,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
               const Icon = f.icon;
               return (
                 <div key={f.titleKey} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <Icon size={18} color="var(--emerald)" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Icon size={18} color="var(--emerald)" aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--emerald)' }}>{t(f.titleKey)}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, lineHeight: 1.5 }}>{t(f.bodyKey)}</div>
@@ -1609,8 +1734,8 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
           }}
           onClick={() => setShowJoinInfo(true)}
         >
-          <Users size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-          Join a team <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13, marginLeft: 4 }}>(it's free)</span>
+          <Users size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} aria-hidden="true" />
+          {t('joinTeamLabel')} <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13, marginLeft: 4 }}>{t('joinTeamFree')}</span>
         </button>
 
         <div style={{ marginTop: 22, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
@@ -1626,7 +1751,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
           <button type="button"
             style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 11, padding: 0 }}
             onClick={onShowPrivacy}>
-            Privacy Policy
+            {t('privacyPolicyLink')}
           </button>
           {' · '}© {new Date().getFullYear()} Spapilot
         </div>
@@ -1733,8 +1858,9 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
         <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>{t('setupBusinessSub')}</p>
         <form onSubmit={submit} style={{ marginTop: 18 }}>
           <div className="field">
-            <label>{t('businessName')}</label>
-            <input className="input" autoFocus required value={name}
+            <label htmlFor="biz-name">{t('businessName')}</label>
+            <input id="biz-name" className="input" autoFocus required value={name}
+              autoComplete="organization"
               placeholder={t('businessNamePh')}
               onChange={e => { setErr(null); setName(e.target.value); }} />
           </div>
@@ -1820,8 +1946,9 @@ function StaffOnboarding({ onJoined, onBack, onSwitchToOwner, onLogout }) {
         <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>{t('joinBusinessSub')}</p>
         <form onSubmit={submit} style={{ marginTop: 18 }}>
           <div className="field">
-            <label>{t('businessCode')}</label>
-            <input className="input" autoFocus required value={code}
+            <label htmlFor="biz-code">{t('businessCode')}</label>
+            <input id="biz-code" className="input" autoFocus required value={code}
+              autoComplete="off"
               placeholder={t('businessCodePh')}
               style={{ textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'monospace' }}
               onChange={e => { setErr(null); setCode(e.target.value.toUpperCase()); }} />
@@ -1915,7 +2042,7 @@ function PaymentRequired({ user, onLogout }) {
 
 // ---------- Settings drawer (subscription + switch role) ----------
 function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted, toast }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [busy, setBusy] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -2022,7 +2149,13 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
       {business && (
         <div className="field">
           <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>{t('businessName')}</div>
-          <div style={{ fontSize: 14 }}>{business.name} <span style={{ color: 'var(--muted)', fontSize: 12 }}>· {business.type}</span></div>
+          <div style={{ fontSize: 14, wordBreak: 'break-word' }}>{business.name} <span style={{ color: 'var(--muted)', fontSize: 12 }}>· {(() => {
+            const key = 'bizType' + (business.type ? business.type.charAt(0).toUpperCase() + business.type.slice(1) : 'Other');
+            const val = t(key);
+            // Fallback: if no translation key matches (e.g. legacy 'services'/'mix'/'space'/'products'),
+            // title-case the raw type so we don't leak "bizTypeServices" to the UI.
+            return val === key ? (business.type ? business.type.charAt(0).toUpperCase() + business.type.slice(1) : '') : val;
+          })()}</span></div>
         </div>
       )}
 
@@ -2036,7 +2169,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
             </div>
             {status !== 'active' && trialEnd && (
               <div className="meta" style={{ fontSize: 11 }}>
-                {t('trialActiveUntil')} {trialEnd.toLocaleDateString()}
+                {t('trialActiveUntil')} {trialEnd.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US')}
               </div>
             )}
           </div>
@@ -2063,7 +2196,14 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
 
       {/* Restart tutorial — promoted above destructive switch-account-type so help is easier to find */}
       <div className="field">
-        <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13 }} onClick={() => {
+        <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13 }} onClick={async () => {
+          const ok = await appConfirm({
+            title: t('restartTutorialConfirmTitle'),
+            body: t('restartTutorialConfirmBody'),
+            confirmLabel: t('continue'),
+            cancelLabel: t('cancel'),
+          });
+          if (!ok) return;
           // Clear both legacy global key + this user's per-user keys so tutorial replays
           localStorage.removeItem(TOUR_DONE_KEY);
           if (user?.id) {
@@ -2108,6 +2248,8 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
             <input
               type="password"
               className="input"
+              autoComplete="current-password"
+              aria-label={t('password')}
               placeholder={t('yourPasswordPlaceholder')}
               value={deletePassword}
               onChange={e => { setDeleteErr(null); setDeletePassword(e.target.value); }}
@@ -2116,13 +2258,15 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
             <input
               type="text"
               className="input"
+              autoComplete="off"
+              aria-label={t('typeDeleteToConfirm')}
               placeholder={t('typeDeleteToConfirm')}
               value={deleteConfirm}
               onChange={e => { setDeleteErr(null); setDeleteConfirm(e.target.value); }}
               style={{ marginBottom: 8 }}
             />
             {deleteErr && (
-              <div style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 8 }}>{deleteErr}</div>
+              <div role="alert" aria-live="assertive" style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 8 }}>{deleteErr}</div>
             )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button
@@ -2265,8 +2409,8 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
               </div>
             ) : (
               <div className="field">
-                <label>{t('whichMember')}</label>
-                <select className="select" value={staffId || ''} onChange={e => setStaffId(Number(e.target.value))}>
+                <label htmlFor="role-staff-select">{t('whichMember')}</label>
+                <select id="role-staff-select" className="select" value={staffId || ''} onChange={e => setStaffId(Number(e.target.value))}>
                   {staff.map(s => <option key={s.id} value={s.id}>{s.name} · {s.role}</option>)}
                 </select>
               </div>
@@ -2308,6 +2452,8 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
   const { t, lang } = useT();
   const { labels } = useBiz();
   const todayStr = new Date().toISOString().slice(0, 10);
+  // Map lookup — replaces O(n*m) .find() across upcoming bookings + violations rows.
+  const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff]);
   // C1 fix: count only TODAY's bookings, not all-time. Stat card label says "Today's Bookings"
   // so it must actually reflect today.
   const todayBookings = useMemo(
@@ -2364,10 +2510,26 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
     catch { return []; }
   });
   const [newTask, setNewTask] = useState('');
+  // Debounced persistence — avoids hitting localStorage on every keystroke / tap.
+  // Also flushes on tab hide so a sudden close doesn't lose the last change.
+  const checklistWriteTimer = useRef(null);
+  useEffect(() => {
+    if (checklistWriteTimer.current) clearTimeout(checklistWriteTimer.current);
+    checklistWriteTimer.current = setTimeout(() => {
+      try { localStorage.setItem(CHECKLIST_KEY, JSON.stringify(checkItems)); } catch {}
+    }, 200);
+    return () => { if (checklistWriteTimer.current) clearTimeout(checklistWriteTimer.current); };
+  }, [checkItems]);
+  useEffect(() => {
+    const flush = () => {
+      try { localStorage.setItem(CHECKLIST_KEY, JSON.stringify(checkItems)); } catch {}
+    };
+    window.addEventListener('pagehide', flush);
+    return () => window.removeEventListener('pagehide', flush);
+  }, [checkItems]);
 
   const saveItems = (items) => {
     setCheckItems(items);
-    localStorage.setItem(CHECKLIST_KEY, JSON.stringify(items));
   };
   const toggleItem = (id) => saveItems(checkItems.map(i => i.id === id ? { ...i, done: !i.done } : i));
   const addItem = () => {
@@ -2391,7 +2553,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
       </div>
 
       <div className="card">
-        <div className="card-head"><h3>{t('quickActionsBar')}</h3></div>
+        <div className="card-head"><h2>{t('quickActionsBar')}</h2></div>
         <div className="qa-grid">
           <button className="qa-btn" onClick={reorderAll} disabled={busy || lowStock.length === 0} aria-label={t('reorderAll')}>
             <Package size={18} />
@@ -2411,15 +2573,15 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
       {pending.length > 0 && (
         <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
           <div className="card-head">
-            <h3><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-              {pending.length} {pending.length === 1 ? t('pendingRequest') : t('pendingRequests')}</h3>
+            <h2><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+              {pending.length} {pending.length === 1 ? t('pendingRequest') : t('pendingRequests')}</h2>
             <button className="btn btn-ghost btn-sm" onClick={() => onGoto('alerts')}>{t('review')}</button>
           </div>
         </div>
       )}
 
       <div className="card">
-        <div className="card-head"><h3>{t('upcomingLabel')} {labels.bookingPlural}</h3>
+        <div className="card-head"><h2>{t('upcomingLabel')} {labels.bookingPlural}</h2>
           <button className="btn btn-ghost btn-sm" onClick={() => onGoto('schedule')}>{t('viewAll')}</button>
         </div>
         {upcomingBookings.length === 0 ? (
@@ -2431,12 +2593,14 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
             >{t('addFirstOne')}</button>
           </div>
         ) : upcomingBookings.slice(0, 5).map(b => {
-          const m = staff.find(s => s.id === b.staffId);
+          const m = staffById.get(b.staffId);
           const isToday = (b.date || todayStr) === todayStr;
+          const locale = lang === 'id' ? 'id-ID' : 'en-US';
+          const shortDate = b.date ? new Date(b.date + 'T12:00:00').toLocaleDateString(locale, { weekday: 'short', day: 'numeric' }) : '';
           return (
             <div key={b.id} className="row">
-              <div style={{ color: 'var(--gold)', fontWeight: 700, minWidth: 64, fontFamily: 'Fraunces, serif', fontSize: 13 }}>
-                {isToday ? b.time : `${b.date} · ${b.time}`}
+              <div style={{ color: 'var(--gold)', fontWeight: 700, flexShrink: 0, fontFamily: 'Fraunces, serif', fontSize: 13, minWidth: isToday ? 54 : 92, whiteSpace: 'nowrap' }}>
+                {isToday ? b.time : `${shortDate} · ${b.time}`}
               </div>
               <div className="grow">
                 <div className="title">{b.client}</div>
@@ -2449,7 +2613,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
       </div>
 
       <div className="card">
-        <div className="card-head"><h3>{t('checklist')}</h3></div>
+        <div className="card-head"><h2>{t('checklist')}</h2></div>
         {checkItems.length === 0 && (
           <div className="center-muted" style={{ padding: '12px 0', fontSize: 14 }}>{t('checklistEmpty')}</div>
         )}
@@ -2494,6 +2658,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
             onChange={e => setNewTask(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addItem()}
             placeholder={t('checklistAdd')}
+            aria-label={t('checklistAdd')}
             style={{ flex: 1 }}
           />
           <button className="btn btn-sm" onClick={addItem} disabled={!newTask.trim()}
@@ -2504,7 +2669,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
       </div>
 
       <div className="card">
-        <div className="card-head"><h3>{t('latestAnnouncement')}</h3>
+        <div className="card-head"><h2>{t('latestAnnouncement')}</h2>
           <button className="btn btn-ghost btn-sm" onClick={() => onGoto('announcements')}>{t('manage')}</button>
         </div>
         {announcements[0] ? (
@@ -2518,14 +2683,14 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
 
       {violations.length > 0 && (
         <div className="card">
-          <h3>{t('recentSopNotes')}</h3>
+          <h2>{t('recentSopNotes')}</h2>
           {violations.slice(-3).reverse().map(v => {
-            const s = staff.find(st => st.id === v.staffId);
+            const s = staffById.get(v.staffId);
             return (
               <div key={v.id} className="row">
                 {s && <Avatar initial={s.avatar} color={s.color} size={28} />}
                 <div className="grow">
-                  <div className="title">{s ? s.name : `Staff #${v.staffId}`}</div>
+                  <div className="title">{s ? s.name : `${labels.staffMember} #${v.staffId}`}</div>
                   <div className="meta">{v.note || t('sopViolation')}</div>
                 </div>
               </div>
@@ -2638,11 +2803,20 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
     [filtered]
   );
 
+  // Map lookups — replaces O(n*m) .find() inside the row render loop. Power users
+  // with 200+ bookings + dozens of staff/services felt the lag.
+  const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff]);
+  const serviceByName = useMemo(() => {
+    const m = new Map();
+    for (const s of services) m.set((s.name || '').toLowerCase(), s);
+    return m;
+  }, [services]);
+
   return (
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>{dateLabel} · {labels.bookingPlural}</h3>
+          <h2>{dateLabel} · {labels.bookingPlural}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}>
             <Plus size={14} /> {t('add')}
           </button>
@@ -2674,7 +2848,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
 
         <div className="search-wrap">
           <Search size={14} className="search-icon" />
-          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
+          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
         </div>
         <div className="toolbar">
           <select className="select" value={sortDir} onChange={e => setSortDir(e.target.value)} aria-label={t('sortBy')}>
@@ -2697,9 +2871,9 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
                 onCta={() => setModal('new')}
               />
         ) : filtered.map(b => {
-          const m = staff.find(s => s.id === b.staffId);
+          const m = staffById.get(b.staffId);
           const isConflict = conflictIds.has(b.id);
-          const svc = services.find(s => (s.name || '').toLowerCase() === (b.treatment || '').toLowerCase());
+          const svc = serviceByName.get((b.treatment || '').toLowerCase());
           const accent = isConflict ? 'var(--danger)' : (svc?.color || 'var(--gold)');
           return (
             <div key={b.id} className={`sched-block ${isConflict ? 'sched-conflict' : ''}`} style={{ borderLeftColor: accent }}>
@@ -2722,7 +2896,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
       </div>
 
       <div className="card">
-        <h3>{t('weekOverview')}</h3>
+        <h2>{t('weekOverview')}</h2>
         <div className="week-grid">
           {dayCounts.map(x => (
             <div className="week-cell" key={x.d}>
@@ -2846,13 +3020,14 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
   return (
     <Modal title={booking ? `${t('edit')} ${labels.booking.toLowerCase()}` : `${t('add')} ${labels.booking.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
-        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{labels.client}</label>
-          <input className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} /></div>
+        {err && <div id="booking-error" role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" />{err}</div>}
+        <div className="field"><label htmlFor="booking-client">{labels.client}</label>
+          <input id="booking-client" className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} aria-invalid={!!err} aria-describedby={err ? 'booking-error' : undefined} /></div>
         {hasServices && (
-          <div className="field"><label>{t('pickFromCatalog')}</label>
+          <div className="field"><label htmlFor="booking-catalog">{t('pickFromCatalog')}</label>
             {/* Persist selection so picker shows what was chosen (was resetting to placeholder — confusing). */}
             <select
+              id="booking-catalog"
               className="select"
               value={services.find(s => (s.name || '').toLowerCase() === (f.treatment || '').toLowerCase())?.id || ''}
               onChange={e => e.target.value && pickService(e.target.value)}
@@ -2864,21 +3039,22 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
             </select>
           </div>
         )}
-        <div className="field"><label>{labels.service}</label>
-          <input className="input" required value={f.treatment} onChange={e => setF({ ...f, treatment: e.target.value })} /></div>
+        <div className="field"><label htmlFor="booking-treatment">{labels.service}</label>
+          <input id="booking-treatment" className="input" required value={f.treatment} onChange={e => setF({ ...f, treatment: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('date')}</label>
-            <input className="input" type="date" required value={f.date || todayStr} onChange={e => setF({ ...f, date: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('time')}</label>
-            <input className="input" type="time" required value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="booking-date">{t('date')}</label>
+            <input id="booking-date" className="input" type="date" required value={f.date || todayStr} onChange={e => setF({ ...f, date: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="booking-time">{t('time')}</label>
+            <input id="booking-time" className="input" type="time" required value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></div>
         </div>
-        <div className="field"><label>{t('durationMin')}</label>
-          <input className="input" type="number" min="5" inputMode="numeric" value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
+        <div className="field"><label htmlFor="booking-duration">{t('durationMin')}</label>
+          <input id="booking-duration" className="input" type="number" min="5" inputMode="numeric" value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         {/* Staff picker — select from team if any exist, fallback to text input.
             Both keep the booking linked correctly: select sets staffId, text input is for ad-hoc names. */}
-        <div className="field"><label>{labels.staffMember}</label>
+        <div className="field"><label htmlFor="booking-staff">{labels.staffMember}</label>
           {hasStaff ? (
             <select
+              id="booking-staff"
               className="select"
               value={f.staffId || ''}
               onChange={e => {
@@ -2891,6 +3067,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
             </select>
           ) : (
             <input
+              id="booking-staff"
               className="input"
               placeholder={t('staffNameNoTeamPh').replace('{role}', labels.staffMember)}
               value={f.therapist || ''}
@@ -2899,18 +3076,18 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
           )}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{labels.client} · {t('phoneShort') || 'phone'}</label>
-            <input className="input" type="tel" placeholder={t('phonePlaceholder')} value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
-            <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="booking-phone">{labels.client} · {t('phoneShort')}</label>
+            <input id="booking-phone" className="input" type="tel" autoComplete="tel" placeholder={t('phonePlaceholder')} value={f.clientPhone || ''} onChange={e => setF({ ...f, clientPhone: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="booking-price">{t('price')}</label>
+            <input id="booking-price" className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price ?? ''} onChange={e => setF({ ...f, price: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         </div>
         {/* Allergies field only relevant for spa/salon/clinic. Hide for gym/hotel/barbershop/other. */}
         {showAllergies && (
-          <div className="field"><label>{t('allergies')}</label>
-            <input className="input" placeholder="e.g. lavender, nuts" value={f.allergies || ''} onChange={e => setF({ ...f, allergies: e.target.value })} /></div>
+          <div className="field"><label htmlFor="booking-allergies">{t('allergies')}</label>
+            <input id="booking-allergies" className="input" placeholder={t('allergiesPh')} value={f.allergies || ''} onChange={e => setF({ ...f, allergies: e.target.value })} /></div>
         )}
-        <div className="field"><label>{t('notes')}</label>
-          <textarea className="textarea" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
+        <div className="field"><label htmlFor="booking-notes">{t('notes')}</label>
+          <textarea id="booking-notes" className="textarea" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -2930,6 +3107,8 @@ function ClientsTab({ bookings, staff, toast }) {
   const { labels } = useBiz();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(null); // selected client name or null
+  // O(1) staff lookup — replaces .find() inside the per-booking history render loop.
+  const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff]);
 
   // Aggregate clients from bookings
   const clients = useMemo(() => {
@@ -2977,11 +3156,11 @@ function ClientsTab({ bookings, staff, toast }) {
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>{labels.clientPlural} ({clients.length})</h3>
+          <h2>{labels.clientPlural} ({clients.length})</h2>
         </div>
         <div className="search-wrap">
           <Search size={14} className="search-icon" />
-          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
+          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
         </div>
         <div className="toolbar">
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
@@ -3053,11 +3232,11 @@ function ClientsTab({ bookings, staff, toast }) {
               </div>
             )}
 
-            <h3 style={{ fontSize: 13, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '14px 0 8px' }}>
+            <h3 className="modal-subhead" style={{ fontSize: 13, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '14px 0 8px' }}>
               {t('historyLabel')}
             </h3>
             {detail.bookings.slice().reverse().map(b => {
-              const m = staff.find(s => s.id === b.staffId);
+              const m = staffById.get(b.staffId);
               return (
                 <div key={b.id} className="row">
                   <Calendar size={16} color="var(--gold)" />
@@ -3131,12 +3310,12 @@ function StaffTab({ staff, violations, onReload, toast }) {
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>{labels.staffPlural}</h3>
+          <h2>{labels.staffPlural}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} /> {t('add')}</button>
         </div>
         <div className="search-wrap">
           <Search size={14} className="search-icon" />
-          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} />
+          <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
         </div>
         <div className="toolbar">
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
@@ -3219,15 +3398,15 @@ function StaffModal({ member, onClose, onSaved }) {
     <Modal title={member ? t('editTeamMember') : t('addTeamMember')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('name')}</label>
-          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
-        <div className="field"><label>{t('role')}</label>
-          <input className="input" required value={f.role} placeholder={t('rolePlaceholder')}
+        <div className="field"><label htmlFor="staff-name">{t('name')}</label>
+          <input id="staff-name" className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+        <div className="field"><label htmlFor="staff-role">{t('role')}</label>
+          <input id="staff-role" className="input" required value={f.role} placeholder={t('rolePlaceholder')}
             onChange={e => setF({ ...f, role: e.target.value })} /></div>
-        <div className="field"><label>{t('birthday')}</label>
-          <input className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
-        <div className="field"><label>{t('staffPhone')}</label>
-          <input className="input" type="tel" placeholder={t('phonePlaceholder')} value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
+        <div className="field"><label htmlFor="staff-birthday">{t('birthday')}</label>
+          <input id="staff-birthday" className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
+        <div className="field"><label htmlFor="staff-phone">{t('staffPhone')}</label>
+          <input id="staff-phone" className="input" type="tel" autoComplete="tel" placeholder={t('phonePlaceholder')} value={f.phone || ''} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
         <div className="field"><label>{t('avatarColor')}</label>
           <div className="color-swatches">
             {COLOR_OPTIONS.map(c => (
@@ -3304,7 +3483,7 @@ function ServicesTab({ services, onReload, toast }) {
     if (!(await appConfirm({ title: t('removeServiceConfirm').replace('{item}', labels.service.toLowerCase()), confirmLabel: t('remove'), cancelLabel: t('cancel'), danger: true }))) return;
     try {
       await api(`/api/services/${id}`, { method: 'DELETE' });
-      toast(`${labels.service} removed`);
+      toast(t('removedToast').replace('{item}', labels.service));
       onReload();
     } catch (e) { toast(e.message || t('failed')); }
   };
@@ -3313,7 +3492,7 @@ function ServicesTab({ services, onReload, toast }) {
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>{labels.service} catalog</h3>
+          <h2>{t('catalogOf').replace('{item}', labels.service)}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal({})}>
             <Plus size={14} /> {t('add')}
           </button>
@@ -3338,7 +3517,7 @@ function ServicesTab({ services, onReload, toast }) {
                   <div className="grow">
                     <div className="title" style={{ fontSize: 14 }}>{s.name}</div>
                     <div className="meta" style={{ fontSize: 11 }}>
-                      {s.durationMin} min · {fmtMoney(s.price, lang)}
+                      {fmtDuration(s.durationMin, lang)} · {fmtMoney(s.price, lang)}
                     </div>
                   </div>
                   <button className="icon-btn" onClick={() => setModal(s)} aria-label={t('edit')}>
@@ -3357,7 +3536,7 @@ function ServicesTab({ services, onReload, toast }) {
         <ServiceModal
           service={modal.id ? modal : null}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReload(); toast(t('save') + ' ✓'); }}
+          onSaved={() => { setModal(null); onReload(); toast(t('savedCheck')); }}
         />
       )}
     </div>
@@ -3397,15 +3576,15 @@ function ServiceModal({ service, onClose, onSaved }) {
     <Modal title={service ? `${t('edit')} ${labels.service.toLowerCase()}` : `${t('add')} ${labels.service.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('name')}</label>
-          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
-        <div className="field"><label>{t('category')}</label>
-          <input className="input" placeholder="e.g. Consultation, Haircut, Repair" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
+        <div className="field"><label htmlFor="svc-name">{t('name')}</label>
+          <input id="svc-name" className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+        <div className="field"><label htmlFor="svc-category">{t('category')}</label>
+          <input id="svc-category" className="input" placeholder={t('categoryPh')} value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('durationMin')}</label>
-            <input className="input" type="number" min="0" inputMode="numeric" value={f.durationMin} onChange={e => setF({ ...f, durationMin: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('price')}</label>
-            <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="svc-duration">{t('durationMin')}</label>
+            <input id="svc-duration" className="input" type="number" min="0" inputMode="numeric" value={f.durationMin} onChange={e => setF({ ...f, durationMin: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="svc-price">{t('price')}</label>
+            <input id="svc-price" className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></div>
         </div>
         <div className="field"><label>{t('colorLabel')}</label>
           <div className="color-swatches">
@@ -3530,7 +3709,7 @@ function InventoryTab({ inventory, onReload, toast }) {
       )}
       <div className="card">
         <div className="card-head">
-          <h3>{t('inventory')}</h3>
+          <h2>{t('inventory')}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} /> {t('add')}</button>
         </div>
         <div className="search-wrap">
@@ -3638,27 +3817,27 @@ function InventoryModal({ item, onClose, onSaved }) {
     <Modal title={item ? t('editItem') : t('addItem')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('name')}</label>
-          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+        <div className="field"><label htmlFor="inv-name">{t('name')}</label>
+          <input id="inv-name" className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('category')}</label>
-            <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
-          <div className="field" style={{ flex: 1 }}><label>{t('unit')}</label>
-            <input className="input" value={f.unit} onChange={e => setF({ ...f, unit: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="inv-category">{t('category')}</label>
+            <input id="inv-category" className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="inv-unit">{t('unit')}</label>
+            <input id="inv-unit" className="input" value={f.unit} onChange={e => setF({ ...f, unit: e.target.value })} /></div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('stockLevel')}</label>
-            <input className="input" type="number" min="0" inputMode="numeric" value={f.stock} onChange={e => setF({ ...f, stock: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="inv-stock">{t('stockLevel')}</label>
+            <input id="inv-stock" className="input" type="number" min="0" inputMode="numeric" value={f.stock} onChange={e => setF({ ...f, stock: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}>
-            <label>{t('threshold')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>— alert when below</span></label>
-            <input className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} /></div>
+            <label htmlFor="inv-threshold">{t('threshold')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>{t('alertWhenBelow')}</span></label>
+            <input id="inv-threshold" className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} /></div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}><label>{t('supplier')}</label>
-            <input className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} /></div>
+          <div className="field" style={{ flex: 1 }}><label htmlFor="inv-supplier">{t('supplier')}</label>
+            <input id="inv-supplier" className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}>
-            <label>{t('price')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>— cost per {f.unit || 'unit'}</span></label>
-            <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.cost} onChange={e => setF({ ...f, cost: e.target.value })} placeholder="0.00" /></div>
+            <label htmlFor="inv-cost">{t('price')} <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>{t('costPerUnit').replace('{unit}', f.unit || t('unitFallback'))}</span></label>
+            <input id="inv-cost" className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.cost} onChange={e => setF({ ...f, cost: e.target.value })} placeholder="0.00" /></div>
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
@@ -3670,7 +3849,11 @@ function InventoryModal({ item, onClose, onSaved }) {
 }
 
 function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const locale = lang === 'id' ? 'id-ID' : 'en-US';
+  // O(1) lookups — used per row in the violations + repeat-offenders lists.
+  const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff]);
+  const sopById = useMemo(() => new Map(sops.map(s => [s.id, s])), [sops]);
   const [modal, setModal] = useState(false);     // 'violation' | 'sop' | null
   const counts = staff.map(s => ({
     ...s, count: violations.filter(v => v.staffId === s.id).length,
@@ -3697,7 +3880,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
       {/* SOP Rules list */}
       <div className="card">
         <div className="card-head">
-          <h3>{t('sopTitle')}</h3>
+          <h2>{t('sopTitle')}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('sop')}>
             <Plus size={14} /> {t('addSopRule')}
           </button>
@@ -3729,7 +3912,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
       {/* Log violation */}
       <div className="card">
         <div className="card-head">
-          <h3>{t('logSopViolation')}</h3>
+          <h2>{t('logSopViolation')}</h2>
           <button className="btn btn-gold btn-sm" onClick={() => setModal('violation')} data-tour="action-sop">
             <Plus size={14} /> {t('log')}
           </button>
@@ -3737,15 +3920,15 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
         {violations.length === 0 ? (
           <div className="center-muted">{t('noViolations')}</div>
         ) : violations.slice().reverse().map(v => {
-          const s = staff.find(st => st.id === v.staffId);
-          const sop = sops.find(x => x.id === v.sopId);
+          const s = staffById.get(v.staffId);
+          const sop = sopById.get(v.sopId);
           return (
             <div key={v.id} className="row">
               {s && <Avatar initial={s.avatar} color={s.color} size={32} />}
               <div className="grow">
                 <div className="title">{s ? s.name : '—'}</div>
                 <div className="meta">{sop ? sop.title : (v.note || '—')}{v.note && sop ? ` · ${v.note}` : ''}</div>
-                <div className="meta" style={{ fontSize: 11 }}>{new Date(v.createdAt).toLocaleString()}</div>
+                <div className="meta" style={{ fontSize: 11 }}>{new Date(v.createdAt).toLocaleString(locale)}</div>
               </div>
               <button className="btn-icon" onClick={() => delViolation(v.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
             </div>
@@ -3755,7 +3938,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
 
       {counts.length > 0 && (
         <div className="card">
-          <h3>{t('repeatOffenders')}</h3>
+          <h2>{t('repeatOffenders')}</h2>
           {counts.map(s => (
             <div key={s.id} className="row">
               <Avatar initial={s.avatar} color={s.color} size={32} />
@@ -3804,18 +3987,18 @@ function SOPRuleModal({ onClose, onSaved }) {
       <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} /> {err}</div>}
         <div className="field">
-          <label>{t('sopRuleTitle')}</label>
-          <input className="input" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
+          <label htmlFor="sop-title">{t('sopRuleTitle')}</label>
+          <input id="sop-title" className="input" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
             placeholder={t('ruleTitlePh')} autoFocus />
         </div>
         <div className="field">
-          <label>{t('category')}</label>
-          <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
+          <label htmlFor="sop-category">{t('category')}</label>
+          <input id="sop-category" className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
             placeholder={t('rulePunctualityPh')} />
         </div>
         <div className="field">
-          <label>{t('sopRuleDesc')}</label>
-          <textarea className="textarea" value={f.body} onChange={e => setF({ ...f, body: e.target.value })}
+          <label htmlFor="sop-body">{t('sopRuleDesc')}</label>
+          <textarea id="sop-body" className="textarea" value={f.body} onChange={e => setF({ ...f, body: e.target.value })}
             placeholder={t('extraDetailPlaceholder')} rows={3} />
         </div>
         <div className="modal-actions">
@@ -3870,16 +4053,16 @@ function ViolationModal({ staff, sops, onClose, onSaved }) {
     <Modal title={t('logSopViolation')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('staffPerson')}</label>
-          <select className="select" value={f.staffId} onChange={e => setF({ ...f, staffId: Number(e.target.value) })}>
+        <div className="field"><label htmlFor="vio-staff">{t('staffPerson')}</label>
+          <select id="vio-staff" className="select" value={f.staffId} onChange={e => setF({ ...f, staffId: Number(e.target.value) })}>
             {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select></div>
-        <div className="field"><label>{t('sopRule')}</label>
-          <select className="select" value={f.sopId} onChange={e => setF({ ...f, sopId: Number(e.target.value) })}>
+        <div className="field"><label htmlFor="vio-sop">{t('sopRule')}</label>
+          <select id="vio-sop" className="select" value={f.sopId} onChange={e => setF({ ...f, sopId: Number(e.target.value) })}>
             {sops.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
           </select></div>
-        <div className="field"><label>{t('noteText')}</label>
-          <textarea className="textarea" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></div>
+        <div className="field"><label htmlFor="vio-note">{t('noteText')}</label>
+          <textarea id="vio-note" className="textarea" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-gold" disabled={saving}>{saving ? t('saving') : t('log')}</button>
@@ -3891,6 +4074,9 @@ function ViolationModal({ staff, sops, onClose, onSaved }) {
 
 function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
   const { t } = useT();
+  const { labels } = useBiz();
+  const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff]);
+  const inventoryById = useMemo(() => new Map(inventory.map(i => [i.id, i])), [inventory]);
   const lowStock = inventory.filter(i => i.stock <= i.threshold);
   const pending  = requests.filter(r => r.status === 'pending');
   const [reassign, setReassign] = useState(null);
@@ -3914,7 +4100,7 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
   return (
     <div>
       <div className="card">
-        <h3>{t('stockAlerts')} ({lowStock.length})</h3>
+        <h2>{t('stockAlerts')} ({lowStock.length})</h2>
         {lowStock.length === 0
           ? <div className="success-banner"><CheckCircle size={14} /> {t('allStockHealthy')}</div>
           : lowStock.map(i => (
@@ -3930,11 +4116,11 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
       </div>
 
       <div className="card">
-        <h3>{t('staffRequests')} ({pending.length})</h3>
+        <h2>{t('staffRequests')} ({pending.length})</h2>
         {pending.length === 0
           ? <div className="success-banner"><CheckCircle size={14} /> {t('noPendingReq')}</div>
           : pending.map(req => {
-            const s = staff.find(st => st.id === req.staffId);
+            const s = staffById.get(req.staffId);
             const affected = req.type === 'sick'
               ? bookings.filter(b => b.staffId === req.staffId && b.date === req.date)
               : [];
@@ -3943,10 +4129,10 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {s && <Avatar initial={s.avatar} color={s.color} size={32} />}
                   <div className="grow">
-                    <div className="title">{formatType(req.type)} · {s ? s.name : `${t('staffPerson')} #${req.staffId}`}</div>
+                    <div className="title">{formatType(req.type)} · {s ? s.name : `${labels.staffMember} #${req.staffId}`}</div>
                     <div className="meta">
                       {req.type === 'stock_request'
-                        ? `${inventory.find(i => i.id === req.productId)?.name || t('product')} · ${t('qtyLabel')} ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
+                        ? `${inventoryById.get(req.productId)?.name || t('product')} · ${t('qtyLabel')} ${req.quantity}${req.reason ? ` · ${req.reason}` : ''}`
                         : `${req.date} · ${req.reason || t('noReason')}`}
                     </div>
                   </div>
@@ -3997,7 +4183,7 @@ function ReassignModal({ request, staff, onClose, onSubmit }) {
         </div>
       ) : (
         <div className="field">
-          <select className="select" value={to || ''} onChange={e => setTo(Number(e.target.value))}>
+          <select className="select" value={to || ''} onChange={e => setTo(Number(e.target.value))} aria-label={t('reassignBookings')}>
             {staff.map(s => <option key={s.id} value={s.id}>{s.name} · {s.role}</option>)}
           </select>
         </div>
@@ -4013,7 +4199,8 @@ function ReassignModal({ request, staff, onClose, onSubmit }) {
 }
 
 function AnnouncementsTab({ announcements, onReload, toast, user }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const locale = lang === 'id' ? 'id-ID' : 'en-US';
   const [modal, setModal] = useState(false);
   const del = async (id) => {
     if (!(await appConfirm({ title: t('deleteAnnouncement'), confirmLabel: t('delete'), cancelLabel: t('cancel'), danger: true }))) return;
@@ -4038,7 +4225,7 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
     <div>
       <div className="card">
         <div className="card-head">
-          <h3>{t('announcements')}</h3>
+          <h2>{t('announcements')}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal(true)}><Megaphone size={14} /> {t('send')}</button>
         </div>
         {announcements.length === 0
@@ -4054,7 +4241,7 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div className="grow">
                   <div className="title" style={{ fontFamily: 'Fraunces, serif', fontSize: 16 }}>{a.title}</div>
-                  <div className="meta">{new Date(a.createdAt).toLocaleString()} · {a.from}</div>
+                  <div className="meta">{new Date(a.createdAt).toLocaleString(locale)} · {a.from}</div>
                 </div>
                 <button className="btn-icon" onClick={() => del(a.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
               </div>
@@ -4088,12 +4275,12 @@ function AnnouncementModal({ defaultFrom, onClose, onSaved }) {
     <Modal title={t('newAnnouncement')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
-        <div className="field"><label>{t('title')}</label>
-          <input className="input" required value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></div>
-        <div className="field"><label>{t('message')}</label>
-          <textarea className="textarea" required value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></div>
-        <div className="field"><label>{t('from')}</label>
-          <input className="input" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></div>
+        <div className="field"><label htmlFor="ann-title">{t('title')}</label>
+          <input id="ann-title" className="input" required value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></div>
+        <div className="field"><label htmlFor="ann-body">{t('message')}</label>
+          <textarea id="ann-body" className="textarea" required value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></div>
+        <div className="field"><label htmlFor="ann-from">{t('from')}</label>
+          <input id="ann-from" className="input" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -4169,7 +4356,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
 
       {sop && (
         <div className="card" style={{ borderLeft: '3px solid var(--gold)' }}>
-          <div className="card-head"><h3><ShieldCheck size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} /> {t('todaySopReminder')}</h3></div>
+          <div className="card-head"><h2><ShieldCheck size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} /> {t('todaySopReminder')}</h2></div>
           <div className="title">{sop.title}</div>
           <div className="meta" style={{ marginTop: 4 }}>{sop.description}</div>
         </div>
@@ -4177,7 +4364,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
 
       {canSeeSchedule && (
       <div className="card">
-        <h3>{t('yourSessions')}</h3>
+        <h2>{t('yourSessions')}</h2>
         {myBookings.length === 0
           ? <div className="center-muted">{t('noSessions')}</div>
           : myBookings.map(b => (
@@ -4215,7 +4402,7 @@ function StaffScheduleView({ staff, bookings, staffId }) {
   return (
     <div>
       <div className="card">
-        <h3>{t('myWeek')}</h3>
+        <h2>{t('myWeek')}</h2>
         <div className="week-grid">
           {DAYS.map(d => (
             <div className="week-cell" key={d} style={{
@@ -4229,7 +4416,7 @@ function StaffScheduleView({ staff, bookings, staffId }) {
       </div>
 
       <div className="card">
-        <h3>{t('todaysSessions')}</h3>
+        <h2>{t('todaysSessions')}</h2>
         {mine.length === 0 ? <div className="center-muted">{t('noSessionsToday')}</div> : mine.map(b => (
           <div key={b.id} className="sched-block">
             <div className="time">{b.time}</div>
@@ -4242,7 +4429,7 @@ function StaffScheduleView({ staff, bookings, staffId }) {
       </div>
 
       <div className="card">
-        <h3>{t('theTeam')}</h3>
+        <h2>{t('theTeam')}</h2>
         {others.map(s => (
           <div key={s.id} className="row">
             <Avatar initial={s.avatar} color={s.color} size={32} />
@@ -4258,7 +4445,8 @@ function StaffScheduleView({ staff, bookings, staffId }) {
 }
 
 function StaffInboxView({ announcements, staffId, staff, requests, inventory, onSubmitRequest, toast }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const locale = lang === 'id' ? 'id-ID' : 'en-US';
   const [mode, setMode] = useState(null);
   const [stockItem, setStockItem] = useState(null);
   const mine = requests.filter(r => r.staffId === staffId);
@@ -4270,7 +4458,7 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
     <div>
       {(perms.canRequestTimeOff || perms.canSwapShifts || perms.canRequestStock) && (
         <div className="card">
-          <div className="card-head"><h3>{t('quickActions')}</h3></div>
+          <div className="card-head"><h2>{t('quickActions')}</h2></div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('sick')}><PhoneCall size={14} /> {t('sick')}</button>}
             {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('dayoff')}><CalendarOff size={14} /> {t('dayOffShort')}</button>}
@@ -4283,7 +4471,7 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
       {perms.canRequestStock && lowStock.length > 0 && (
         <div className="card" style={{ borderLeft: '3px solid var(--warn)' }}>
           <div className="card-head">
-            <h3><Package size={16} style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--warn)' }} />{t('stockAlerts')} ({lowStock.length})</h3>
+            <h2><Package size={16} style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--warn)' }} />{t('stockAlerts')} ({lowStock.length})</h2>
           </div>
           {lowStock.map(i => (
             <div key={i.id} className="row">
@@ -4299,18 +4487,18 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
       )}
 
       <div className="card">
-        <h3>{t('announcements')}</h3>
+        <h2>{t('announcements')}</h2>
         {announcements.length === 0 ? <div className="center-muted">{t('noAnnouncements')}</div> : announcements.map(a => (
           <div key={a.id} className="row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
             <div className="title" style={{ fontFamily: 'Fraunces, serif', fontSize: 16 }}>{a.title}</div>
-            <div className="meta">{new Date(a.createdAt).toLocaleString()} · {a.from}</div>
+            <div className="meta">{new Date(a.createdAt).toLocaleString(locale)} · {a.from}</div>
             <div style={{ marginTop: 4, fontSize: 14 }}>{a.body}</div>
           </div>
         ))}
       </div>
 
       <div className="card">
-        <h3>{t('myRequests')}</h3>
+        <h2>{t('myRequests')}</h2>
         {mine.length === 0 ? <div className="center-muted">{t('noRequestsSubmitted')}</div> : mine.map(r => (
           <div key={r.id} className="row">
             <div className="grow">
@@ -4392,22 +4580,23 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
           </div>
         )}
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} /> {err}</div>}
-        <div className="field"><label>{t('date')}</label>
-          <input className="input" type="date" required min={new Date().toISOString().slice(0,10)} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
+        <div className="field"><label htmlFor="req-date">{t('date')}</label>
+          <input id="req-date" className="input" type="date" required min={new Date().toISOString().slice(0,10)} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
         {type === 'swap' && (
           <>
-            <div className="field"><label>{t('swapWith')}</label>
-              <select className="select" value={f.swapWith} onChange={e => setF({ ...f, swapWith: e.target.value })}>
+            <div className="field"><label htmlFor="req-swap-with">{t('swapWith')}</label>
+              <select id="req-swap-with" className="select" value={f.swapWith} onChange={e => setF({ ...f, swapWith: e.target.value })}>
                 <option value="">{t('selectColleague')}</option>
                 {others.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select></div>
-            <div className="field"><label>{t('theirDay')}</label>
-              <input className="input" type="date" min={new Date().toISOString().slice(0,10)} value={f.swapDay} onChange={e => setF({ ...f, swapDay: e.target.value })} /></div>
+            <div className="field"><label htmlFor="req-swap-day">{t('theirDay')}</label>
+              <input id="req-swap-day" className="input" type="date" min={new Date().toISOString().slice(0,10)} value={f.swapDay} onChange={e => setF({ ...f, swapDay: e.target.value })} /></div>
           </>
         )}
         <div className="field">
-          <label>{type === 'sick' ? t('reason') : t('noteOptional')}</label>
+          <label htmlFor="req-reason">{type === 'sick' ? t('reason') : t('noteOptional')}</label>
           <textarea
+            id="req-reason"
             className="textarea"
             value={f.reason}
             onChange={e => { setErr(null); setF({ ...f, reason: e.target.value }); }}
@@ -4441,8 +4630,8 @@ function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSu
     <Modal title={t('requestStock')} onClose={onClose}>
       <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...f, productId: Number(f.productId) }); }}>
         <div className="field">
-          <label>{t('product')}</label>
-          <select className="select" value={f.productId} onChange={e => setF({ ...f, productId: e.target.value })}>
+          <label htmlFor="sreq-product">{t('product')}</label>
+          <select id="sreq-product" className="select" value={f.productId} onChange={e => setF({ ...f, productId: e.target.value })}>
             {inventory.length === 0
               ? <option value="">{t('emptyInventoryTitle')}</option>
               : inventory.map(i => (
@@ -4453,13 +4642,13 @@ function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSu
           </select>
         </div>
         <div className="field">
-          <label>{t('quantityLabel')}</label>
-          <input className="input" type="number" min="1" required value={f.quantity}
+          <label htmlFor="sreq-qty">{t('quantityLabel')}</label>
+          <input id="sreq-qty" className="input" type="number" min="1" required value={f.quantity}
             onChange={e => setF({ ...f, quantity: Number(e.target.value) })} />
         </div>
         <div className="field">
-          <label>{t('noteOptional')}</label>
-          <textarea className="textarea" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
+          <label htmlFor="sreq-reason">{t('noteOptional')}</label>
+          <textarea id="sreq-reason" className="textarea" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
@@ -4500,7 +4689,7 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
       </div>
 
       <div className="card">
-        <h3>{t('mySopNotes')}</h3>
+        <h2>{t('mySopNotes')}</h2>
         {myV.length === 0
           ? <div className="success-banner"><CheckCircle size={14} /> {t('cleanRecord')}</div>
           : myV.map(v => {
@@ -4551,8 +4740,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
   const periodDays = range === 'week' ? 7 : range === 'month' ? 30
     : Math.max(1, Math.ceil((Date.now() - new Date(oldestDate || Date.now()).getTime()) / (24 * 60 * 60 * 1000)));
   const avgPerDay = Math.round(totalRevenue / periodDays);
-  const fmt = (n) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US').format(n);
-  const currency = lang === 'id' ? 'Rp ' : '$';
+  const money = (n) => fmtMoney(n, lang);
 
   // Inventory total cost (if cost set)
   const inventoryValue = inventory.reduce((sum, i) => sum + ((Number(i.cost) || 0) * (Number(i.stock) || 0)), 0);
@@ -4604,15 +4792,15 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
 
       <div className="card">
         <div className="card-head">
-          <h3>{rangeLabel}</h3>
+          <h2>{rangeLabel}</h2>
           <div style={{ display: 'flex', gap: 4 }}>
             <button className={`btn btn-sm ${range === 'week' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('week')}>{t('range7d')}</button>
             <button className={`btn btn-sm ${range === 'month' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('month')}>{t('range30d')}</button>
             <button className={`btn btn-sm ${range === 'all' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('all')}>{t('rangeAll')}</button>
           </div>
         </div>
-        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">{currency}{fmt(totalRevenue)}</div></div></div>
-        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">{currency}{fmt(avgPerDay)}</div></div></div>
+        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">{money(totalRevenue)}</div></div></div>
+        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">{money(avgPerDay)}</div></div></div>
         <div className="row"><CheckCircle size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{scoped.length} {labels.bookingPlural.toLowerCase()}</div></div></div>
         {peakHour && (
           <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('peakHourLabel')}</div><div className="meta">{String(peakHour.hour).padStart(2,'0')}:00 · {peakHour.count} {labels.bookingPlural.toLowerCase()}</div></div></div>
@@ -4620,14 +4808,14 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
         {top && top.revenue > 0 && (
           <div className="row">
             <Avatar initial={top.avatar} color={top.color} size={32} />
-            <div className="grow"><div className="title">{t('topTherapist')}</div><div className="meta">{top.name} · {currency}{fmt(top.revenue)}</div></div>
+            <div className="grow"><div className="title">{t('topTherapist')}</div><div className="meta">{top.name} · {money(top.revenue)}</div></div>
           </div>
         )}
       </div>
 
       {serviceTallies.length > 0 && (
         <div className="card">
-          <h3>{t('topServicesTitle')}</h3>
+          <h2>{t('topServicesTitle')}</h2>
           {serviceTallies.map((s, idx) => {
             const max = serviceTallies[0].count;
             const pct = Math.round((s.count / max) * 100);
@@ -4635,7 +4823,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
               <div key={s.name} className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                   <strong style={{ color: 'var(--ink)' }}>{idx + 1}. {s.name}</strong>
-                  <span className="meta">{s.count} · {currency}{fmt(s.revenue)}</span>
+                  <span className="meta">{s.count} · {money(s.revenue)}</span>
                 </div>
                 <div style={{ height: 6, background: 'var(--line)', borderRadius: 3, overflow: 'hidden' }}>
                   <div style={{ width: `${pct}%`, height: '100%', background: 'var(--gold)' }} />
@@ -4647,17 +4835,17 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
       )}
 
       <div className="card">
-        <h3>{t('snapshot')}</h3>
+        <h2>{t('snapshot')}</h2>
         <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('lowStockItems')}</div><div className="meta">{lowStock.length} {t('flagged')}</div></div></div>
         {inventoryValue > 0 && (
-          <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('inventoryValue')}</div><div className="meta">{currency}{fmt(inventoryValue)}</div></div></div>
+          <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('inventoryValue')}</div><div className="meta">{money(inventoryValue)}</div></div></div>
         )}
         <div className="row"><Bell size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('pendingRequestsSnap')}</div><div className="meta">{requests.filter(r => r.status === 'pending').length}</div></div></div>
         <div className="row"><Megaphone size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('announcementsSent')}</div><div className="meta">{announcements.length}</div></div></div>
       </div>
 
       <div className="card">
-        <h3>{t('team')} · {t('commission')}</h3>
+        <h2>{t('team')} · {t('commission')}</h2>
         {perStaff.length === 0 ? (
           <div className="center-muted">{t('noTeamYetShort')}</div>
         ) : perStaff.map(s => (
@@ -4665,10 +4853,10 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
             <Avatar initial={s.avatar} color={s.color} size={32} />
             <div className="grow">
               <div className="title">{s.name}</div>
-              <div className="meta">{s.sessions} {labels.bookingPlural.toLowerCase()} · {currency}{fmt(s.revenue)}</div>
+              <div className="meta">{s.sessions} {labels.bookingPlural.toLowerCase()} · {money(s.revenue)}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--emerald)' }}>{currency}{fmt(s.commission)}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--emerald)' }}>{money(s.commission)}</div>
               <div className="meta" style={{ fontSize: 11 }}>{t('estEarnings')}</div>
             </div>
           </div>
@@ -4720,6 +4908,20 @@ function WelcomeSlideshow({ onDone }) {
   const slide = slides[step];
   const isLast = step === slides.length - 1;
 
+  // Keyboard navigation: Esc skips, ←/→ navigate.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); onDone(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); setStep(s => Math.min(s + 1, slides.length - 1)); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); setStep(s => Math.max(s - 1, 0)); }
+      else if (e.key === 'Enter') {
+        if (step === slides.length - 1) { e.preventDefault(); onDone(); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onDone, slides.length, step]);
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9990,
@@ -4739,13 +4941,13 @@ function WelcomeSlideshow({ onDone }) {
         {/* Skip top-right — positioned within card so it stays visible on cream bg */}
         <button
           onClick={onDone}
-          aria-label="Skip onboarding"
+          aria-label={t('skipOnboardingLabel')}
           style={{
             position: 'absolute', top: 10, right: 12,
             background: 'transparent', color: 'var(--muted)',
             border: '1px solid var(--line)', borderRadius: 999,
-            padding: '6px 12px', minHeight: 32,
-            fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+            padding: '10px 16px', minHeight: 44,
+            fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
           }}
         >{t('slideshowSkip')}</button>
 
@@ -4803,57 +5005,57 @@ function PrivacyPolicyScreen({ onBack }) {
   const { t } = useT();
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px', fontFamily: 'system-ui', lineHeight: 1.7, color: '#333' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2d5a4a', fontSize: 14, marginBottom: 24, padding: 0 }}>
+      <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2d5a4a', fontSize: 14, marginBottom: 24, padding: 0, minHeight: 44 }}>
         ← {t('back')}
       </button>
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Privacy Policy</h1>
-      <p style={{ color: 'var(--muted, #6b5d4a)', fontSize: 13, marginBottom: 32 }}>Last updated: May 2026</p>
+      <h1 style={{ fontSize: 24, marginBottom: 4 }}>{t('privacyPolicyTitle')}</h1>
+      <p style={{ color: 'var(--muted, #6b5d4a)', fontSize: 13, marginBottom: 32 }}>{t('privacyLastUpdated')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>1. Who We Are</h2>
-      <p>Spapilot ("we", "us", "our") provides business operations management software for service businesses. This policy explains how we handle your data.</p>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy1Title')}</h2>
+      <p>{t('privacy1Body')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>2. What We Collect</h2>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy2Title')}</h2>
       <ul>
-        <li><strong>Account data:</strong> Email address and password (hashed — we never store plain-text passwords)</li>
-        <li><strong>Business data:</strong> Staff, bookings, inventory, SOPs, and announcements you create inside the app</li>
-        <li><strong>Usage data:</strong> Basic server logs (request paths, timestamps) for debugging and security</li>
+        <li>{t('privacy2Acct')}</li>
+        <li>{t('privacy2Biz')}</li>
+        <li>{t('privacy2Usage')}</li>
       </ul>
-      <p>We do not collect payment card details directly. Payments are handled by Stripe.</p>
+      <p>{t('privacy2Foot')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>3. How We Use It</h2>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy3Title')}</h2>
       <ul>
-        <li>Provide and improve the Spapilot service</li>
-        <li>Send password reset emails (only when you request them)</li>
-        <li>Detect and prevent security threats</li>
-        <li>Communicate service updates</li>
+        <li>{t('privacy3a')}</li>
+        <li>{t('privacy3b')}</li>
+        <li>{t('privacy3c')}</li>
+        <li>{t('privacy3d')}</li>
       </ul>
-      <p>We do not sell your data. We do not share it with third parties except as required to operate the service (e.g., hosting provider, email delivery).</p>
+      <p>{t('privacy3Foot')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>4. Data Storage</h2>
-      <p>Your data is stored on secure servers. Passwords are hashed using bcrypt. Connections use HTTPS. We retain your data for as long as your account is active.</p>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy4Title')}</h2>
+      <p>{t('privacy4Body')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>5. Your Rights</h2>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy5Title')}</h2>
       <ul>
-        <li><strong>Access:</strong> You can request a copy of your data at any time</li>
-        <li><strong>Deletion:</strong> You can request account deletion by emailing us</li>
-        <li><strong>Correction:</strong> You can update your account information in the app</li>
+        <li>{t('privacy5a')}</li>
+        <li>{t('privacy5b')}</li>
+        <li>{t('privacy5c')}</li>
       </ul>
-      <p>To exercise these rights, contact us at the email below.</p>
+      <p>{t('privacy5Foot')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>6. Cookies</h2>
-      <p>We use a single session token stored in your browser's local storage for authentication. No third-party tracking cookies.</p>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy6Title')}</h2>
+      <p>{t('privacy6Body')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>7. Children</h2>
-      <p>Spapilot is not directed at children under 13. We do not knowingly collect data from children.</p>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy7Title')}</h2>
+      <p>{t('privacy7Body')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>8. Changes</h2>
-      <p>We may update this policy. Continued use after changes means acceptance. We will notify users of material changes by email.</p>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy8Title')}</h2>
+      <p>{t('privacy8Body')}</p>
 
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>9. Contact</h2>
-      <p>Questions? Email us at: <a href="mailto:privacy@spapilot.app" style={{ color: '#2d5a4a' }}>privacy@spapilot.app</a></p>
+      <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy9Title')}</h2>
+      <p>{t('privacy9Body')} <a href="mailto:privacy@spapilot.app" style={{ color: '#2d5a4a' }}>privacy@spapilot.app</a></p>
 
       <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #eee', fontSize: 12, color: '#aaa' }}>
-        © {new Date().getFullYear()} Spapilot. All rights reserved.
+        © {new Date().getFullYear()} Spapilot. {t('privacyRights')}
       </div>
     </div>
   );
@@ -4919,6 +5121,24 @@ function TourOverlay({ onDone }) {
     document.addEventListener('click', handler, true);
     return () => document.removeEventListener('click', handler, true);
   }, [step, onDone, visibleSteps]);
+
+  // Esc key dismisses the tour. Arrow keys advance/retreat.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); onDone(); }
+      else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const next = stepRef.current + 1;
+        if (next < visibleSteps.length) setStep(next);
+        else onDone();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setStep(s => Math.max(s - 1, 0));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onDone, visibleSteps]);
 
   const currentStep = visibleSteps[step];
   const PAD = 10;
@@ -5020,14 +5240,16 @@ function TourOverlay({ onDone }) {
         </div>
       )}
 
-      {/* Skip tour button */}
+      {/* Skip tour button — focus on mount so keyboard users can dismiss the tour immediately */}
       <button
         onClick={onDone}
+        autoFocus
+        aria-label={t('skipTour')}
         style={{
           position: 'fixed', top: 14, right: 14, zIndex: 9999,
           background: 'rgba(28,28,30,0.9)', color: 'rgba(255,255,255,0.95)',
           border: '1px solid rgba(255,255,255,0.25)',
-          borderRadius: 20, padding: '8px 16px', fontSize: 13, minHeight: 36,
+          borderRadius: 20, padding: '12px 18px', fontSize: 13, minHeight: 44,
           cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em',
         }}
       >{t('skipTour')}</button>
@@ -5059,7 +5281,18 @@ function AppInner() {
   const [tab, setTab] = useState('dashboard');
   const [toastMsg, setToastMsg] = useState(null);
   const toast = (m) => setToastMsg(m);
-  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset_token') || null);
+  const [resetToken, setResetToken] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tok = params.get('reset_token');
+    // Strip the token from the URL right away so it isn't leaked via referer
+    // when the user clicks any outbound link before completing the reset.
+    if (tok) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('reset_token');
+      try { window.history.replaceState({}, '', url.toString()); } catch {}
+    }
+    return tok || null;
+  });
   const [authMode, setAuthMode] = useState(null); // null | 'login' | 'signup'
   const [signupIntent, setSignupIntent] = useState(null); // null | 'owner' | 'staff' — drives post-signup onboarding
   const [onboardingChoice, setOnboardingChoice] = useState(null); // null | 'owner' | 'staff'
@@ -5290,7 +5523,7 @@ function AppInner() {
   return (
     <BizProvider business={business}>
     <div className="shell">
-      <a href="#main" className="skip-link">{t('skipToMain') || 'Skip to main content'}</a>
+      <a href="#main" className="skip-link">{t('skipToMain')}</a>
       <OfflineBanner />
       <TrialBanner user={user} onUpgrade={() => setShowSettings(true)} />
       <header className="topbar">
@@ -5414,7 +5647,7 @@ function AppInner() {
         </LoadState>
       </main>
 
-      <nav className="bottom-nav" aria-label="Primary">
+      <nav className="bottom-nav" aria-label={t('navPrimary')}>
         {nav.map(item => {
           const Icon = item.icon;
           const active = tab === item.id;
@@ -5426,12 +5659,11 @@ function AppInner() {
               className={`nav-item ${active ? 'active' : ''}`}
               data-tour={`tab-${item.id}`}
               aria-current={active ? 'page' : undefined}
-              aria-label={t(item.labelKey)}
             >
-              <Icon size={22} />
+              <Icon size={22} aria-hidden="true" />
               <span>{t(item.labelKey)}</span>
-              {active && <span className="dot" />}
-              {badge > 0 && <span className="badge-dot">{badge}</span>}
+              {active && <span className="dot" aria-hidden="true" />}
+              {badge > 0 && <span className="badge-dot" aria-label={`${badge} ${t('alerts')}`}>{badge}</span>}
             </button>
           );
         })}
