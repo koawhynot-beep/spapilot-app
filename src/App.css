@@ -28,6 +28,8 @@
   box-shadow: var(--shadow);
   text-align: center;
   animation: slideup 0.4s ease;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
 }
 .role-card .brand {
   font-family: 'Fraunces', serif;
@@ -78,6 +80,8 @@
   background: var(--cream-soft);
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .topbar .brand {
   font-family: 'Fraunces', serif;
@@ -127,6 +131,7 @@
   box-shadow: var(--shadow);
   margin-bottom: 14px;
   animation: fadein 0.3s ease;
+  contain: layout style;
 }
 .card h2, .card h3 {
   margin: 0 0 12px;
@@ -177,7 +182,9 @@
   color: var(--emerald); text-decoration: underline; cursor: pointer;
   font-size: 13px; font-weight: 600;
   -webkit-tap-highlight-color: transparent;
+  min-height: 24px;
 }
+.btn-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
 .btn-link:hover { color: var(--emerald-dark); }
 
 /* Role-card style button (large tiles in onboarding) */
@@ -216,6 +223,7 @@
   transition: border-color 0.15s, box-shadow 0.15s;
   font-family: inherit;
   caret-color: var(--emerald);
+  color-scheme: light dark;
 }
 .input:focus, .select:focus, .textarea:focus {
   box-shadow: 0 0 0 3px rgba(160, 125, 80, 0.22);
@@ -233,6 +241,22 @@
   box-shadow: 0 0 0 3px rgba(168, 56, 56, 0.22);
 }
 .textarea { resize: vertical; min-height: 72px; }
+.input::placeholder, .textarea::placeholder { color: var(--muted); opacity: 1; }
+
+/* Tap target floor for any clickable a tag inside the app — ensures WhatsApp link etc.
+   match the 44px Apple HIG target even before .btn-icon class is applied. */
+a[role="button"], .btn-icon a, a.btn-icon { min-height: 44px; min-width: 44px; }
+/* Underlined link inside cards (privacy etc.) keeps 4px breathing room for click. */
+a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 2px; }
+
+/* Tighter spacing variant for very narrow screens (iPhone SE etc.) */
+@media (max-width: 360px) {
+  .card { padding: 14px; }
+  .modal-body { padding: 14px 16px 16px; }
+  .modal-head { padding: 14px 16px 10px; }
+  .modal-head h2 { font-size: 18px; }
+  .row { gap: 10px; padding: 10px 0; }
+}
 
 /* Inputs with leading icon (auth screen, etc.) */
 .input-wrap { position: relative; display: flex; align-items: center; }
@@ -284,6 +308,8 @@
 .avatar {
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; flex-shrink: 0;
+  text-transform: uppercase;
+  user-select: none;
 }
 
 /* Bottom nav */
@@ -333,6 +359,14 @@
   min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px var(--cream-soft);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nav-item .badge-dot { animation: badge-pulse 2s ease-in-out infinite; }
+  @keyframes badge-pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.08); }
+  }
 }
 
 /* Schedule blocks */
@@ -412,9 +446,14 @@
   width: 100%; max-width: 440px;
   padding: 0;
   box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-  max-height: 90vh; overflow: hidden;
+  max-height: min(90vh, calc(100dvh - 32px));
+  overflow: hidden;
   display: flex; flex-direction: column;
   animation: slideup 0.28s ease;
+}
+@media (max-width: 480px) {
+  .modal { max-height: 100dvh; border-radius: 16px 16px 0 0; align-self: flex-end; }
+  .modal-backdrop { align-items: flex-end; padding: 0; }
 }
 .modal-head {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
@@ -423,7 +462,9 @@
   border-bottom: 1px solid var(--line);
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   position: sticky; top: 0; z-index: 1;
+  flex-shrink: 0;
 }
+.modal-head h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .modal-head h3 { margin: 0; color: var(--emerald); font-size: 20px; }
 .modal-body { padding: 16px 22px 22px; overflow-y: auto; flex: 1; }
 .modal h3 { margin: 0 0 14px; color: var(--emerald); font-size: 20px; }
@@ -442,6 +483,7 @@
   display: inline-flex; align-items: center; justify-content: center;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
 }
 .modal-close:hover { color: var(--danger); background: rgba(168,56,56,0.08); }
 .modal-close:active { transform: scale(0.94); }
@@ -588,11 +630,17 @@
   background: #fbecec; color: var(--danger);
   padding: 10px 14px; border-radius: 10px; font-size: 13px;
   display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  word-break: break-word;
+}
+@media (prefers-color-scheme: dark) {
+  .error-banner { background: rgba(168,56,56,0.18); }
+  .success-banner { background: rgba(116, 182, 154, 0.15); }
 }
 .success-banner {
   background: #e3efe6; color: var(--success);
   padding: 10px 14px; border-radius: 10px; font-size: 13px;
   display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  word-break: break-word;
 }
 .center-muted { text-align: center; color: var(--muted); padding: 24px 0; font-size: 13px; }
 
@@ -631,6 +679,7 @@ button.week-cell:focus-visible { outline: 3px solid var(--gold); outline-offset:
 }
 
 .chip-row { display: flex; gap: 8px; row-gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.chip-row .chip { flex: 0 0 auto; }
 .chip {
   padding: 10px 14px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--input-bg, #fff);
@@ -644,6 +693,15 @@ button.week-cell:focus-visible { outline: 3px solid var(--gold); outline-offset:
 
 /* Smooth tap feedback on all cards */
 .role-btn, .sched-block, .row { -webkit-tap-highlight-color: transparent; }
+
+/* Row when keyboard-operable (role="button") gets clear focus ring */
+.row[role="button"]:focus-visible {
+  outline: 3px solid var(--gold); outline-offset: -2px; border-radius: 8px;
+}
+.row[role="button"]:hover { background: rgba(45, 90, 74, 0.04); }
+@media (prefers-color-scheme: dark) {
+  .row[role="button"]:hover { background: rgba(255, 255, 255, 0.04); }
+}
 
 /* Safe-area padding for notched iPhones */
 @supports (padding: max(0px)) {

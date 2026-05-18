@@ -58,3 +58,19 @@ code {
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--cream-deep); border-radius: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* Selection color matches brand emerald */
+::selection { background: var(--emerald); color: #fff; }
+
+/* Strip the default browser tap-highlight blue so we control feedback ourselves */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Prevent iOS Safari from zooming into inputs <16px when focused */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea { font-size: max(16px, 1em); }
+}
+
+/* Respect reduced motion for keyframe animations defined here too */
+@media (prefers-reduced-motion: reduce) {
+  .fade, .slide { animation: none; }
+}
