@@ -3,8 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#2d5a4a" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Spapilot" />
@@ -15,7 +18,12 @@
     <title>Spapilot</title>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 24px; text-align: center; line-height: 1.6;">
+        <h1 style="color: #2d5a4a; font-size: 22px;">JavaScript required</h1>
+        <p>Spapilot needs JavaScript to run. Please enable it in your browser and reload.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
   </body>
 </html>

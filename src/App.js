@@ -42,7 +42,7 @@ class ErrorBoundary extends Component {
           minHeight: '100vh', padding: '20px', background: 'var(--cream, #f5f0e8)', textAlign: 'center',
           fontFamily: 'Inter, system-ui, sans-serif', color: 'var(--ink, #2b2623)'
         }}>
-          <AlertTriangle size={48} color="var(--danger, #a83838)" style={{ marginBottom: '16px' }} />
+          <AlertTriangle size={48} color="var(--danger, #a83838)" aria-hidden="true" style={{ marginBottom: '16px' }} />
           <h1 style={{ color: 'var(--danger, #a83838)', marginBottom: '8px', fontSize: 22, fontFamily: 'Fraunces, Georgia, serif' }}>{txt.title}</h1>
           <p style={{ color: 'var(--muted, #6b5d4a)', marginBottom: '20px', fontSize: 14 }}>{txt.body}</p>
           <button
@@ -476,6 +476,9 @@ const TRANSLATIONS = {
     privacy9Title: '9. Contact',
     privacy9Body: 'Questions? Email us at:',
     privacyRights: 'All rights reserved.',
+    more: 'more',
+    loadMore: 'Load more',
+    confirmSignOut: 'Sign out of Spapilot? Your data is safe — you can sign back in any time.',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -852,6 +855,9 @@ const TRANSLATIONS = {
     privacy9Title: '9. Kontak',
     privacy9Body: 'Pertanyaan? Email kami di:',
     privacyRights: 'Hak cipta dilindungi.',
+    more: 'lagi',
+    loadMore: 'Muat lebih banyak',
+    confirmSignOut: 'Keluar dari Spapilot? Data Anda aman — Anda dapat masuk kembali kapan saja.',
   },
 };
 
@@ -1158,7 +1164,7 @@ function LoadState({ loading, error, reload, children }) {
   if (loading) return <Skeleton count={4} />;
   if (error) return (
     <div role="alert" aria-live="assertive" className="error-banner">
-      <AlertTriangle size={16} /> {error}
+      <AlertTriangle size={16} aria-hidden="true" /> {error}
       {reload && <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={reload}>{t('retry')}</button>}
     </div>
   );
@@ -1282,7 +1288,7 @@ function Modal({ title, onClose, children }) {
       >
         <div className="modal-head">
           <h2 id={titleId} style={{ margin: 0, color: 'var(--emerald)', fontSize: 20, fontFamily: 'Fraunces, serif', fontWeight: 500 }}>{title}</h2>
-          <button className="modal-close" onClick={onClose} aria-label={t('closeLabel')}><X size={18} /></button>
+          <button className="modal-close" onClick={onClose} aria-label={t('closeLabel')}><X size={18} aria-hidden="true" /></button>
         </div>
         <div className="modal-body">{children}</div>
       </div>
@@ -1357,7 +1363,7 @@ function EmptyState({ icon: Icon, title, body, ctaLabel, onCta }) {
       )}
       {ctaLabel && onCta && (
         <button className="btn btn-primary btn-sm" onClick={onCta}>
-          <Plus size={12} style={{ marginRight: 4 }} /> {ctaLabel}
+          <Plus size={12} aria-hidden="true" style={{ marginRight: 4 }} /> {ctaLabel}
         </button>
       )}
     </div>
@@ -1508,12 +1514,12 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
 
         {mode === 'forgot' && forgotDone ? (
           <div style={{ marginTop: 24, textAlign: 'center' }}>
-            <CheckCircle size={32} color="var(--emerald)" style={{ marginBottom: 12 }} />
+            <CheckCircle size={32} color="var(--emerald)" aria-hidden="true" style={{ marginBottom: 12 }} />
             <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16 }}>{t('resetLinkSent')}</div>
             <button className="btn btn-ghost" style={{ width: '100%' }} onClick={() => switchMode('login')}>{t('backToLogin')}</button>
           </div>
         ) : (
-          <form onSubmit={submit} style={{ marginTop: 18 }}>
+          <form onSubmit={submit} style={{ marginTop: 18 }} aria-busy={busy}>
             <div className="field">
               <label htmlFor="auth-email">{t('email')}</label>
               <div className="input-wrap">
@@ -1526,6 +1532,7 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
                   autoCapitalize="none"
                   autoCorrect="off"
                   autoComplete="email"
+                  maxLength={254}
                   placeholder={t('emailPlaceholder')}
                   value={email}
                   onChange={e => { setErr(null); setEmail(e.target.value); }}
@@ -1544,6 +1551,7 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
                     className="input input-with-icon"
                     type="password"
                     autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    maxLength={200}
                     placeholder={mode === 'signup' ? t('pwSignup') : t('pwLogin')}
                     value={password}
                     onChange={e => { setErr(null); setPassword(e.target.value); }}
@@ -1637,18 +1645,20 @@ function ResetPasswordScreen({ token, onDone }) {
         <BrandMark sub={t('resetPassword')} />
         {done ? (
           <div style={{ marginTop: 24, textAlign: 'center' }}>
-            <CheckCircle size={32} color="var(--emerald)" style={{ marginBottom: 12 }} />
+            <CheckCircle size={32} color="var(--emerald)" aria-hidden="true" style={{ marginBottom: 12 }} />
             <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16 }}>{t('passwordResetSuccess')}</div>
             <button className="btn btn-primary" style={{ width: '100%' }} onClick={onDone}>{t('signIn')}</button>
           </div>
         ) : (
-          <form onSubmit={submit} style={{ marginTop: 18 }}>
+          <form onSubmit={submit} style={{ marginTop: 18 }} aria-busy={busy}>
             <div className="field">
               <label htmlFor="reset-new-password">{t('newPassword')}</label>
               <div className="input-wrap">
                 <Lock size={14} className="input-icon" aria-hidden="true" />
                 <input id="reset-new-password" className="input input-with-icon" type="password" autoFocus
                   autoComplete="new-password" placeholder={t('pwSignup')}
+                  aria-invalid={!!err}
+                  aria-describedby={err ? 'reset-error' : undefined}
                   value={password} onChange={e => { setErr(null); setPassword(e.target.value); }} />
               </div>
             </div>
@@ -1658,10 +1668,12 @@ function ResetPasswordScreen({ token, onDone }) {
                 <Lock size={14} className="input-icon" aria-hidden="true" />
                 <input id="reset-confirm-password" className="input input-with-icon" type="password"
                   autoComplete="new-password" placeholder={t('confirmPassword')}
+                  aria-invalid={!!err}
+                  aria-describedby={err ? 'reset-error' : undefined}
                   value={confirm} onChange={e => { setErr(null); setConfirm(e.target.value); }} />
               </div>
             </div>
-            {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+            {err && <div id="reset-error" role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
               {busy ? t('pleaseWait') : t('resetPassword')}
             </button>
@@ -1718,7 +1730,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
 
         {/* Primary CTA — for business owners starting trial */}
         <button className="btn btn-primary" style={{ width: '100%', padding: '16px 16px', fontSize: 16 }} onClick={onStartTrial}>
-          <Sparkles size={16} style={{ marginRight: 8 }} /> {t('startFreeTrial')}
+          <Sparkles size={16} aria-hidden="true" style={{ marginRight: 8 }} /> {t('startFreeTrial')}
         </button>
         <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
           {t('trialFinePrintSub')}
@@ -1761,7 +1773,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
       {showJoinInfo && (
         <Modal title={t('joinTeamTitle')} onClose={() => setShowJoinInfo(false)}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <Users size={20} color="var(--emerald)" />
+            <Users size={20} color="var(--emerald)" aria-hidden="true" />
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
               padding: '3px 8px', borderRadius: 999,
@@ -1801,7 +1813,7 @@ function OnboardingRoleSelector({ user, onPickOwner, onPickStaff, onLogout }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 18 }}>
           <button className="role-card-btn" onClick={onPickOwner}
             style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 18, border: '1px solid var(--border)', borderRadius: 14, background: 'var(--cream)', cursor: 'pointer', textAlign: 'left' }}>
-            <Building2 size={28} color="var(--emerald)" />
+            <Building2 size={28} color="var(--emerald)" aria-hidden="true" />
             <div>
               <div style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: 'var(--emerald)' }}>{t('iOwnBusiness')}</div>
               <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>{t('iOwnBusinessSub')}</div>
@@ -1809,7 +1821,7 @@ function OnboardingRoleSelector({ user, onPickOwner, onPickStaff, onLogout }) {
           </button>
           <button className="role-card-btn" onClick={onPickStaff}
             style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 18, border: '1px solid var(--border)', borderRadius: 14, background: 'var(--cream)', cursor: 'pointer', textAlign: 'left' }}>
-            <Users size={28} color="var(--gold)" />
+            <Users size={28} color="var(--gold)" aria-hidden="true" />
             <div>
               <div style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: 'var(--emerald)' }}>{t('iWorkAsStaff')}</div>
               <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>{t('iWorkAsStaffSub')}</div>
@@ -1856,12 +1868,14 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
       <div className="role-card" style={{ maxWidth: 460 }}>
         <BrandMark sub={t('setupBusiness')} />
         <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>{t('setupBusinessSub')}</p>
-        <form onSubmit={submit} style={{ marginTop: 18 }}>
+        <form onSubmit={submit} style={{ marginTop: 18 }} aria-busy={busy}>
           <div className="field">
             <label htmlFor="biz-name">{t('businessName')}</label>
-            <input id="biz-name" className="input" autoFocus required value={name}
+            <input id="biz-name" className="input" autoFocus required maxLength={120} value={name}
               autoComplete="organization"
               placeholder={t('businessNamePh')}
+              aria-invalid={!!err}
+              aria-describedby={err ? 'biz-onboard-error' : undefined}
               onChange={e => { setErr(null); setName(e.target.value); }} />
           </div>
           <div className="field">
@@ -1902,7 +1916,7 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
               ))}
             </div>
           </div>
-          {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+          {err && <div id="biz-onboard-error" role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
             {busy ? t('saving') : t('createBusiness')}
           </button>
@@ -1944,16 +1958,18 @@ function StaffOnboarding({ onJoined, onBack, onSwitchToOwner, onLogout }) {
       <div className="role-card" style={{ maxWidth: 460 }}>
         <BrandMark sub={t('joinBusiness')} />
         <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>{t('joinBusinessSub')}</p>
-        <form onSubmit={submit} style={{ marginTop: 18 }}>
+        <form onSubmit={submit} style={{ marginTop: 18 }} aria-busy={busy}>
           <div className="field">
             <label htmlFor="biz-code">{t('businessCode')}</label>
             <input id="biz-code" className="input" autoFocus required value={code}
               autoComplete="off"
               placeholder={t('businessCodePh')}
+              aria-invalid={!!err}
+              aria-describedby={err ? 'biz-code-error' : undefined}
               style={{ textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'monospace' }}
               onChange={e => { setErr(null); setCode(e.target.value.toUpperCase()); }} />
           </div>
-          {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} /> {err}</div>}
+          {err && <div id="biz-code-error" role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
             {busy ? t('saving') : t('join')}
           </button>
@@ -2016,15 +2032,15 @@ function PaymentRequired({ user, onLogout }) {
       <div className="role-card" style={{ maxWidth: 440 }}>
         <BrandMark sub={t('paymentRequiredTitle')} />
         <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <Lock size={36} color="var(--gold)" />
+          <Lock size={36} color="var(--gold)" aria-hidden="true" />
           <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 12, lineHeight: 1.5 }}>
             {t('paymentRequiredSub')}
           </p>
         </div>
-        {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 12 }}><AlertTriangle size={14} /> {err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 12 }}><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
         <button className="btn btn-primary" style={{ width: '100%', marginTop: 18, padding: '14px 16px', fontSize: 14 }}
           disabled={busy} onClick={subscribe}>
-          <Gem size={14} style={{ marginRight: 6 }} /> {busy ? t('pleaseWait') : t('subscribeMonthly')}
+          <Gem size={14} aria-hidden="true" style={{ marginRight: 6 }} /> {busy ? t('pleaseWait') : t('subscribeMonthly')}
         </button>
         <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
           {t('subscribeNote')}
@@ -2228,7 +2244,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
           {t('privacyAndData')}
         </div>
         <button className="btn btn-ghost" style={{ width: '100%', fontSize: 13, marginBottom: 8 }} disabled={busy} onClick={exportData}>
-          <Download size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+          <Download size={14} aria-hidden="true" style={{ marginRight: 6, verticalAlign: 'middle' }} />
           {t('exportMyData')}
         </button>
         {!showDeleteConfirm ? (
@@ -2237,7 +2253,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
             style={{ width: '100%', fontSize: 13, color: 'var(--danger)' }}
             onClick={() => setShowDeleteConfirm(true)}
           >
-            <Trash2 size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+            <Trash2 size={14} aria-hidden="true" style={{ marginRight: 6, verticalAlign: 'middle' }} />
             {t('deleteAccount')}
           </button>
         ) : (
@@ -2250,6 +2266,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
               className="input"
               autoComplete="current-password"
               aria-label={t('password')}
+              autoFocus
               placeholder={t('yourPasswordPlaceholder')}
               value={deletePassword}
               onChange={e => { setDeleteErr(null); setDeletePassword(e.target.value); }}
@@ -2349,12 +2366,13 @@ function TrialBanner({ user, onUpgrade }) {
       display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
     }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        {urgent ? <AlertTriangle size={12} /> : <Gem size={12} />}
+        {urgent ? <AlertTriangle size={12} aria-hidden="true" /> : <Gem size={12} aria-hidden="true" />}
         {label}
       </span>
       <button
         className="btn btn-sm"
         onClick={onUpgrade}
+        aria-label={`${t('subscribeMonthly')} — ${label}`}
         style={{ background: urgent ? 'var(--emerald)' : 'transparent', color: urgent ? '#fff' : 'var(--emerald)', border: urgent ? 'none' : '1px solid var(--emerald)' }}
       >
         {t('subscribeMonthly')}
@@ -2390,8 +2408,8 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
   };
 
   const roles = [
-    { id: 'manager', label: t('manager'), sub: t('managerSub'), icon: <LayoutDashboard size={22} /> },
-    { id: 'staff',   label: t('staff'),   sub: t('staffSub'),   icon: <Leaf size={22} /> },
+    { id: 'manager', label: t('manager'), sub: t('managerSub'), icon: <LayoutDashboard size={22} aria-hidden="true" /> },
+    { id: 'staff',   label: t('staff'),   sub: t('staffSub'),   icon: <Leaf size={22} aria-hidden="true" /> },
   ];
 
   return (
@@ -2399,7 +2417,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
       <LangToggle floating />
       <div className="role-card">
         <BrandMark sub={t('oneLast')} />
-        {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 14 }}><AlertTriangle size={14} /> {err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 14 }}><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
 
         {picking === 'staff' ? (
           <div style={{ marginTop: 18 }}>
@@ -2439,7 +2457,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
         )}
 
         <button className="btn btn-ghost" style={{ width: '100%', marginTop: 16 }} onClick={onLogout}>
-          <LogOut size={14} /> {t('signOut')}
+          <LogOut size={14} aria-hidden="true" /> {t('signOut')}
         </button>
       </div>
     </div>
@@ -2499,9 +2517,9 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
   };
 
   const stats = [
-    { v: todayBookings.length, l: bookingLabel,    i: <Calendar size={16} /> },
-    { v: staff.length,         l: t('activeStaff'), i: <Users size={16} /> },
-    { v: lowStock.length,      l: t('lowStock'),    i: <Package size={16} /> },
+    { v: todayBookings.length, l: bookingLabel,    i: <Calendar size={16} aria-hidden="true" /> },
+    { v: staff.length,         l: t('activeStaff'), i: <Users size={16} aria-hidden="true" /> },
+    { v: lowStock.length,      l: t('lowStock'),    i: <Package size={16} aria-hidden="true" /> },
   ];
 
   const CHECKLIST_KEY = 'app_checklist';
@@ -2535,6 +2553,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
   const addItem = () => {
     const text = newTask.trim();
     if (!text) return;
+    if (checkItems.length >= 50) return; // cap so localStorage payload stays small
     saveItems([...checkItems, { id: Date.now(), text, done: false }]);
     setNewTask('');
   };
@@ -2556,15 +2575,15 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
         <div className="card-head"><h2>{t('quickActionsBar')}</h2></div>
         <div className="qa-grid">
           <button className="qa-btn" onClick={reorderAll} disabled={busy || lowStock.length === 0} aria-label={t('reorderAll')}>
-            <Package size={18} />
+            <Package size={18} aria-hidden="true" />
             <span>{t('reorderAll')}{lowStock.length > 0 ? ` (${lowStock.length})` : ''}</span>
           </button>
           <button className="qa-btn" onClick={() => onGoto('alerts')} aria-label={t('reviewRequests')}>
-            <Bell size={18} />
+            <Bell size={18} aria-hidden="true" />
             <span>{t('reviewRequests')}{pending.length > 0 ? ` (${pending.length})` : ''}</span>
           </button>
           <button className="qa-btn" onClick={() => onGoto('announcements')} aria-label={t('broadcast')}>
-            <Megaphone size={18} />
+            <Megaphone size={18} aria-hidden="true" />
             <span>{t('broadcast')}</span>
           </button>
         </div>
@@ -2573,7 +2592,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
       {pending.length > 0 && (
         <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
           <div className="card-head">
-            <h2><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+            <h2><AlertTriangle size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 6 }} />
               {pending.length} {pending.length === 1 ? t('pendingRequest') : t('pendingRequests')}</h2>
             <button className="btn btn-ghost btn-sm" onClick={() => onGoto('alerts')}>{t('review')}</button>
           </div>
@@ -2635,7 +2654,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
                 background: item.done ? 'var(--emerald)' : 'transparent',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                {item.done && <Check size={12} color="#fff" />}
+                {item.done && <Check size={12} color="#fff" aria-hidden="true" />}
               </span>
               <span className="grow" style={{
                 textDecoration: item.done ? 'line-through' : 'none',
@@ -2648,13 +2667,14 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
               onClick={() => removeItem(item.id)}
               style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}
               aria-label={t('remove')}
-            ><X size={16} /></button>
+            ><X size={16} aria-hidden="true" /></button>
           </div>
         ))}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <input
             className="input"
             value={newTask}
+            maxLength={200}
             onChange={e => setNewTask(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addItem()}
             placeholder={t('checklistAdd')}
@@ -2663,7 +2683,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
           />
           <button className="btn btn-sm" onClick={addItem} disabled={!newTask.trim()}
             style={{ padding: '0 14px', background: 'var(--emerald)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <Plus size={16} />
+            <Plus size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -2710,6 +2730,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   const [query, setQuery] = useState('');
   const [sortDir, setSortDir] = useState('asc');
   const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [visibleCount, setVisibleCount] = useState(50);
   const dayCounts = useMemo(() => {
     const counts = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
     bookings.forEach(b => {
@@ -2759,6 +2780,8 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
     out = [...out].sort((a, b) => sortDir === 'asc' ? (a.time || '').localeCompare(b.time || '') : (b.time || '').localeCompare(a.time || ''));
     return out;
   }, [bookings, query, sortDir, selectedDate, todayStr]);
+  // Reset pagination when filter inputs change so user starts from page 1.
+  useEffect(() => { setVisibleCount(50); }, [query, selectedDate, sortDir]);
 
   const del = async (id) => {
     if (!(await appConfirm({ title: t('deleteBooking'), confirmLabel: t('delete'), cancelLabel: t('cancel'), danger: true }))) return;
@@ -2818,7 +2841,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
         <div className="card-head">
           <h2>{dateLabel} · {labels.bookingPlural}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}>
-            <Plus size={14} /> {t('add')}
+            <Plus size={14} aria-hidden="true" /> {t('add')}
           </button>
         </div>
 
@@ -2847,8 +2870,13 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
         )}
 
         <div className="search-wrap">
-          <Search size={14} className="search-icon" />
+          <Search size={14} className="search-icon" aria-hidden="true" />
           <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
+          {query && (
+            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('cancel')}>
+              <X size={14} aria-hidden="true" />
+            </button>
+          )}
         </div>
         <div className="toolbar">
           <select className="select" value={sortDir} onChange={e => setSortDir(e.target.value)} aria-label={t('sortBy')}>
@@ -2856,7 +2884,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
             <option value="desc">{t('timeDesc')}</option>
           </select>
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download size={12} /> {t('exportCsv')}
+            <Download size={12} aria-hidden="true" /> {t('exportCsv')}
           </button>
         </div>
 
@@ -2870,7 +2898,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
                 ctaLabel={`${t('add')} ${labels.booking.toLowerCase()}`}
                 onCta={() => setModal('new')}
               />
-        ) : filtered.map(b => {
+        ) : filtered.slice(0, visibleCount).map(b => {
           const m = staffById.get(b.staffId);
           const isConflict = conflictIds.has(b.id);
           const svc = serviceByName.get((b.treatment || '').toLowerCase());
@@ -2882,29 +2910,53 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
                 <div className="title">{b.client}</div>
                 <div className="meta">{b.treatment}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}{b.price > 0 ? ` · ${fmtMoney(b.price, lang)}` : ''}</div>
                 {m && <div className="meta" style={{ marginTop: 4 }}>{t('withPerson')} <strong>{m.name}</strong></div>}
-                {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('overlapsWithAnother')}</div>}
-                {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
+                {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} aria-hidden="true" style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('overlapsWithAnother')}</div>}
+                {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} aria-hidden="true" style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
                 {b.notes && <div className="note-chip">{t('notes')}: {b.notes}</div>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <button className="btn-icon" onClick={() => setModal(b)} aria-label={t('edit')}><Edit2 size={14} /></button>
-                <button className="btn-icon" onClick={() => del(b.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
+                <button className="btn-icon" onClick={() => setModal(b)} aria-label={`${t('edit')} ${b.client} ${b.time}`}><Edit2 size={14} aria-hidden="true" /></button>
+                <button className="btn-icon" onClick={() => del(b.id)} aria-label={`${t('delete')} ${b.client} ${b.time}`}><Trash2 size={14} aria-hidden="true" /></button>
               </div>
             </div>
           );
         })}
+        {filtered.length > visibleCount && (
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setVisibleCount(c => c + 50)}>
+              {t('loadMore')} ({filtered.length - visibleCount} {t('more')})
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="card">
         <h2>{t('weekOverview')}</h2>
         <div className="week-grid">
-          {dayCounts.map(x => (
-            <div className="week-cell" key={x.d}>
-              <div className="d">{t('days')[x.d]}</div>
-              <div className="c">{x.c}</div>
-              <div>{labels.bookingPlural.toLowerCase()}</div>
-            </div>
-          ))}
+          {dayCounts.map(x => {
+            // Click a week cell to jump the date picker to that day of the current week.
+            const dayIdx = DAYS.indexOf(x.d); // Mon..Sun → 0..6
+            const today = new Date();
+            const todayIdx = (today.getDay() + 6) % 7; // shift Sun(0) → 6
+            const diff = dayIdx - todayIdx;
+            const target = new Date(today);
+            target.setDate(today.getDate() + diff);
+            const targetIso = target.toISOString().slice(0, 10);
+            return (
+              <button
+                type="button"
+                className="week-cell"
+                key={x.d}
+                onClick={() => setSelectedDate(targetIso)}
+                aria-label={`${t('days')[x.d]} — ${x.c} ${labels.bookingPlural.toLowerCase()}`}
+                style={{ cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+              >
+                <div className="d">{t('days')[x.d]}</div>
+                <div className="c">{x.c}</div>
+                <div>{labels.bookingPlural.toLowerCase()}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -3022,7 +3074,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
       <form onSubmit={save} aria-busy={saving}>
         {err && <div id="booking-error" role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" />{err}</div>}
         <div className="field"><label htmlFor="booking-client">{labels.client}</label>
-          <input id="booking-client" className="input" required value={f.client} onChange={e => setF({ ...f, client: e.target.value })} aria-invalid={!!err} aria-describedby={err ? 'booking-error' : undefined} /></div>
+          <input id="booking-client" className="input" required maxLength={120} value={f.client} onChange={e => setF({ ...f, client: e.target.value })} aria-invalid={!!err} aria-describedby={err ? 'booking-error' : undefined} /></div>
         {hasServices && (
           <div className="field"><label htmlFor="booking-catalog">{t('pickFromCatalog')}</label>
             {/* Persist selection so picker shows what was chosen (was resetting to placeholder — confusing). */}
@@ -3040,15 +3092,17 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
           </div>
         )}
         <div className="field"><label htmlFor="booking-treatment">{labels.service}</label>
-          <input id="booking-treatment" className="input" required value={f.treatment} onChange={e => setF({ ...f, treatment: e.target.value })} /></div>
+          <input id="booking-treatment" className="input" required maxLength={120} value={f.treatment} onChange={e => setF({ ...f, treatment: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label htmlFor="booking-date">{t('date')}</label>
-            <input id="booking-date" className="input" type="date" required value={f.date || todayStr} onChange={e => setF({ ...f, date: e.target.value })} /></div>
+            <input id="booking-date" className="input" type="date" required
+              max="2099-12-31"
+              value={f.date || todayStr} onChange={e => setF({ ...f, date: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label htmlFor="booking-time">{t('time')}</label>
             <input id="booking-time" className="input" type="time" required value={f.time} onChange={e => setF({ ...f, time: e.target.value })} /></div>
         </div>
         <div className="field"><label htmlFor="booking-duration">{t('durationMin')}</label>
-          <input id="booking-duration" className="input" type="number" min="5" inputMode="numeric" value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
+          <input id="booking-duration" className="input" type="number" min="5" max="1440" inputMode="numeric" value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
         {/* Staff picker — select from team if any exist, fallback to text input.
             Both keep the booking linked correctly: select sets staffId, text input is for ad-hoc names. */}
         <div className="field"><label htmlFor="booking-staff">{labels.staffMember}</label>
@@ -3087,7 +3141,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
             <input id="booking-allergies" className="input" placeholder={t('allergiesPh')} value={f.allergies || ''} onChange={e => setF({ ...f, allergies: e.target.value })} /></div>
         )}
         <div className="field"><label htmlFor="booking-notes">{t('notes')}</label>
-          <textarea id="booking-notes" className="textarea" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
+          <textarea id="booking-notes" className="textarea" maxLength={2000} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -3107,6 +3161,7 @@ function ClientsTab({ bookings, staff, toast }) {
   const { labels } = useBiz();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(null); // selected client name or null
+  const [visibleCount, setVisibleCount] = useState(50);
   // O(1) staff lookup — replaces .find() inside the per-booking history render loop.
   const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff]);
 
@@ -3141,6 +3196,7 @@ function ClientsTab({ bookings, staff, toast }) {
       (c.phone || '').toLowerCase().includes(q)
     );
   }, [clients, query]);
+  useEffect(() => { setVisibleCount(50); }, [query]);
 
   const exportCsv = () => {
     const rows = clients.map(c => ({
@@ -3159,12 +3215,17 @@ function ClientsTab({ bookings, staff, toast }) {
           <h2>{labels.clientPlural} ({clients.length})</h2>
         </div>
         <div className="search-wrap">
-          <Search size={14} className="search-icon" />
+          <Search size={14} className="search-icon" aria-hidden="true" />
           <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
+          {query && (
+            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('cancel')}>
+              <X size={14} aria-hidden="true" />
+            </button>
+          )}
         </div>
         <div className="toolbar">
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download size={12} /> {t('exportCsv')}
+            <Download size={12} aria-hidden="true" /> {t('exportCsv')}
           </button>
         </div>
 
@@ -3176,7 +3237,7 @@ function ClientsTab({ bookings, staff, toast }) {
           />
         ) : filtered.length === 0 ? (
           <div className="center-muted">{t('noResults')}</div>
-        ) : filtered.map(c => (
+        ) : filtered.slice(0, visibleCount).map(c => (
           <div
             key={c.key}
             className="row"
@@ -3195,7 +3256,7 @@ function ClientsTab({ bookings, staff, toast }) {
               </div>
               {c.allergies && (
                 <div style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>
-                  <AlertTriangle size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />
+                  <AlertTriangle size={11} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 3 }} />
                   {t('allergies')}: {c.allergies}
                 </div>
               )}
@@ -3206,6 +3267,13 @@ function ClientsTab({ bookings, staff, toast }) {
             </div>
           </div>
         ))}
+        {filtered.length > visibleCount && (
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setVisibleCount(c => c + 50)}>
+              {t('loadMore')} ({filtered.length - visibleCount} {t('more')})
+            </button>
+          </div>
+        )}
       </div>
 
       {detail && (
@@ -3227,7 +3295,7 @@ function ClientsTab({ bookings, staff, toast }) {
 
             {detail.allergies && (
               <div style={{ background: '#fbecec', padding: '10px 12px', borderRadius: 8, marginBottom: 14, fontSize: 13, color: 'var(--danger)' }}>
-                <AlertTriangle size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 4 }} />
                 <strong>{t('allergies')}:</strong> {detail.allergies}
               </div>
             )}
@@ -3239,7 +3307,7 @@ function ClientsTab({ bookings, staff, toast }) {
               const m = staffById.get(b.staffId);
               return (
                 <div key={b.id} className="row">
-                  <Calendar size={16} color="var(--gold)" />
+                  <Calendar size={16} color="var(--gold)" aria-hidden="true" />
                   <div className="grow">
                     <div className="title">{b.treatment}</div>
                     <div className="meta">{b.time}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}{m ? ` · ${m.name}` : ''}</div>
@@ -3261,6 +3329,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
   const locale = lang === 'id' ? 'id-ID' : 'en-US';
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -3270,6 +3339,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
       (s.role || '').toLowerCase().includes(q)
     );
   }, [staff, query]);
+  useEffect(() => { setVisibleCount(50); }, [query]);
 
   const exportCsv = () => {
     const rows = staff.map(s => ({
@@ -3311,15 +3381,20 @@ function StaffTab({ staff, violations, onReload, toast }) {
       <div className="card">
         <div className="card-head">
           <h2>{labels.staffPlural}</h2>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} /> {t('add')}</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} aria-hidden="true" /> {t('add')}</button>
         </div>
         <div className="search-wrap">
-          <Search size={14} className="search-icon" />
+          <Search size={14} className="search-icon" aria-hidden="true" />
           <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
+          {query && (
+            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('cancel')}>
+              <X size={14} aria-hidden="true" />
+            </button>
+          )}
         </div>
         <div className="toolbar">
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download size={12} /> {t('exportCsv')}
+            <Download size={12} aria-hidden="true" /> {t('exportCsv')}
           </button>
         </div>
         {filtered.length === 0 ? (
@@ -3332,7 +3407,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
                 ctaLabel={t('addFirstFmt').replace('{item}', labels.staffMember.toLowerCase())}
                 onCta={() => setModal('new')}
               />
-        ) : filtered.map(s => {
+        ) : filtered.slice(0, visibleCount).map(s => {
           const vCount = violations.filter(v => v.staffId === s.id).length;
           return (
             <div key={s.id} className="row">
@@ -3344,18 +3419,25 @@ function StaffTab({ staff, violations, onReload, toast }) {
                   {vCount > 0 && <Badge label={`${vCount} ${vCount === 1 ? t('sopNote') : t('sopNotes')}`} type="warn" />}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 {waLink(s.phone) && (
-                  <a className="btn-icon" href={waLink(s.phone)} target="_blank" rel="noopener noreferrer" aria-label={t('whatsapp')} title={t('whatsapp')}>
-                    <PhoneCall size={14} />
+                  <a className="btn-icon" href={waLink(s.phone)} target="_blank" rel="noopener noreferrer" aria-label={`${t('whatsapp')} ${s.name}`} title={t('whatsapp')}>
+                    <PhoneCall size={14} aria-hidden="true" />
                   </a>
                 )}
-                <button className="btn-icon" onClick={() => setModal(s)} aria-label={t('edit')}><Edit2 size={14} /></button>
-                <button className="btn-icon" onClick={() => del(s.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
+                <button className="btn-icon" onClick={() => setModal(s)} aria-label={`${t('edit')} ${s.name}`}><Edit2 size={14} aria-hidden="true" /></button>
+                <button className="btn-icon" onClick={() => del(s.id)} aria-label={`${t('delete')} ${s.name}`}><Trash2 size={14} aria-hidden="true" /></button>
               </div>
             </div>
           );
         })}
+        {filtered.length > visibleCount && (
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setVisibleCount(c => c + 50)}>
+              {t('loadMore')} ({filtered.length - visibleCount} {t('more')})
+            </button>
+          </div>
+        )}
       </div>
 
       {modal && (
@@ -3397,11 +3479,12 @@ function StaffModal({ member, onClose, onSaved }) {
   return (
     <Modal title={member ? t('editTeamMember') : t('addTeamMember')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
-        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div id="staff-error" role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" />{err}</div>}
         <div className="field"><label htmlFor="staff-name">{t('name')}</label>
-          <input id="staff-name" className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+          <input id="staff-name" className="input" required maxLength={80} value={f.name} onChange={e => setF({ ...f, name: e.target.value })}
+            aria-invalid={!!err} aria-describedby={err ? 'staff-error' : undefined} /></div>
         <div className="field"><label htmlFor="staff-role">{t('role')}</label>
-          <input id="staff-role" className="input" required value={f.role} placeholder={t('rolePlaceholder')}
+          <input id="staff-role" className="input" required maxLength={60} value={f.role} placeholder={t('rolePlaceholder')}
             onChange={e => setF({ ...f, role: e.target.value })} /></div>
         <div className="field"><label htmlFor="staff-birthday">{t('birthday')}</label>
           <input id="staff-birthday" className="input" type="date" value={f.birthday || ''} onChange={e => setF({ ...f, birthday: e.target.value })} /></div>
@@ -3494,7 +3577,7 @@ function ServicesTab({ services, onReload, toast }) {
         <div className="card-head">
           <h2>{t('catalogOf').replace('{item}', labels.service)}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal({})}>
-            <Plus size={14} /> {t('add')}
+            <Plus size={14} aria-hidden="true" /> {t('add')}
           </button>
         </div>
         {services.length === 0 ? (
@@ -3520,11 +3603,11 @@ function ServicesTab({ services, onReload, toast }) {
                       {fmtDuration(s.durationMin, lang)} · {fmtMoney(s.price, lang)}
                     </div>
                   </div>
-                  <button className="icon-btn" onClick={() => setModal(s)} aria-label={t('edit')}>
-                    <Edit2 size={14} />
+                  <button className="icon-btn" onClick={() => setModal(s)} aria-label={`${t('edit')} ${s.name}`}>
+                    <Edit2 size={14} aria-hidden="true" />
                   </button>
-                  <button className="icon-btn" onClick={() => delService(s.id)} aria-label={t('delete')}>
-                    <Trash2 size={14} />
+                  <button className="icon-btn" onClick={() => delService(s.id)} aria-label={`${t('delete')} ${s.name}`}>
+                    <Trash2 size={14} aria-hidden="true" />
                   </button>
                 </div>
               ))}
@@ -3575,14 +3658,14 @@ function ServiceModal({ service, onClose, onSaved }) {
   return (
     <Modal title={service ? `${t('edit')} ${labels.service.toLowerCase()}` : `${t('add')} ${labels.service.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
-        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div id="svc-error" role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" />{err}</div>}
         <div className="field"><label htmlFor="svc-name">{t('name')}</label>
-          <input id="svc-name" className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+          <input id="svc-name" className="input" required maxLength={120} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} aria-invalid={!!err} aria-describedby={err ? 'svc-error' : undefined} /></div>
         <div className="field"><label htmlFor="svc-category">{t('category')}</label>
-          <input id="svc-category" className="input" placeholder={t('categoryPh')} value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
+          <input id="svc-category" className="input" maxLength={60} placeholder={t('categoryPh')} value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label htmlFor="svc-duration">{t('durationMin')}</label>
-            <input id="svc-duration" className="input" type="number" min="0" inputMode="numeric" value={f.durationMin} onChange={e => setF({ ...f, durationMin: e.target.value })} /></div>
+            <input id="svc-duration" className="input" type="number" min="0" max="1440" inputMode="numeric" value={f.durationMin} onChange={e => setF({ ...f, durationMin: e.target.value })} /></div>
           <div className="field" style={{ flex: 1 }}><label htmlFor="svc-price">{t('price')}</label>
             <input id="svc-price" className="input" type="number" min="0" step="0.01" inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></div>
         </div>
@@ -3617,6 +3700,7 @@ function InventoryTab({ inventory, onReload, toast }) {
   const [cat, setCat] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all | low | out
   const [sortBy, setSortBy] = useState('name'); // name | stock-asc | stock-desc | value
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const categories = useMemo(() => {
     const set = new Set(inventory.map(i => i.category).filter(Boolean));
@@ -3653,6 +3737,7 @@ function InventoryTab({ inventory, onReload, toast }) {
     else if (sortBy === 'value') out = [...out].sort((a, b) => ((Number(b.stock) || 0) * (Number(b.cost) || 0)) - ((Number(a.stock) || 0) * (Number(a.cost) || 0)));
     return out;
   }, [inventory, query, cat, statusFilter, sortBy]);
+  useEffect(() => { setVisibleCount(50); }, [query, cat, statusFilter, sortBy]);
 
   const exportCsv = () => {
     const rows = filtered.map(i => ({
@@ -3710,11 +3795,16 @@ function InventoryTab({ inventory, onReload, toast }) {
       <div className="card">
         <div className="card-head">
           <h2>{t('inventory')}</h2>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} /> {t('add')}</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><Plus size={14} aria-hidden="true" /> {t('add')}</button>
         </div>
         <div className="search-wrap">
-          <Search size={14} className="search-icon" />
+          <Search size={14} className="search-icon" aria-hidden="true" />
           <input className="search-input" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
+          {query && (
+            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('cancel')}>
+              <X size={14} aria-hidden="true" />
+            </button>
+          )}
         </div>
         <div className="toolbar">
           <select className="select" value={cat} onChange={e => setCat(e.target.value)} aria-label={t('filterCategory')}>
@@ -3733,7 +3823,7 @@ function InventoryTab({ inventory, onReload, toast }) {
             <option value="value">{t('sortValueDesc')}</option>
           </select>
           <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download size={12} /> {t('exportCsv')}
+            <Download size={12} aria-hidden="true" /> {t('exportCsv')}
           </button>
         </div>
         {filtered.length === 0 ? (
@@ -3746,7 +3836,7 @@ function InventoryTab({ inventory, onReload, toast }) {
                 ctaLabel={t('addFirstProduct')}
                 onCta={() => setModal('new')}
               />
-        ) : filtered.map((i, idx) => {
+        ) : filtered.slice(0, visibleCount).map((i, idx) => {
           const low = i.stock <= i.threshold;
           return (
             <div key={i.id} className="row">
@@ -3759,19 +3849,26 @@ function InventoryTab({ inventory, onReload, toast }) {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn-icon" onClick={() => adjust(i.id, -1)} aria-label={t('decrease')}>−</button>
-                  <button className="btn-icon" onClick={() => adjust(i.id, +1)} aria-label={t('increase')}>+</button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn-icon" onClick={() => adjust(i.id, -1)} aria-label={`${t('decrease')} ${i.name}`}>−</button>
+                  <button className="btn-icon" onClick={() => adjust(i.id, +1)} aria-label={`${t('increase')} ${i.name}`}>+</button>
                 </div>
-                <div style={{ display: 'flex', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn-ghost btn-sm" onClick={() => markOrdered(i.id)} {...(idx === 0 ? { 'data-tour': 'btn-mark-ordered' } : {})}>{t('ordered')}</button>
-                  <button className="btn-icon" onClick={() => setModal(i)} aria-label={t('edit')}><Edit2 size={14} /></button>
-                  <button className="btn-icon" onClick={() => del(i.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
+                  <button className="btn-icon" onClick={() => setModal(i)} aria-label={`${t('edit')} ${i.name}`}><Edit2 size={14} aria-hidden="true" /></button>
+                  <button className="btn-icon" onClick={() => del(i.id)} aria-label={`${t('delete')} ${i.name}`}><Trash2 size={14} aria-hidden="true" /></button>
                 </div>
               </div>
             </div>
           );
         })}
+        {filtered.length > visibleCount && (
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setVisibleCount(c => c + 50)}>
+              {t('loadMore')} ({filtered.length - visibleCount} {t('more')})
+            </button>
+          </div>
+        )}
       </div>
       {modal && (
         <InventoryModal
@@ -3816,9 +3913,10 @@ function InventoryModal({ item, onClose, onSaved }) {
   return (
     <Modal title={item ? t('editItem') : t('addItem')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
-        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div id="inv-error" role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" />{err}</div>}
         <div className="field"><label htmlFor="inv-name">{t('name')}</label>
-          <input id="inv-name" className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+          <input id="inv-name" className="input" required maxLength={120} value={f.name} onChange={e => setF({ ...f, name: e.target.value })}
+            aria-invalid={!!err} aria-describedby={err ? 'inv-error' : undefined} /></div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}><label htmlFor="inv-category">{t('category')}</label>
             <input id="inv-category" className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} /></div>
@@ -3882,7 +3980,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
         <div className="card-head">
           <h2>{t('sopTitle')}</h2>
           <button className="btn btn-primary btn-sm" onClick={() => setModal('sop')}>
-            <Plus size={14} /> {t('addSopRule')}
+            <Plus size={14} aria-hidden="true" /> {t('addSopRule')}
           </button>
         </div>
         {sops.length === 0 ? (
@@ -3895,15 +3993,15 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
           />
         ) : sops.map(s => (
           <div key={s.id} className="row">
-            <ShieldCheck size={20} color="var(--gold)" />
+            <ShieldCheck size={20} color="var(--gold)" aria-hidden="true" />
             <div className="grow">
               <div className="title">{s.title}</div>
               {(s.category || s.description) && (
                 <div className="meta">{[s.category, s.description].filter(Boolean).join(' · ')}</div>
               )}
             </div>
-            <button className="btn-icon" onClick={() => delSop(s.id)} aria-label={t('delete')}>
-              <Trash2 size={14} />
+            <button className="btn-icon" onClick={() => delSop(s.id)} aria-label={`${t('delete')} ${s.title}`}>
+              <Trash2 size={14} aria-hidden="true" />
             </button>
           </div>
         ))}
@@ -3914,7 +4012,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
         <div className="card-head">
           <h2>{t('logSopViolation')}</h2>
           <button className="btn btn-gold btn-sm" onClick={() => setModal('violation')} data-tour="action-sop">
-            <Plus size={14} /> {t('log')}
+            <Plus size={14} aria-hidden="true" /> {t('log')}
           </button>
         </div>
         {violations.length === 0 ? (
@@ -3930,7 +4028,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
                 <div className="meta">{sop ? sop.title : (v.note || '—')}{v.note && sop ? ` · ${v.note}` : ''}</div>
                 <div className="meta" style={{ fontSize: 11 }}>{new Date(v.createdAt).toLocaleString(locale)}</div>
               </div>
-              <button className="btn-icon" onClick={() => delViolation(v.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
+              <button className="btn-icon" onClick={() => delViolation(v.id)} aria-label={`${t('delete')} ${s ? s.name : ''}`}><Trash2 size={14} aria-hidden="true" /></button>
             </div>
           );
         })}
@@ -3985,20 +4083,22 @@ function SOPRuleModal({ onClose, onSaved }) {
   return (
     <Modal title={t('addSopRule')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
-        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} /> {err}</div>}
+        {err && <div id="sop-error" role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
         <div className="field">
           <label htmlFor="sop-title">{t('sopRuleTitle')}</label>
-          <input id="sop-title" className="input" value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
+          <input id="sop-title" className="input" maxLength={120} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
+            aria-invalid={!!err}
+            aria-describedby={err ? 'sop-error' : undefined}
             placeholder={t('ruleTitlePh')} autoFocus />
         </div>
         <div className="field">
           <label htmlFor="sop-category">{t('category')}</label>
-          <input id="sop-category" className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
+          <input id="sop-category" className="input" maxLength={60} value={f.category} onChange={e => setF({ ...f, category: e.target.value })}
             placeholder={t('rulePunctualityPh')} />
         </div>
         <div className="field">
           <label htmlFor="sop-body">{t('sopRuleDesc')}</label>
-          <textarea id="sop-body" className="textarea" value={f.body} onChange={e => setF({ ...f, body: e.target.value })}
+          <textarea id="sop-body" className="textarea" maxLength={2000} value={f.body} onChange={e => setF({ ...f, body: e.target.value })}
             placeholder={t('extraDetailPlaceholder')} rows={3} />
         </div>
         <div className="modal-actions">
@@ -4052,9 +4152,10 @@ function ViolationModal({ staff, sops, onClose, onSaved }) {
   return (
     <Modal title={t('logSopViolation')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
-        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div id="vio-error" role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" />{err}</div>}
         <div className="field"><label htmlFor="vio-staff">{t('staffPerson')}</label>
-          <select id="vio-staff" className="select" value={f.staffId} onChange={e => setF({ ...f, staffId: Number(e.target.value) })}>
+          <select id="vio-staff" className="select" value={f.staffId} onChange={e => setF({ ...f, staffId: Number(e.target.value) })}
+            aria-invalid={!!err} aria-describedby={err ? 'vio-error' : undefined}>
             {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select></div>
         <div className="field"><label htmlFor="vio-sop">{t('sopRule')}</label>
@@ -4062,7 +4163,7 @@ function ViolationModal({ staff, sops, onClose, onSaved }) {
             {sops.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
           </select></div>
         <div className="field"><label htmlFor="vio-note">{t('noteText')}</label>
-          <textarea id="vio-note" className="textarea" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></div>
+          <textarea id="vio-note" className="textarea" maxLength={2000} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-gold" disabled={saving}>{saving ? t('saving') : t('log')}</button>
@@ -4102,10 +4203,10 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
       <div className="card">
         <h2>{t('stockAlerts')} ({lowStock.length})</h2>
         {lowStock.length === 0
-          ? <div className="success-banner"><CheckCircle size={14} /> {t('allStockHealthy')}</div>
+          ? <div className="success-banner"><CheckCircle size={14} aria-hidden="true" /> {t('allStockHealthy')}</div>
           : lowStock.map(i => (
             <div key={i.id} className="row">
-              <Package size={18} color="var(--warn)" />
+              <Package size={18} color="var(--warn)" aria-hidden="true" />
               <div className="grow">
                 <div className="title">{i.name}</div>
                 <div className="meta">{i.stock} {i.unit} {t('leftLabel')} {i.threshold}</div>
@@ -4118,7 +4219,7 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
       <div className="card">
         <h2>{t('staffRequests')} ({pending.length})</h2>
         {pending.length === 0
-          ? <div className="success-banner"><CheckCircle size={14} /> {t('noPendingReq')}</div>
+          ? <div className="success-banner"><CheckCircle size={14} aria-hidden="true" /> {t('noPendingReq')}</div>
           : pending.map(req => {
             const s = staffById.get(req.staffId);
             const affected = req.type === 'sick'
@@ -4172,6 +4273,11 @@ function ReassignModal({ request, staff, onClose, onSubmit }) {
   const { t } = useT();
   const hasStaff = staff.length > 0;
   const [to, setTo] = useState(staff[0]?.id || null);
+  const [saving, setSaving] = useState(false);
+  const handle = async () => {
+    setSaving(true);
+    try { await onSubmit(to); } finally { setSaving(false); }
+  };
   return (
     <Modal title={t('reassignBookings')} onClose={onClose}>
       <p style={{ color: 'var(--muted)', fontSize: 13 }}>
@@ -4179,7 +4285,7 @@ function ReassignModal({ request, staff, onClose, onSubmit }) {
       </p>
       {!hasStaff ? (
         <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 8 }}>
-          <AlertTriangle size={14} /> {t('noOtherStaffAvailable')}
+          <AlertTriangle size={14} aria-hidden="true" /> {t('noOtherStaffAvailable')}
         </div>
       ) : (
         <div className="field">
@@ -4189,9 +4295,9 @@ function ReassignModal({ request, staff, onClose, onSubmit }) {
         </div>
       )}
       <div className="modal-actions">
-        <button className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-        <button className="btn btn-primary" onClick={() => onSubmit(to)} disabled={!hasStaff || !to}>
-          {t('approveReassign')}
+        <button className="btn btn-ghost" onClick={onClose} disabled={saving}>{t('cancel')}</button>
+        <button className="btn btn-primary" onClick={handle} disabled={!hasStaff || !to || saving}>
+          {saving ? t('saving') : t('approveReassign')}
         </button>
       </div>
     </Modal>
@@ -4226,7 +4332,7 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
       <div className="card">
         <div className="card-head">
           <h2>{t('announcements')}</h2>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal(true)}><Megaphone size={14} /> {t('send')}</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setModal(true)}><Megaphone size={14} aria-hidden="true" /> {t('send')}</button>
         </div>
         {announcements.length === 0
           ? <EmptyState
@@ -4243,7 +4349,7 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
                   <div className="title" style={{ fontFamily: 'Fraunces, serif', fontSize: 16 }}>{a.title}</div>
                   <div className="meta">{new Date(a.createdAt).toLocaleString(locale)} · {a.from}</div>
                 </div>
-                <button className="btn-icon" onClick={() => del(a.id)} aria-label={t('delete')}><Trash2 size={14} /></button>
+                <button className="btn-icon" onClick={() => del(a.id)} aria-label={`${t('delete')} ${a.title}`}><Trash2 size={14} aria-hidden="true" /></button>
               </div>
               <div style={{ marginTop: 6, fontSize: 14 }}>{a.body}</div>
             </div>
@@ -4274,17 +4380,18 @@ function AnnouncementModal({ defaultFrom, onClose, onSaved }) {
   return (
     <Modal title={t('newAnnouncement')} onClose={onClose}>
       <form onSubmit={save} aria-busy={saving}>
-        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} />{err}</div>}
+        {err && <div id="ann-error" role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" />{err}</div>}
         <div className="field"><label htmlFor="ann-title">{t('title')}</label>
-          <input id="ann-title" className="input" required value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></div>
+          <input id="ann-title" className="input" required maxLength={120} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}
+            aria-invalid={!!err} aria-describedby={err ? 'ann-error' : undefined} /></div>
         <div className="field"><label htmlFor="ann-body">{t('message')}</label>
-          <textarea id="ann-body" className="textarea" required value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></div>
+          <textarea id="ann-body" className="textarea" required maxLength={4000} value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></div>
         <div className="field"><label htmlFor="ann-from">{t('from')}</label>
-          <input id="ann-from" className="input" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></div>
+          <input id="ann-from" className="input" maxLength={80} value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>
-            <Send size={14} /> {saving ? t('sending') : t('send')}
+            <Send size={14} aria-hidden="true" /> {saving ? t('sending') : t('send')}
           </button>
         </div>
       </form>
@@ -4334,7 +4441,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
             onClick={() => setSickModal(true)}
             aria-label={t('callOutSick')}
           >
-            <PhoneCall size={14} /> {t('callOutSick')}
+            <PhoneCall size={14} aria-hidden="true" /> {t('callOutSick')}
           </button>
           {sickModal && (
             <RequestModal
@@ -4356,7 +4463,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
 
       {sop && (
         <div className="card" style={{ borderLeft: '3px solid var(--gold)' }}>
-          <div className="card-head"><h2><ShieldCheck size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} /> {t('todaySopReminder')}</h2></div>
+          <div className="card-head"><h2><ShieldCheck size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 6 }} /> {t('todaySopReminder')}</h2></div>
           <div className="title">{sop.title}</div>
           <div className="meta" style={{ marginTop: 4 }}>{sop.description}</div>
         </div>
@@ -4375,7 +4482,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
                 <div className="meta">{b.treatment}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}</div>
                 {b.allergies && (
                   <div className="note-chip" style={{ background: '#fbecec', color: 'var(--danger)' }}>
-                    <AlertTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                    <AlertTriangle size={12} aria-hidden="true" style={{ marginRight: 4, verticalAlign: 'middle' }} />
                     {t('allergies')}: {b.allergies}
                   </div>
                 )}
@@ -4460,10 +4567,10 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
         <div className="card">
           <div className="card-head"><h2>{t('quickActions')}</h2></div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('sick')}><PhoneCall size={14} /> {t('sick')}</button>}
-            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('dayoff')}><CalendarOff size={14} /> {t('dayOffShort')}</button>}
-            {perms.canSwapShifts && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('swap')}><Repeat size={14} /> {t('swap')}</button>}
-            {perms.canRequestStock && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('stock_request')}><Package size={14} /> {t('requestStock')}</button>}
+            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('sick')}><PhoneCall size={14} aria-hidden="true" /> {t('sick')}</button>}
+            {perms.canRequestTimeOff && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('dayoff')}><CalendarOff size={14} aria-hidden="true" /> {t('dayOffShort')}</button>}
+            {perms.canSwapShifts && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('swap')}><Repeat size={14} aria-hidden="true" /> {t('swap')}</button>}
+            {perms.canRequestStock && <button className="btn btn-ghost" style={{ flex: '1 1 auto' }} onClick={() => setMode('stock_request')}><Package size={14} aria-hidden="true" /> {t('requestStock')}</button>}
           </div>
         </div>
       )}
@@ -4471,11 +4578,11 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
       {perms.canRequestStock && lowStock.length > 0 && (
         <div className="card" style={{ borderLeft: '3px solid var(--warn)' }}>
           <div className="card-head">
-            <h2><Package size={16} style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--warn)' }} />{t('stockAlerts')} ({lowStock.length})</h2>
+            <h2><Package size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--warn)' }} />{t('stockAlerts')} ({lowStock.length})</h2>
           </div>
           {lowStock.map(i => (
             <div key={i.id} className="row">
-              <Package size={18} color="var(--warn)" />
+              <Package size={18} color="var(--warn)" aria-hidden="true" />
               <div className="grow">
                 <div className="title">{i.name}</div>
                 <div className="meta">{i.stock} {i.unit} {t('leftLabel')} {i.threshold}</div>
@@ -4553,22 +4660,24 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
     type, staffId, date: type === 'sick' ? todayISO : '', reason: '', swapWith: '', swapDay: '',
   });
   const [err, setErr] = useState(null);
+  const [saving, setSaving] = useState(false);
   const titleMap = { sick: t('callInSick'), dayoff: t('requestDayOff'), swap: t('requestSwap') };
   const others = staff.filter(s => s.id !== staffId);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (type === 'sick' && !f.reason.trim()) {
       setErr(t('sickReasonRequired'));
       return;
     }
     setErr(null);
-    onSubmit(f);
+    setSaving(true);
+    try { await onSubmit(f); } finally { setSaving(false); }
   };
 
   return (
     <Modal title={titleMap[type]} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} aria-busy={saving}>
         {/* Policy notice for sick calls */}
         {type === 'sick' && (
           <div style={{
@@ -4579,7 +4688,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
             ⏰ {t('sickCallNotice')}
           </div>
         )}
-        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} /> {err}</div>}
+        {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
         <div className="field"><label htmlFor="req-date">{t('date')}</label>
           <input id="req-date" className="input" type="date" required min={new Date().toISOString().slice(0,10)} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
         {type === 'swap' && (
@@ -4598,6 +4707,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
           <textarea
             id="req-reason"
             className="textarea"
+            maxLength={1000}
             value={f.reason}
             onChange={e => { setErr(null); setF({ ...f, reason: e.target.value }); }}
             placeholder={type === 'sick' ? t('sickReasonPh') : ''}
@@ -4608,8 +4718,8 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
           )}
         </div>
         <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary"><Send size={14} /> {t('submit')}</button>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>{t('cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}><Send size={14} aria-hidden="true" /> {saving ? t('saving') : t('submit')}</button>
         </div>
       </form>
     </Modal>
@@ -4618,6 +4728,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
 
 function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSubmit }) {
   const { t } = useT();
+  const [saving, setSaving] = useState(false);
   const [f, setF] = useState({
     type: 'stock_request',
     staffId,
@@ -4628,7 +4739,11 @@ function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSu
 
   return (
     <Modal title={t('requestStock')} onClose={onClose}>
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit({ ...f, productId: Number(f.productId) }); }}>
+      <form onSubmit={async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        try { await onSubmit({ ...f, productId: Number(f.productId) }); } finally { setSaving(false); }
+      }} aria-busy={saving}>
         <div className="field">
           <label htmlFor="sreq-product">{t('product')}</label>
           <select id="sreq-product" className="select" value={f.productId} onChange={e => setF({ ...f, productId: e.target.value })}>
@@ -4648,12 +4763,12 @@ function StockRequestModal({ staffId, inventory, initialProductId, onClose, onSu
         </div>
         <div className="field">
           <label htmlFor="sreq-reason">{t('noteOptional')}</label>
-          <textarea id="sreq-reason" className="textarea" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
+          <textarea id="sreq-reason" className="textarea" maxLength={500} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />
         </div>
         <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={inventory.length === 0}>
-            <Send size={14} /> {t('submit')}
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>{t('cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={saving || inventory.length === 0}>
+            <Send size={14} aria-hidden="true" /> {saving ? t('saving') : t('submit')}
           </button>
         </div>
       </form>
@@ -4691,12 +4806,12 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
       <div className="card">
         <h2>{t('mySopNotes')}</h2>
         {myV.length === 0
-          ? <div className="success-banner"><CheckCircle size={14} /> {t('cleanRecord')}</div>
+          ? <div className="success-banner"><CheckCircle size={14} aria-hidden="true" /> {t('cleanRecord')}</div>
           : myV.map(v => {
             const sop = sops.find(s => s.id === v.sopId);
             return (
               <div key={v.id} className="row">
-                <AlertTriangle size={16} color="var(--warn)" />
+                <AlertTriangle size={16} color="var(--warn)" aria-hidden="true" />
                 <div className="grow">
                   <div className="title">{sop ? sop.title : '—'}</div>
                   <div className="meta">{v.note || '—'} · {new Date(v.createdAt).toLocaleDateString(locale)}</div>
@@ -4708,7 +4823,7 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
 
       {onLogout && (
         <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={onLogout}>
-          <LogOut size={14} /> {t('signOut')}
+          <LogOut size={14} aria-hidden="true" /> {t('signOut')}
         </button>
       )}
     </div>
@@ -4799,11 +4914,11 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
             <button className={`btn btn-sm ${range === 'all' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setRange('all')}>{t('rangeAll')}</button>
           </div>
         </div>
-        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">{money(totalRevenue)}</div></div></div>
-        <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">{money(avgPerDay)}</div></div></div>
-        <div className="row"><CheckCircle size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{scoped.length} {labels.bookingPlural.toLowerCase()}</div></div></div>
+        <div className="row"><Calendar size={16} color="var(--gold)" aria-hidden="true" /><div className="grow"><div className="title">{t('revenue')}</div><div className="meta">{money(totalRevenue)}</div></div></div>
+        <div className="row"><Calendar size={16} color="var(--gold)" aria-hidden="true" /><div className="grow"><div className="title">{t('avgPerDay')}</div><div className="meta">{money(avgPerDay)}</div></div></div>
+        <div className="row"><CheckCircle size={16} color="var(--gold)" aria-hidden="true" /><div className="grow"><div className="title">{t('completed')}</div><div className="meta">{scoped.length} {labels.bookingPlural.toLowerCase()}</div></div></div>
         {peakHour && (
-          <div className="row"><Calendar size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('peakHourLabel')}</div><div className="meta">{String(peakHour.hour).padStart(2,'0')}:00 · {peakHour.count} {labels.bookingPlural.toLowerCase()}</div></div></div>
+          <div className="row"><Calendar size={16} color="var(--gold)" aria-hidden="true" /><div className="grow"><div className="title">{t('peakHourLabel')}</div><div className="meta">{String(peakHour.hour).padStart(2,'0')}:00 · {peakHour.count} {labels.bookingPlural.toLowerCase()}</div></div></div>
         )}
         {top && top.revenue > 0 && (
           <div className="row">
@@ -4836,12 +4951,12 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
 
       <div className="card">
         <h2>{t('snapshot')}</h2>
-        <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('lowStockItems')}</div><div className="meta">{lowStock.length} {t('flagged')}</div></div></div>
+        <div className="row"><Package size={16} color="var(--gold)" aria-hidden="true" /><div className="grow"><div className="title">{t('lowStockItems')}</div><div className="meta">{lowStock.length} {t('flagged')}</div></div></div>
         {inventoryValue > 0 && (
-          <div className="row"><Package size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('inventoryValue')}</div><div className="meta">{money(inventoryValue)}</div></div></div>
+          <div className="row"><Package size={16} color="var(--gold)" aria-hidden="true" /><div className="grow"><div className="title">{t('inventoryValue')}</div><div className="meta">{money(inventoryValue)}</div></div></div>
         )}
-        <div className="row"><Bell size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('pendingRequestsSnap')}</div><div className="meta">{requests.filter(r => r.status === 'pending').length}</div></div></div>
-        <div className="row"><Megaphone size={16} color="var(--gold)" /><div className="grow"><div className="title">{t('announcementsSent')}</div><div className="meta">{announcements.length}</div></div></div>
+        <div className="row"><Bell size={16} color="var(--gold)" aria-hidden="true" /><div className="grow"><div className="title">{t('pendingRequestsSnap')}</div><div className="meta">{requests.filter(r => r.status === 'pending').length}</div></div></div>
+        <div className="row"><Megaphone size={16} color="var(--gold)" aria-hidden="true" /><div className="grow"><div className="title">{t('announcementsSent')}</div><div className="meta">{announcements.length}</div></div></div>
       </div>
 
       <div className="card">
@@ -4962,9 +5077,13 @@ function WelcomeSlideshow({ onDone }) {
         }}>{slide.body}</p>
 
         {/* Progress dots */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 22 }}>
+        <div
+          role="group"
+          aria-label={`${step + 1} / ${slides.length}`}
+          style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 22 }}
+        >
           {slides.map((_, i) => (
-            <div key={i} style={{
+            <div key={i} aria-hidden="true" style={{
               width: i === step ? 22 : 7, height: 7, borderRadius: 4,
               background: i <= step ? 'var(--emerald)' : 'var(--line)',
               transition: 'all 0.25s',
@@ -5052,7 +5171,7 @@ function PrivacyPolicyScreen({ onBack }) {
       <p>{t('privacy8Body')}</p>
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy9Title')}</h2>
-      <p>{t('privacy9Body')} <a href="mailto:privacy@spapilot.app" style={{ color: '#2d5a4a' }}>privacy@spapilot.app</a></p>
+      <p>{t('privacy9Body')} <a href="mailto:privacy@spapilot.app" style={{ color: '#2d5a4a' }} aria-label="Email privacy@spapilot.app">privacy@spapilot.app</a></p>
 
       <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #eee', fontSize: 12, color: '#aaa' }}>
         © {new Date().getFullYear()} Spapilot. {t('privacyRights')}
@@ -5198,7 +5317,7 @@ function TourOverlay({ onDone }) {
 
       {/* Tooltip */}
       {rect && (
-        <div style={{
+        <div role="status" aria-live="polite" style={{
           position: 'fixed', zIndex: 9996, pointerEvents: 'none',
           left: tipLeft, top: Math.max(tipTop, 8),
           background: '#1c1c1e',
@@ -5207,7 +5326,8 @@ function TourOverlay({ onDone }) {
           fontSize: 15, lineHeight: 1.55,
           padding: '12px 16px',
           borderRadius: 14,
-          maxWidth: 240,
+          maxWidth: 'min(280px, calc(100vw - 24px))',
+          wordBreak: 'break-word',
           boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
           border: '1px solid rgba(255,255,255,0.08)',
         }}>
@@ -5240,6 +5360,16 @@ function TourOverlay({ onDone }) {
         </div>
       )}
 
+      {/* Step counter — small fixed pill at top-left so users see overall progress */}
+      <div style={{
+        position: 'fixed', top: 14, left: 14, zIndex: 9999,
+        background: 'rgba(28,28,30,0.85)', color: 'rgba(255,255,255,0.95)',
+        border: '1px solid rgba(255,255,255,0.2)',
+        borderRadius: 20, padding: '6px 12px', fontSize: 12,
+        fontFamily: 'inherit', letterSpacing: '0.02em', fontWeight: 600,
+      }}>
+        {step + 1} / {visibleSteps.length}
+      </div>
       {/* Skip tour button — focus on mount so keyboard users can dismiss the tour immediately */}
       <button
         onClick={onDone}
@@ -5254,13 +5384,17 @@ function TourOverlay({ onDone }) {
         }}
       >{t('skipTour')}</button>
 
-      {/* Step progress dots */}
-      <div style={{
-        position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
-        zIndex: 9999, display: 'flex', gap: 7, pointerEvents: 'none',
-      }}>
+      {/* Step progress dots — SR users get an explicit "Step N of M" label via the surrounding region */}
+      <div
+        role="group"
+        aria-label={`${step + 1} / ${visibleSteps.length}`}
+        style={{
+          position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, display: 'flex', gap: 7, pointerEvents: 'none',
+        }}
+      >
         {visibleSteps.map((_, i) => (
-          <div key={i} style={{
+          <div key={i} aria-hidden="true" style={{
             width: i === step ? 22 : 7, height: 7, borderRadius: 4,
             background: i === step ? GOLD : 'rgba(255,255,255,0.3)',
             transition: 'all 0.25s',
@@ -5394,7 +5528,16 @@ function AppInner() {
     if (role === 'owner')   setTab('overview');
   }, [role]);
 
-  const logout = async () => {
+  const logout = async ({ skipConfirm = false } = {}) => {
+    if (!skipConfirm && user) {
+      const ok = await appConfirm({
+        title: t('signOut'),
+        body: t('confirmSignOut'),
+        confirmLabel: t('signOut'),
+        cancelLabel: t('cancel'),
+      });
+      if (!ok) return;
+    }
     try { await api('/api/auth/logout', { method: 'POST', body: {} }); } catch {}
     setToken(null);
     setUser(null);
@@ -5411,6 +5554,14 @@ function AppInner() {
     if (!user?.businessId) { setBusiness(null); return; }
     api('/api/businesses/me').then(setBusiness).catch(() => setBusiness(null));
   }, [user?.businessId]);
+
+  // Reflect current tab in browser tab title so multi-tab users can tell windows apart.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const allNav = [...MANAGER_NAV, ...STAFF_NAV, ...OWNER_NAV];
+    const found = allNav.find(n => n.id === tab);
+    document.title = found ? `${t(found.labelKey)} · Spapilot` : 'Spapilot';
+  }, [tab, t]);
 
   // Trial / payment status
   const trialEndDate = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
@@ -5433,9 +5584,10 @@ function AppInner() {
 
   if (authChecking) {
     return (
-      <div className="role-screen">
+      <div className="role-screen" role="status" aria-live="polite" aria-label={t('loading')}>
         <div className="center-muted">
-          <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite' }} />
+          <RefreshCw size={20} aria-hidden="true" style={{ animation: 'spin 1s linear infinite' }} />
+          <div className="sr-only">{t('loading')}</div>
         </div>
       </div>
     );
@@ -5535,16 +5687,16 @@ function AppInner() {
           <LangToggle />
           {user.role === 'manager' && (
             <button className="switch" onClick={() => setRole(null)} aria-label={t('switch')} title={t('switch')}>
-              <RefreshCw size={14} />
+              <RefreshCw size={14} aria-hidden="true" />
               <span className="topbar-label">{t('switch')}</span>
             </button>
           )}
           <button className="switch" onClick={() => setShowSettings(true)} aria-label={t('settings')} title={t('settings')}>
-            <SettingsIcon size={14} />
+            <SettingsIcon size={14} aria-hidden="true" />
             <span className="topbar-label">{t('settings')}</span>
           </button>
           <button className="switch" onClick={logout} aria-label={t('signOut')} title={t('signOut')}>
-            <LogOut size={14} />
+            <LogOut size={14} aria-hidden="true" />
             <span className="topbar-label">{t('signOut')}</span>
           </button>
         </div>
@@ -5568,7 +5720,7 @@ function AppInner() {
         />
       )}
 
-      <main id="main" className="page fade" tabIndex={-1}>
+      <main id="main" className="page fade" tabIndex={-1} aria-label={pageTitle}>
         <h1 className="page-title">{pageTitle}</h1>
 
         <LoadState loading={anyLoading} error={anyError} reload={reloadAll}>
