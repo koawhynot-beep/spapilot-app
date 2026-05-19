@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext, useMemo, useRef, Component } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext, useMemo, useRef, useId, Component } from 'react';
 import {
   Calendar, Users, Package, LayoutDashboard, AlertTriangle,
   CheckCircle, RefreshCw, Bell, User, ShieldCheck, Send, Home, Inbox,
@@ -479,6 +479,7 @@ const TRANSLATIONS = {
     more: 'more',
     loadMore: 'Load more',
     confirmSignOut: 'Sign out of Spapilot? Your data is safe — you can sign back in any time.',
+    clearSearch: 'Clear search',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -858,6 +859,7 @@ const TRANSLATIONS = {
     more: 'lagi',
     loadMore: 'Muat lebih banyak',
     confirmSignOut: 'Keluar dari Spapilot? Data Anda aman — Anda dapat masuk kembali kapan saja.',
+    clearSearch: 'Hapus pencarian',
   },
 };
 
@@ -1065,21 +1067,30 @@ function useCollection(path, enabled = true, pollMs = 0) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  // Generation counter — when path changes or component unmounts, in-flight requests
+  // resolving later must not stomp on the fresh state.
+  const genRef = useRef(0);
 
   const reload = useCallback(() => {
     if (!enabled) return;
+    const gen = ++genRef.current;
     setRefreshing(true);
     setError(null);
     api(path)
       .then(d => {
+        if (gen !== genRef.current) return; // stale response — drop it
         setData(Array.isArray(d) ? d : []);
         setLoading(false); setRefreshing(false); setHasLoaded(true);
       })
       .catch(e => {
+        if (gen !== genRef.current) return;
         setError(e.message);
         setLoading(false); setRefreshing(false);
       });
   }, [path, enabled]);
+
+  // Bump generation on unmount so anything still in flight gets ignored.
+  useEffect(() => () => { genRef.current = -1; }, []);
 
   useEffect(() => { if (enabled) reload(); }, [reload, enabled]);
 
@@ -1250,7 +1261,7 @@ function appConfirm(opts) {
 function Modal({ title, onClose, children }) {
   const { t } = useT();
   const modalRef = useRef(null);
-  const titleId = useMemo(() => `modal-title-${Math.random().toString(36).slice(2)}`, []);
+  const titleId = useId();
   useEffect(() => {
     // Save trigger to restore focus on close (a11y: WCAG 2.4.3).
     const trigger = document.activeElement;
@@ -1379,7 +1390,7 @@ function EmptyState({ icon: Icon, title, body, ctaLabel, onCta }) {
         </div>
       )}
       {ctaLabel && onCta && (
-        <button className="btn btn-primary btn-sm" onClick={onCta}>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onCta}>
           <Plus size={12} aria-hidden="true" style={{ marginRight: 4 }} /> {ctaLabel}
         </button>
       )}
@@ -2216,7 +2227,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
             )}
           </div>
           {status !== 'active' && (
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={activate}>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={activate}>
               {t('subscribeMonthly')}
             </button>
           )}
@@ -2416,7 +2427,12 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
   const [picking, setPicking] = useState(null);
 
   useEffect(() => {
-    if (!staffId && staff[0]?.id) setStaffId(staff[0].id);
+    // Pick first staff if none selected.
+    if (!staffId && staff[0]?.id) { setStaffId(staff[0].id); return; }
+    // If selected staffId is no longer in the list (deleted), fall back to first.
+    if (staffId && !staff.some(s => s.id === staffId)) {
+      setStaffId(staff[0]?.id || null);
+    }
   }, [staff, staffId]);
 
   const pick = async (role) => {
@@ -2902,7 +2918,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
           <Search size={14} className="search-icon" aria-hidden="true" />
           <input className="search-input" type="search" enterKeyHint="search" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
           {query && (
-            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('cancel')}>
+            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('clearSearch')}>
               <X size={14} aria-hidden="true" />
             </button>
           )}
@@ -3073,7 +3089,10 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
       if (!ok) { setSaving(false); return; }
     }
     // Warn (but allow) if booking is in the past — useful for logging historical visits.
-    if (f.date && f.date < todayStr && !booking) {
+    // Also warn on edits that move a booking into the past (was previously create-only).
+    const wasFuture = booking ? (booking.date || todayStr) >= todayStr : false;
+    const movedToPast = booking && wasFuture && f.date && f.date < todayStr;
+    if (f.date && f.date < todayStr && (!booking || movedToPast)) {
       const ok = await appConfirm({
         title: t('dateInPastWarn'),
         body: `${f.date}. ${t('save')}?`,
@@ -3247,7 +3266,7 @@ function ClientsTab({ bookings, staff, toast }) {
           <Search size={14} className="search-icon" aria-hidden="true" />
           <input className="search-input" type="search" enterKeyHint="search" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
           {query && (
-            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('cancel')}>
+            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('clearSearch')}>
               <X size={14} aria-hidden="true" />
             </button>
           )}
@@ -3341,7 +3360,17 @@ function ClientsTab({ bookings, staff, toast }) {
             <h3 className="modal-subhead" style={{ fontSize: 13, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '14px 0 8px' }}>
               {t('historyLabel')}
             </h3>
-            {detail.bookings.slice().reverse().map(b => {
+            {detail.bookings
+              .slice()
+              .sort((a, b) => {
+                // Newest visit first by (date, time). DB order doesn't guarantee
+                // multi-day clients arrive in display order.
+                const da = a.date || '';
+                const db = b.date || '';
+                if (da !== db) return db.localeCompare(da);
+                return (b.time || '').localeCompare(a.time || '');
+              })
+              .map(b => {
               const m = staffById.get(b.staffId);
               return (
                 <div key={b.id} className="row">
@@ -3425,7 +3454,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
           <Search size={14} className="search-icon" aria-hidden="true" />
           <input className="search-input" type="search" enterKeyHint="search" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
           {query && (
-            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('cancel')}>
+            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('clearSearch')}>
               <X size={14} aria-hidden="true" />
             </button>
           )}
@@ -3614,7 +3643,7 @@ function ServicesTab({ services, onReload, toast }) {
       <div className="card">
         <div className="card-head">
           <h2>{t('catalogOf').replace('{item}', labels.service)}</h2>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal({})}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setModal({})}>
             <Plus size={14} aria-hidden="true" /> {t('add')}
           </button>
         </div>
@@ -3842,7 +3871,7 @@ function InventoryTab({ inventory, onReload, toast }) {
           <Search size={14} className="search-icon" aria-hidden="true" />
           <input className="search-input" type="search" enterKeyHint="search" placeholder={t('search')} value={query} onChange={e => setQuery(e.target.value)} aria-label={t('search')} />
           {query && (
-            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('cancel')}>
+            <button type="button" className="search-clear" onClick={() => setQuery('')} aria-label={t('clearSearch')}>
               <X size={14} aria-hidden="true" />
             </button>
           )}
@@ -4020,7 +4049,7 @@ function SOPTab({ sops, staff, violations, onReload, onReloadSops, toast }) {
       <div className="card">
         <div className="card-head">
           <h2>{t('sopTitle')}</h2>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('sop')}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setModal('sop')}>
             <Plus size={14} aria-hidden="true" /> {t('addSopRule')}
           </button>
         </div>
@@ -4222,6 +4251,10 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
   const lowStock = useMemo(() => inventory.filter(i => i.stock <= i.threshold), [inventory]);
   const pending  = useMemo(() => requests.filter(r => r.status === 'pending'), [requests]);
   const [reassign, setReassign] = useState(null);
+  const reassignableStaff = useMemo(
+    () => reassign ? staff.filter(s => s.id !== reassign.staffId) : [],
+    [reassign, staff]
+  );
 
   const decide = async (req, status, reassignToStaffId) => {
     try {
@@ -4287,9 +4320,9 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
                 )}
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                   {req.type === 'sick' && affected.length > 0 ? (
-                    <button className="btn btn-primary btn-sm" onClick={() => setReassign(req)}>{t('approveReassign')}</button>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => setReassign(req)}>{t('approveReassign')}</button>
                   ) : (
-                    <button className="btn btn-primary btn-sm" onClick={() => decide(req, 'approved')}>{t('approve')}</button>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => decide(req, 'approved')}>{t('approve')}</button>
                   )}
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => decide(req, 'declined')}>{t('decline')}</button>
                 </div>
@@ -4301,7 +4334,7 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
       {reassign && (
         <ReassignModal
           request={reassign}
-          staff={staff.filter(s => s.id !== reassign.staffId)}
+          staff={reassignableStaff}
           onClose={() => setReassign(null)}
           onSubmit={(toId) => decide(reassign, 'approved', toId)}
         />
@@ -4373,7 +4406,7 @@ function AnnouncementsTab({ announcements, onReload, toast, user }) {
       <div className="card">
         <div className="card-head">
           <h2>{t('announcements')}</h2>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal(true)}><Megaphone size={14} aria-hidden="true" /> {t('send')}</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setModal(true)}><Megaphone size={14} aria-hidden="true" /> {t('send')}</button>
         </div>
         {announcements.length === 0
           ? <EmptyState
@@ -4455,8 +4488,14 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
   const sop = useMemo(() => {
     if (!sops || sops.length === 0) return null;
     const day = new Date().toISOString().slice(0, 10);
-    const seed = (staffId || 0) + day.split('-').reduce((a, b) => a + Number(b), 0);
-    return sops[seed % sops.length];
+    // FNV-1a-ish hash so similar staffId+date combos don't collide to same rule.
+    let h = 2166136261;
+    const key = `${staffId || 0}|${day}`;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return sops[h % sops.length];
   }, [sops, staffId]);
   const [sickModal, setSickModal] = useState(false);
 
@@ -4857,7 +4896,7 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
         <h2>{t('mySopNotes')}</h2>
         {myV.length === 0
           ? <div className="success-banner"><CheckCircle size={14} aria-hidden="true" /> {t('cleanRecord')}</div>
-          : myV.map(v => {
+          : myV.slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).map(v => {
             const sop = sops.find(s => s.id === v.sopId);
             return (
               <div key={v.id} className="row">
