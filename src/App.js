@@ -1139,6 +1139,15 @@ const toMin = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
 };
+
+// Server-local 'YYYY-MM-DD' so an evening user in UTC+7 doesn't see "today"
+// already be tomorrow. Replaces every `localISODate()`.
+function localISODate(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
 const STAFF_DEFAULT_PERMISSIONS = {
   canViewSchedule: true, canRequestTimeOff: true, canSwapShifts: true,
   canRequestStock: true, canRequestNewProducts: false,
@@ -1207,6 +1216,11 @@ function ConfirmProvider({ children }) {
   const [state, setState] = useState(null);
   const open = useCallback((opts) => {
     return new Promise((resolve) => {
+      // If another dialog is already open, resolve the previous one as cancelled
+      // (rather than silently dropping its promise) before showing the new one.
+      if (_resolver) {
+        try { _resolver(false); } catch {}
+      }
       _resolver = resolve;
       setState(opts || {});
     });
@@ -2511,7 +2525,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
 function ManagerDashboard({ staff, bookings, inventory, requests, announcements, violations, onGoto, onReload, toast }) {
   const { t, lang } = useT();
   const { labels } = useBiz();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISODate();
   // Map lookup — replaces O(n*m) .find() across upcoming bookings + violations rows.
   const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff]);
   // C1 fix: count only TODAY's bookings, not all-time. Stat card label says "Today's Bookings"
@@ -2532,7 +2546,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
       }),
     [bookings, todayStr]
   );
-  const lowStock = useMemo(() => inventory.filter(i => i.stock <= i.threshold), [inventory]);
+  const lowStock = useMemo(() => inventory.filter(i => (Number(i.stock) || 0) <= (Number(i.threshold) || 0)), [inventory]);
   const pending  = useMemo(() => requests.filter(r => r.status === 'pending'), [requests]);
   const [busy, setBusy] = useState(false);
   const bookingLabel = labels.todayCount;
@@ -2566,8 +2580,11 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
 
   const CHECKLIST_KEY = 'app_checklist';
   const [checkItems, setCheckItems] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(CHECKLIST_KEY)) || []; }
-    catch { return []; }
+    try {
+      const parsed = JSON.parse(localStorage.getItem(CHECKLIST_KEY));
+      // Defensive: only accept arrays — a non-array would crash subsequent .map.
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
   });
   const [newTask, setNewTask] = useState('');
   // Debounced persistence — avoids hitting localStorage on every keystroke / tap.
@@ -2770,7 +2787,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
 function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   const { labels } = useBiz();
   const { t, lang } = useT();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISODate();
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
   const [sortDir, setSortDir] = useState('asc');
@@ -2790,7 +2807,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   const shiftDate = (days) => {
     const d = new Date(selectedDate + 'T12:00:00');
     d.setDate(d.getDate() + days);
-    setSelectedDate(d.toISOString().slice(0, 10));
+    setSelectedDate(localISODate(d));
   };
   const dateLabel = useMemo(() => {
     if (selectedDate === todayStr) return t('today');
@@ -2863,7 +2880,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
         notes: b.notes || '',
       };
     });
-    downloadCSV(`bookings-${new Date().toISOString().slice(0,10)}.csv`, rows);
+    downloadCSV(`bookings-${localISODate()}.csv`, rows);
   };
 
   const totalRevenue = useMemo(
@@ -2986,7 +3003,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
             const diff = dayIdx - todayIdx;
             const target = new Date(today);
             target.setDate(today.getDate() + diff);
-            const targetIso = target.toISOString().slice(0, 10);
+            const targetIso = localISODate(target);
             return (
               <button
                 type="button"
@@ -3027,7 +3044,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
   const showAllergies = ['spa', 'salon', 'clinic', 'services', 'mix'].includes(business?.type || 'services');
   const hasStaff = staff && staff.length > 0;
   const hasServices = services && services.length > 0;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISODate();
   const [f, setF] = useState(() => {
     if (!booking) return {
       date: todayStr, time: '10:00', client: '', treatment: '', duration: 60,
@@ -3251,7 +3268,7 @@ function ClientsTab({ bookings, staff, toast }) {
       name: c.name, phone: c.phone, visits: c.visits,
       totalSpend: c.totalSpend, lastVisit: c.lastVisit || '',
     }));
-    downloadCSV(`${labels.clientPlural.toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`, rows);
+    downloadCSV(`${labels.clientPlural.toLowerCase()}-${localISODate()}.csv`, rows);
   };
 
   const detail = open && clients.find(c => c.key === open);
@@ -3414,7 +3431,7 @@ function StaffTab({ staff, violations, onReload, toast }) {
       birthday: s.birthday || '', schedule: (s.schedule || []).join('|'),
       violations: violations.filter(v => v.staffId === s.id).length,
     }));
-    downloadCSV(`staff-${new Date().toISOString().slice(0,10)}.csv`, rows);
+    downloadCSV(`staff-${localISODate()}.csv`, rows);
   };
 
   const del = async (id) => {
@@ -3813,7 +3830,7 @@ function InventoryTab({ inventory, onReload, toast }) {
       cost: i.cost || 0, value: (Number(i.stock) || 0) * (Number(i.cost) || 0),
       lastOrder: i.lastOrder || '',
     }));
-    downloadCSV(`inventory-${new Date().toISOString().slice(0,10)}.csv`, rows);
+    downloadCSV(`inventory-${localISODate()}.csv`, rows);
   };
 
   const adjust = async (id, delta) => {
@@ -3907,7 +3924,7 @@ function InventoryTab({ inventory, onReload, toast }) {
                 onCta={() => setModal('new')}
               />
         ) : filtered.slice(0, visibleCount).map((i, idx) => {
-          const low = i.stock <= i.threshold;
+          const low = (Number(i.stock) || 0) <= (Number(i.threshold) || 0);
           return (
             <div key={i.id} className="row">
               <div className="grow">
@@ -4248,21 +4265,34 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
   const { labels } = useBiz();
   const staffById = useMemo(() => new Map(staff.map(s => [s.id, s])), [staff]);
   const inventoryById = useMemo(() => new Map(inventory.map(i => [i.id, i])), [inventory]);
-  const lowStock = useMemo(() => inventory.filter(i => i.stock <= i.threshold), [inventory]);
+  // Number-coerced predicate — `null <= null` is true, so unset rows used to be
+  // flagged Low Stock. Numbers fall through to 0 which correctly compares.
+  const lowStock = useMemo(
+    () => inventory.filter(i => (Number(i.stock) || 0) <= (Number(i.threshold) || 0)),
+    [inventory]
+  );
   const pending  = useMemo(() => requests.filter(r => r.status === 'pending'), [requests]);
   const [reassign, setReassign] = useState(null);
+  // Track in-flight per-request decisions so double-click can't fire twice.
+  const [busyIds, setBusyIds] = useState(() => new Set());
   const reassignableStaff = useMemo(
     () => reassign ? staff.filter(s => s.id !== reassign.staffId) : [],
     [reassign, staff]
   );
 
   const decide = async (req, status, reassignToStaffId) => {
+    if (busyIds.has(req.id)) return; // double-click guard
+    setBusyIds(prev => new Set(prev).add(req.id));
     try {
       await api(`/api/requests/${req.id}`, { method: 'PUT', body: { status, reassignToStaffId } });
       toast(status === 'approved' ? t('requestApproved') : t('requestDeclined'));
       onReload();
       setReassign(null);
-    } catch (e) { toast(e.message || t('couldNotUpdateRequest')); }
+    } catch (e) {
+      toast(e.message || t('couldNotUpdateRequest'));
+    } finally {
+      setBusyIds(prev => { const n = new Set(prev); n.delete(req.id); return n; });
+    }
   };
 
   const formatType = (k) => {
@@ -4320,11 +4350,11 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
                 )}
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                   {req.type === 'sick' && affected.length > 0 ? (
-                    <button type="button" className="btn btn-primary btn-sm" onClick={() => setReassign(req)}>{t('approveReassign')}</button>
+                    <button type="button" className="btn btn-primary btn-sm" disabled={busyIds.has(req.id)} onClick={() => setReassign(req)}>{t('approveReassign')}</button>
                   ) : (
-                    <button type="button" className="btn btn-primary btn-sm" onClick={() => decide(req, 'approved')}>{t('approve')}</button>
+                    <button type="button" className="btn btn-primary btn-sm" disabled={busyIds.has(req.id)} onClick={() => decide(req, 'approved')}>{t('approve')}</button>
                   )}
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => decide(req, 'declined')}>{t('decline')}</button>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busyIds.has(req.id)} onClick={() => decide(req, 'declined')}>{t('decline')}</button>
                 </div>
               </div>
             );
@@ -4479,7 +4509,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
   const { t, lang } = useT();
   const me = staff.find(s => s.id === staffId);
   // C2 fix: filter to today's bookings only. Was showing all bookings as "today's sessions".
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISODate();
   const myBookings = bookings.filter(b => b.staffId === staffId && (b.date || todayStr) === todayStr);
   // M28 fix: respect canViewSchedule permission — staff without it shouldn't see booking list
   const canSeeSchedule = perms ? perms.canViewSchedule !== false : true;
@@ -4487,7 +4517,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
   // Stable per day per session: same staff sees the same one on refreshes.
   const sop = useMemo(() => {
     if (!sops || sops.length === 0) return null;
-    const day = new Date().toISOString().slice(0, 10);
+    const day = localISODate();
     // FNV-1a-ish hash so similar staffId+date combos don't collide to same rule.
     let h = 2166136261;
     const key = `${staffId || 0}|${day}`;
@@ -4579,7 +4609,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
 function StaffScheduleView({ staff, bookings, staffId }) {
   const { t, lang } = useT();
   // C3 fix: filter to today's bookings only; "Today's Sessions" was showing all.
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISODate();
   const mine = bookings.filter(b => b.staffId === staffId && (b.date || todayStr) === todayStr);
   const me = staff.find(s => s.id === staffId);
   const others = staff.filter(s => s.id !== staffId);
@@ -4639,7 +4669,7 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
   const mine = requests.filter(r => r.staffId === staffId);
   const me = staff.find(s => s.id === staffId);
   const perms = { ...STAFF_DEFAULT_PERMISSIONS, ...(me?.permissions || {}) };
-  const lowStock = (inventory || []).filter(i => i.stock <= i.threshold);
+  const lowStock = (inventory || []).filter(i => (Number(i.stock) || 0) <= (Number(i.threshold) || 0));
 
   return (
     <div>
@@ -4735,7 +4765,7 @@ function StaffInboxView({ announcements, staffId, staff, requests, inventory, on
 
 function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
   const { t } = useT();
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = localISODate();
   const [f, setF] = useState({
     type, staffId, date: type === 'sick' ? todayISO : '', reason: '', swapWith: '', swapDay: '',
   });
@@ -4770,7 +4800,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
         )}
         {err && <div role="alert" aria-live="assertive" className="error-banner"><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
         <div className="field"><label htmlFor="req-date">{t('date')}</label>
-          <input id="req-date" className="input" type="date" required min={new Date().toISOString().slice(0,10)} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
+          <input id="req-date" className="input" type="date" required min={localISODate()} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></div>
         {type === 'swap' && (
           <>
             <div className="field"><label htmlFor="req-swap-with">{t('swapWith')}</label>
@@ -4779,7 +4809,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
                 {others.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select></div>
             <div className="field"><label htmlFor="req-swap-day">{t('theirDay')}</label>
-              <input id="req-swap-day" className="input" type="date" min={new Date().toISOString().slice(0,10)} value={f.swapDay} onChange={e => setF({ ...f, swapDay: e.target.value })} /></div>
+              <input id="req-swap-day" className="input" type="date" min={localISODate()} value={f.swapDay} onChange={e => setF({ ...f, swapDay: e.target.value })} /></div>
           </>
         )}
         <div className="field">
@@ -4862,7 +4892,7 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
   if (!me) return null;
   const myV = violations.filter(v => v.staffId === staffId);
   // Fix: was sessionsThisWeek but counted ALL bookings; rename + filter to today's.
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localISODate();
   const sessionsToday = bookings.filter(b => b.staffId === staffId && (b.date || todayStr) === todayStr).length;
   const locale = lang === 'id' ? 'id-ID' : 'en-US';
 
@@ -4931,14 +4961,14 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() - (range === 'week' ? 6 : 29));
-    return d.toISOString().slice(0, 10);
+    return localISODate(d);
   }, [range]);
   const scoped = useMemo(() => {
     if (!cutoff) return bookings;
     return bookings.filter(b => (b.date || '') >= cutoff);
   }, [bookings, cutoff]);
 
-  const lowStock = useMemo(() => inventory.filter(i => i.stock <= i.threshold), [inventory]);
+  const lowStock = useMemo(() => inventory.filter(i => (Number(i.stock) || 0) <= (Number(i.threshold) || 0)), [inventory]);
   const totalRevenue = useMemo(() => scoped.reduce((sum, b) => sum + (Number(b.price) || 0), 0), [scoped]);
   const oldestDate = bookings.length > 0 ? bookings[bookings.length - 1]?.date : null;
   const periodDays = range === 'week' ? 7 : range === 'month' ? 30
@@ -5580,7 +5610,7 @@ function AppInner() {
 
   // Hooks must run on every render — keep before any conditional early return.
   const lowStockCount = useMemo(
-    () => inventory.data.filter(i => i.stock <= i.threshold).length,
+    () => inventory.data.filter(i => (Number(i.stock) || 0) <= (Number(i.threshold) || 0)).length,
     [inventory.data]
   );
   const pendingCount = useMemo(
