@@ -4,10 +4,15 @@
   --cream: #f5f0e8;
   --cream-soft: #faf6ef;
   --cream-deep: #ece3d3;
-  --emerald: #2d5a4a;
-  --emerald-dark: #1e3f33;
-  --emerald-soft: #e6ede9;
+  /* Customer feedback: "rich dark green like watermelon / limes" — bumped emerald
+     a touch deeper + saturated. Old: #2d5a4a. */
+  --emerald: #1e5a44;
+  --emerald-dark: #15402f;
+  --emerald-soft: #dde9e3;
   --gold: #8a6940;
+  /* "Needs to pop" — bright accent for badges, icons, dots. Keep --gold dark for
+     text contrast on cream. */
+  --gold-bright: #c9904f;
   --gold-soft: #e7d8c2;
   --ink: #2b2623;
   --muted: #6b5d4a;
@@ -19,7 +24,7 @@
   --success: #4a7d5a;
   --warn: #a86d20;
   --radius: 14px;
-  --shadow: 0 4px 20px rgba(45, 90, 74, 0.08);
+  --shadow: 0 4px 20px rgba(30, 90, 68, 0.08);
 }
 
 * { box-sizing: border-box; }

@@ -480,6 +480,11 @@ const TRANSLATIONS = {
     loadMore: 'Load more',
     confirmSignOut: 'Sign out of Spapilot? Your data is safe — you can sign back in any time.',
     clearSearch: 'Clear search',
+    currencyLabel: 'Currency',
+    currencyHint: 'Used for prices, revenue and inventory cost. You can change this later in Settings.',
+    scheduleViewList: 'List',
+    scheduleViewGrid: 'Grid',
+    saved: 'Saved',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -860,6 +865,11 @@ const TRANSLATIONS = {
     loadMore: 'Muat lebih banyak',
     confirmSignOut: 'Keluar dari Spapilot? Data Anda aman — Anda dapat masuk kembali kapan saja.',
     clearSearch: 'Hapus pencarian',
+    currencyLabel: 'Mata uang',
+    currencyHint: 'Digunakan untuk harga, pendapatan, dan biaya inventaris. Dapat diubah nanti di Pengaturan.',
+    scheduleViewList: 'Daftar',
+    scheduleViewGrid: 'Grid',
+    saved: 'Tersimpan',
   },
 };
 
@@ -903,7 +913,7 @@ const BIZ_HIDDEN_TABS = {
 };
 // Default to generic "services" labels so any business type sees neutral terms
 // until they pick their specific industry. Avoids spa-only "Therapist/Treatment" leaking.
-const BizContext = createContext({ business: null, labels: BIZ_LABELS.services, hiddenTabs: [] });
+const BizContext = createContext({ business: null, labels: BIZ_LABELS.services, hiddenTabs: [], currency: 'USD' });
 const useBiz = () => useContext(BizContext);
 function BizProvider({ business, children }) {
   const { lang } = useT();
@@ -913,6 +923,7 @@ function BizProvider({ business, children }) {
       business,
       labels: getBizLabels(type, lang),
       hiddenTabs: BIZ_HIDDEN_TABS[type] || [],
+      currency: business?.currency || 'USD',
     };
   }, [business, lang]);
   return <BizContext.Provider value={value}>{children}</BizContext.Provider>;
@@ -936,13 +947,38 @@ function LangProvider({ children }) {
 // ---------- Currency helper ----------
 // Business-level money (booking price, service price, client revenue, inventory cost).
 // NOT for subscription pricing — that stays USD because Stripe charges in USD.
-// Indonesian users see "Rp 1,000" with thousands separator; English users see "$1,000.00" with cents.
-function fmtMoney(amount, lang) {
+// Currency is now per-business (set during onboarding, editable later), so a
+// salon in Jakarta and a clinic in London see their own native currency.
+const SUPPORTED_CURRENCIES = [
+  'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'IDR', 'SGD', 'MYR', 'PHP', 'THB',
+  'JPY', 'KRW', 'INR', 'MXN', 'BRL', 'ZAR', 'NZD', 'CHF', 'HKD', 'AED',
+];
+const CURRENCY_LOCALE = {
+  USD: 'en-US', EUR: 'de-DE', GBP: 'en-GB',
+  AUD: 'en-AU', CAD: 'en-CA',
+  IDR: 'id-ID', SGD: 'en-SG', MYR: 'ms-MY', PHP: 'en-PH', THB: 'th-TH',
+  JPY: 'ja-JP', KRW: 'ko-KR', INR: 'en-IN', MXN: 'es-MX', BRL: 'pt-BR',
+  ZAR: 'en-ZA', NZD: 'en-NZ', CHF: 'de-CH', HKD: 'en-HK', AED: 'ar-AE',
+};
+const ZERO_DECIMAL = new Set(['JPY', 'KRW', 'IDR']);
+function fmtMoney(amount, lang, currency) {
   const n = Number(amount) || 0;
-  if (lang === 'id') {
-    return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n);
+  const cur = SUPPORTED_CURRENCIES.includes((currency || '').toUpperCase())
+    ? currency.toUpperCase()
+    : 'USD';
+  // Prefer the user's language locale for grouping/separators, fall back to the
+  // currency's home locale if the UI is in English so $1,000.00 still feels right.
+  const loc = lang === 'id' ? 'id-ID' : (CURRENCY_LOCALE[cur] || 'en-US');
+  try {
+    return new Intl.NumberFormat(loc, {
+      style: 'currency',
+      currency: cur,
+      minimumFractionDigits: ZERO_DECIMAL.has(cur) ? 0 : 2,
+      maximumFractionDigits: ZERO_DECIMAL.has(cur) ? 0 : 2,
+    }).format(n);
+  } catch {
+    return `${cur} ${n.toFixed(ZERO_DECIMAL.has(cur) ? 0 : 2)}`;
   }
-  return '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
 // Duration helper — Indonesian users see "60 mnt" instead of English "60min".
@@ -1885,9 +1921,25 @@ function OnboardingRoleSelector({ user, onPickOwner, onPickStaff, onLogout }) {
 
 // ---------- Business owner onboarding ----------
 function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [name, setName] = useState('');
   const [type, setType] = useState('services');
+  // Try to guess a sensible default currency from the user's browser locale so
+  // an Indonesian user doesn't have to manually switch from USD on first run.
+  const guessedCurrency = useMemo(() => {
+    try {
+      const region = (Intl.NumberFormat().resolvedOptions().locale || '').split('-')[1];
+      const map = { ID: 'IDR', GB: 'GBP', AU: 'AUD', CA: 'CAD', SG: 'SGD', MY: 'MYR',
+        PH: 'PHP', TH: 'THB', JP: 'JPY', KR: 'KRW', IN: 'INR', MX: 'MXN', BR: 'BRL',
+        ZA: 'ZAR', NZ: 'NZD', CH: 'CHF', HK: 'HKD', AE: 'AED',
+        DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR', BE: 'EUR', PT: 'EUR',
+        IE: 'EUR', GR: 'EUR', AT: 'EUR', FI: 'EUR' };
+      if (region && map[region]) return map[region];
+      if (lang === 'id') return 'IDR';
+    } catch {}
+    return 'USD';
+  }, [lang]);
+  const [currency, setCurrency] = useState(guessedCurrency);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -1899,7 +1951,7 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
     try {
       const result = await api('/api/businesses', {
         method: 'POST',
-        body: { name: name.trim(), type },
+        body: { name: name.trim(), type, currency },
       });
       if (result.token) setToken(result.token);
       onCreated(result.user, result.business);
@@ -1959,6 +2011,15 @@ function BusinessOwnerOnboarding({ onCreated, onBack, onLogout }) {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="field">
+            <label htmlFor="biz-currency">{t('currencyLabel')}</label>
+            <select id="biz-currency" className="select" value={currency} onChange={e => setCurrency(e.target.value)}>
+              {SUPPORTED_CURRENCIES.map(c => (
+                <option key={c} value={c}>{c} · {fmtMoney(1000, lang, c)}</option>
+              ))}
+            </select>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{t('currencyHint')}</div>
           </div>
           {err && <div id="biz-onboard-error" role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
@@ -2223,6 +2284,36 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
             // title-case the raw type so we don't leak "bizTypeServices" to the UI.
             return val === key ? (business.type ? business.type.charAt(0).toUpperCase() + business.type.slice(1) : '') : val;
           })()}</span></div>
+        </div>
+      )}
+
+      {business && user?.onboardingRole === 'owner' && (
+        <div className="field">
+          <label htmlFor="settings-currency">{t('currencyLabel')}</label>
+          <select
+            id="settings-currency"
+            className="select"
+            value={business.currency || 'USD'}
+            disabled={busy}
+            onChange={async (e) => {
+              const next = e.target.value;
+              setBusy(true);
+              try {
+                const updated = await api('/api/businesses/me', { method: 'PUT', body: { currency: next } });
+                if (updated && updated.currency) {
+                  // Re-fetch via parent — easiest is to mutate business in place so
+                  // BizProvider re-derives. Caller refreshes on next reloadAll.
+                  business.currency = updated.currency;
+                  toast(t('saved'));
+                }
+              } catch (err) { toast(err.message || t('failed')); }
+              finally { setBusy(false); }
+            }}
+          >
+            {SUPPORTED_CURRENCIES.map(c => (
+              <option key={c} value={c}>{c} · {fmtMoney(1000, lang, c)}</option>
+            ))}
+          </select>
         </div>
       )}
 
@@ -2784,8 +2875,107 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
   );
 }
 
+// Schedule grid (Fresha-style) — columns = staff, rows = time slots, bookings
+// rendered as absolutely-positioned blocks sized by duration. Toggle from list.
+const GRID_START_MIN = 8 * 60;  // 08:00
+const GRID_END_MIN   = 21 * 60; // 21:00
+const GRID_PX_PER_MIN = 1;      // 1 minute = 1px → 780px total height
+function ScheduleGridView({ bookings, staff, conflictIds, onEdit, lang, currency, t, labels }) {
+  // Half-hour grid lines, with hour labels on the hour.
+  const slots = [];
+  for (let m = GRID_START_MIN; m <= GRID_END_MIN; m += 30) {
+    slots.push(m);
+  }
+  // Only include staff with at least one booking today, plus the rest at the end.
+  const staffWithBookings = useMemo(() => {
+    const seen = new Set();
+    bookings.forEach(b => { if (b.staffId) seen.add(b.staffId); });
+    return [
+      ...staff.filter(s => seen.has(s.id)),
+      ...staff.filter(s => !seen.has(s.id)),
+    ];
+  }, [bookings, staff]);
+  const totalHeight = (GRID_END_MIN - GRID_START_MIN) * GRID_PX_PER_MIN;
+
+  return (
+    <div className="sched-grid-wrap" aria-label={`${labels.bookingPlural} grid`}>
+      <div className="sched-grid">
+        {/* Header row: empty corner + staff name per column */}
+        <div className="sched-grid-header">
+          <div className="sched-grid-time-corner" aria-hidden="true" />
+          {staffWithBookings.map(s => (
+            <div key={s.id} className="sched-grid-col-head" title={s.name}>
+              <span className="sched-grid-col-name">{s.name}</span>
+              <span className="sched-grid-col-role">{s.role}</span>
+            </div>
+          ))}
+        </div>
+        {/* Body: time labels + per-staff columns */}
+        <div className="sched-grid-body" style={{ height: totalHeight + 'px' }}>
+          <div className="sched-grid-time-col">
+            {slots.map(m => (
+              <div
+                key={m}
+                className={`sched-grid-time-row ${m % 60 === 0 ? 'on-hour' : ''}`}
+                style={{ height: '30px' }}
+              >
+                {m % 60 === 0 ? `${String(Math.floor(m / 60)).padStart(2, '0')}:00` : ''}
+              </div>
+            ))}
+          </div>
+          {staffWithBookings.map(member => {
+            const memberBookings = bookings.filter(b => b.staffId === member.id);
+            return (
+              <div key={member.id} className="sched-grid-col">
+                {/* Background slots so the grid lines show through empty cells */}
+                {slots.map(m => (
+                  <div
+                    key={m}
+                    className={`sched-grid-slot ${m % 60 === 0 ? 'on-hour' : ''}`}
+                    style={{ height: '30px' }}
+                  />
+                ))}
+                {/* Booking blocks */}
+                {memberBookings.map(b => {
+                  const startMin = toMin(b.time);
+                  const dur = Math.max(15, Number(b.duration) || 30);
+                  const top = Math.max(0, (startMin - GRID_START_MIN) * GRID_PX_PER_MIN);
+                  const height = dur * GRID_PX_PER_MIN;
+                  const isConflict = conflictIds.has(b.id);
+                  const bg = isConflict ? 'var(--danger)' : (member.color || 'var(--emerald)');
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      className="sched-grid-booking"
+                      onClick={() => onEdit(b)}
+                      aria-label={`${b.time} ${b.client} ${b.treatment} ${fmtDuration(b.duration, lang)}`}
+                      style={{
+                        top: top + 'px',
+                        height: height + 'px',
+                        background: bg,
+                      }}
+                    >
+                      <div className="sched-grid-booking-time">{b.time}</div>
+                      <div className="sched-grid-booking-client">{b.client}</div>
+                      <div className="sched-grid-booking-svc">{b.treatment}</div>
+                      {b.price > 0 && height >= 60 && (
+                        <div className="sched-grid-booking-price">{fmtMoney(b.price, lang, currency)}</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
-  const { labels } = useBiz();
+  const { labels, currency } = useBiz();
   const { t, lang } = useT();
   const todayStr = localISODate();
   const [modal, setModal] = useState(null);
@@ -2793,6 +2983,14 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
   const [sortDir, setSortDir] = useState('asc');
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [visibleCount, setVisibleCount] = useState(50);
+  // Persisted view mode — customers compared us to Fresha and wanted a grid.
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('sched_view') === 'grid' ? 'grid' : 'list'; }
+    catch { return 'list'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sched_view', viewMode); } catch {}
+  }, [viewMode]);
   const dayCounts = useMemo(() => {
     const counts = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
     bookings.forEach(b => {
@@ -2902,9 +3100,27 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
       <div className="card">
         <div className="card-head">
           <h2>{dateLabel} · {labels.bookingPlural}</h2>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setModal('new')}>
-            <Plus size={14} aria-hidden="true" /> {t('add')}
-          </button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <div role="group" aria-label="View mode" style={{ display: 'inline-flex', gap: 0, border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
+              <button
+                type="button"
+                aria-pressed={viewMode === 'list'}
+                onClick={() => setViewMode('list')}
+                className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ minHeight: 36, borderRadius: 0, border: 'none' }}
+              >{t('scheduleViewList')}</button>
+              <button
+                type="button"
+                aria-pressed={viewMode === 'grid'}
+                onClick={() => setViewMode('grid')}
+                className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ minHeight: 36, borderRadius: 0, border: 'none', borderLeft: '1px solid var(--line)' }}
+              >{t('scheduleViewGrid')}</button>
+            </div>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setModal('new')}>
+              <Plus size={14} aria-hidden="true" /> {t('add')}
+            </button>
+          </div>
         </div>
 
         {/* Date picker with prev/next + jump-to-today */}
@@ -2926,7 +3142,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
         {filtered.length > 0 && (
           <div className="day-stats">
             <div className="day-stat"><span className="v">{filtered.length}</span><span className="l">{labels.bookingPlural}</span></div>
-            {totalRevenue > 0 && <div className="day-stat"><span className="v">{fmtMoney(totalRevenue, lang)}</span><span className="l">{t('revenue')}</span></div>}
+            {totalRevenue > 0 && <div className="day-stat"><span className="v">{fmtMoney(totalRevenue, lang, currency)}</span><span className="l">{t('revenue')}</span></div>}
             {conflictIds.size > 0 && <div className="day-stat day-stat-warn"><span className="v">{conflictIds.size / 2}</span><span className="l">{t('conflictsCount')}</span></div>}
           </div>
         )}
@@ -2950,7 +3166,18 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
           </button>
         </div>
 
-        {filtered.length === 0 ? (
+        {viewMode === 'grid' && filtered.length > 0 ? (
+          <ScheduleGridView
+            bookings={filtered}
+            staff={staff}
+            conflictIds={conflictIds}
+            onEdit={(b) => setModal(b)}
+            lang={lang}
+            currency={currency}
+            t={t}
+            labels={labels}
+          />
+        ) : filtered.length === 0 ? (
           query
             ? <div className="center-muted">{t('noResults')}</div>
             : <EmptyState
@@ -2970,7 +3197,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
               <div className="time" style={{ color: accent }}>{b.time}</div>
               <div className="grow">
                 <div className="title">{b.client}</div>
-                <div className="meta">{b.treatment}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}{b.price > 0 ? ` · ${fmtMoney(b.price, lang)}` : ''}</div>
+                <div className="meta">{b.treatment}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}{b.price > 0 ? ` · ${fmtMoney(b.price, lang, currency)}` : ''}</div>
                 {m && <div className="meta" style={{ marginTop: 4 }}>{t('withPerson')} <strong>{m.name}</strong></div>}
                 {isConflict && <div className="note-chip note-chip-danger"><AlertTriangle size={12} aria-hidden="true" style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('overlapsWithAnother')}</div>}
                 {b.allergies && <div className="note-chip note-chip-danger"><AlertTriangle size={12} aria-hidden="true" style={{ marginRight: 4, verticalAlign: 'middle' }} />{t('allergies')}: {b.allergies}</div>}
@@ -3038,7 +3265,7 @@ function ScheduleTab({ bookings, staff, services = [], onReload, toast }) {
 
 function BookingModal({ booking, staff, services = [], allBookings = [], onClose, onSaved }) {
   const { t, lang } = useT();
-  const { labels, business } = useBiz();
+  const { labels, business, currency } = useBiz();
   // C6 fix: allow allergies field for new generic business categories too.
   // Was only ['spa','salon','clinic'] → new users with type='services' lost the field.
   const showAllergies = ['spa', 'salon', 'clinic', 'services', 'mix'].includes(business?.type || 'services');
@@ -3151,7 +3378,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
             >
               <option value="">{t('chooseAService')}</option>
               {services.map(s => (
-                <option key={s.id} value={s.id}>{s.name} · {fmtDuration(s.durationMin, lang)} · {fmtMoney(s.price, lang)}</option>
+                <option key={s.id} value={s.id}>{s.name} · {fmtDuration(s.durationMin, lang)} · {fmtMoney(s.price, lang, currency)}</option>
               ))}
             </select>
           </div>
@@ -3223,7 +3450,7 @@ function BookingModal({ booking, staff, services = [], allBookings = [], onClose
 // schema change required. Each row = 1 unique client with totals + last visit + history.
 function ClientsTab({ bookings, staff, toast }) {
   const { t, lang } = useT();
-  const { labels } = useBiz();
+  const { labels, currency } = useBiz();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(null); // selected client name or null
   const [visibleCount, setVisibleCount] = useState(50);
@@ -3327,7 +3554,7 @@ function ClientsTab({ bookings, staff, toast }) {
               )}
             </div>
             <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--muted)' }}>
-              <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>{fmtMoney(c.totalSpend, lang)}</div>
+              <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>{fmtMoney(c.totalSpend, lang, currency)}</div>
               <div style={{ fontSize: 11 }}>{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'short', day: 'numeric' }) : ''}</div>
             </div>
           </div>
@@ -3357,8 +3584,8 @@ function ClientsTab({ bookings, staff, toast }) {
                 <div className="v" aria-hidden="true">{detail.visits}</div>
                 <div className="l" aria-hidden="true">{labels.bookingPlural}</div>
               </div>
-              <div className="stat" aria-label={`${fmtMoney(detail.totalSpend, lang)} ${t('revenue')}`}>
-                <div className="v" aria-hidden="true">{fmtMoney(detail.totalSpend, lang)}</div>
+              <div className="stat" aria-label={`${fmtMoney(detail.totalSpend, lang, currency)} ${t('revenue')}`}>
+                <div className="v" aria-hidden="true">{fmtMoney(detail.totalSpend, lang, currency)}</div>
                 <div className="l" aria-hidden="true">{t('revenue')}</div>
               </div>
               <div className="stat" aria-label={`${t('lastVisitLabel')} ${detail.lastVisit ? new Date(detail.lastVisit).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}`}>
@@ -3396,7 +3623,7 @@ function ClientsTab({ bookings, staff, toast }) {
                     <div className="title">{b.treatment}</div>
                     <div className="meta">{b.time}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}{m ? ` · ${m.name}` : ''}</div>
                   </div>
-                  {b.price > 0 && <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>{fmtMoney(b.price, lang)}</div>}
+                  {b.price > 0 && <div style={{ fontWeight: 600, color: 'var(--emerald)' }}>{fmtMoney(b.price, lang, currency)}</div>}
                 </div>
               );
             })}
@@ -3633,7 +3860,7 @@ function StaffModal({ member, onClose, onSaved }) {
 // ---------- Services Catalog ----------
 function ServicesTab({ services, onReload, toast }) {
   const { t, lang } = useT();
-  const { labels } = useBiz();
+  const { labels, currency } = useBiz();
   const [modal, setModal] = useState(null);
 
   const grouped = useMemo(() => {
@@ -3684,7 +3911,7 @@ function ServicesTab({ services, onReload, toast }) {
                   <div className="grow">
                     <div className="title" style={{ fontSize: 14 }}>{s.name}</div>
                     <div className="meta" style={{ fontSize: 11 }}>
-                      {fmtDuration(s.durationMin, lang)} · {fmtMoney(s.price, lang)}
+                      {fmtDuration(s.durationMin, lang)} · {fmtMoney(s.price, lang, currency)}
                     </div>
                   </div>
                   <button type="button" className="icon-btn" onClick={() => setModal(s)} aria-label={`${t('edit')} ${s.name}`}>
@@ -3779,6 +4006,7 @@ function ServiceModal({ service, onClose, onSaved }) {
 
 function InventoryTab({ inventory, onReload, toast }) {
   const { t, lang } = useT();
+  const { currency } = useBiz();
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState('');
   const [cat, setCat] = useState('');
@@ -3874,7 +4102,7 @@ function InventoryTab({ inventory, onReload, toast }) {
       {summary.totalItems > 0 && (
         <div className="day-stats" style={{ marginBottom: 14 }}>
           <div className="day-stat"><span className="v">{summary.totalItems}</span><span className="l">{t('inventory')}</span></div>
-          {summary.totalValue > 0 && <div className="day-stat"><span className="v">{fmtMoney(summary.totalValue, lang)}</span><span className="l">{t('inventoryValue')}</span></div>}
+          {summary.totalValue > 0 && <div className="day-stat"><span className="v">{fmtMoney(summary.totalValue, lang, currency)}</span><span className="l">{t('inventoryValue')}</span></div>}
           {summary.lowCount > 0 && <div className="day-stat day-stat-warn"><span className="v">{summary.lowCount}</span><span className="l">{t('low')}</span></div>}
           {summary.outCount > 0 && <div className="day-stat day-stat-warn"><span className="v">{summary.outCount}</span><span className="l">{t('statOut')}</span></div>}
         </div>
@@ -4952,7 +5180,7 @@ function StaffProfileView({ staff, staffId, violations, sops, bookings, onLogout
 // ================= OWNER VIEW =================
 function OwnerView({ staff, bookings, inventory, requests, violations, announcements }) {
   const { t, lang } = useT();
-  const { labels } = useBiz();
+  const { labels, currency } = useBiz();
 
   // Scope: this week = last 7 days inclusive of today.
   const [range, setRange] = useState('week'); // 'week' | 'month' | 'all'
@@ -4974,7 +5202,7 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
   const periodDays = range === 'week' ? 7 : range === 'month' ? 30
     : Math.max(1, Math.ceil((Date.now() - new Date(oldestDate || Date.now()).getTime()) / (24 * 60 * 60 * 1000)));
   const avgPerDay = Math.round(totalRevenue / periodDays);
-  const money = (n) => fmtMoney(n, lang);
+  const money = (n) => fmtMoney(n, lang, currency);
 
   // Inventory total cost (if cost set)
   const inventoryValue = useMemo(
@@ -5123,13 +5351,15 @@ function OwnerView({ staff, bookings, inventory, requests, violations, announcem
 }
 
 // ================= NAV =================
+// Customer feedback: most-used tabs (Schedule + Stock + Clients) belong near the
+// front so they're visible without horizontal scroll on phones.
 const MANAGER_NAV = [
   { id: 'dashboard',     labelKey: 'home',          icon: LayoutDashboard },
   { id: 'schedule',      labelKey: 'schedule',      icon: Calendar },
-  { id: 'services',      labelKey: 'services',      icon: Sparkles },
+  { id: 'inventory',     labelKey: 'stock',         icon: Package },
   { id: 'clients',       labelKey: 'clients',       icon: User },
   { id: 'staff',         labelKey: 'staff',         icon: Users },
-  { id: 'inventory',     labelKey: 'stock',         icon: Package },
+  { id: 'services',      labelKey: 'services',      icon: Sparkles },
   { id: 'alerts',        labelKey: 'alerts',        icon: Bell },
   { id: 'sop',           labelKey: 'sop',           icon: ShieldCheck },
   { id: 'announcements', labelKey: 'send',          icon: Megaphone },

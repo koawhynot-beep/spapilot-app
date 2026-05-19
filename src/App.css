@@ -141,7 +141,7 @@
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   margin-bottom: 12px;
 }
-.card-head h2, .card-head h3 { margin: 0; font-size: 16px; font-family: inherit; font-weight: 600; color: var(--emerald); }
+.card-head h2, .card-head h3 { margin: 0; font-size: 17px; font-family: inherit; font-weight: 600; color: var(--emerald); }
 
 /* Buttons — min 44px touch target per Apple HIG */
 .btn {
@@ -299,10 +299,10 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
 .row:last-child { border-bottom: none; }
 .row .grow { flex: 1; min-width: 0; }
 .row .title {
-  font-weight: 600; color: var(--ink); font-size: 14px;
+  font-weight: 600; color: var(--ink); font-size: 15px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.row .meta { font-size: 12px; color: var(--muted); word-wrap: break-word; }
+.row .meta { font-size: 13px; color: var(--muted); word-wrap: break-word; }
 
 /* Avatar */
 .avatar {
@@ -368,6 +368,75 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
     50%       { transform: scale(1.08); }
   }
 }
+
+/* Schedule grid view (Fresha-style) — columns = staff, rows = 30min slots */
+.sched-grid-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--input-bg, #fff);
+  margin-top: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.sched-grid { display: flex; flex-direction: column; min-width: max-content; }
+.sched-grid-header {
+  display: flex; position: sticky; top: 0; z-index: 2;
+  background: var(--cream-soft);
+  border-bottom: 1px solid var(--line);
+}
+.sched-grid-time-corner { width: 60px; flex-shrink: 0; }
+.sched-grid-col-head {
+  width: 140px; flex-shrink: 0;
+  padding: 8px 10px; border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 12px; line-height: 1.3;
+}
+.sched-grid-col-name { font-weight: 600; color: var(--emerald); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched-grid-col-role { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched-grid-body { display: flex; position: relative; }
+.sched-grid-time-col {
+  width: 60px; flex-shrink: 0;
+  position: sticky; left: 0; z-index: 1;
+  background: var(--cream-soft);
+  border-right: 1px solid var(--line);
+}
+.sched-grid-time-row {
+  font-size: 10px; color: var(--muted);
+  padding: 2px 6px 0; text-align: right;
+  box-sizing: border-box;
+}
+.sched-grid-time-row.on-hour { font-weight: 600; color: var(--ink); }
+.sched-grid-col {
+  width: 140px; flex-shrink: 0;
+  position: relative;
+  border-left: 1px solid var(--line);
+}
+.sched-grid-slot {
+  border-top: 1px dashed rgba(0,0,0,0.06);
+  box-sizing: border-box;
+}
+.sched-grid-slot.on-hour { border-top: 1px solid var(--line); }
+.sched-grid-booking {
+  position: absolute; left: 4px; right: 4px;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  overflow: hidden;
+  display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+  transition: transform 0.1s;
+  z-index: 1;
+}
+.sched-grid-booking:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.22); }
+.sched-grid-booking:focus-visible { outline: 3px solid var(--gold-bright); outline-offset: 2px; }
+.sched-grid-booking-time { font-weight: 700; font-size: 11px; opacity: 0.95; }
+.sched-grid-booking-client { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched-grid-booking-svc { font-size: 11px; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched-grid-booking-price { font-size: 11px; opacity: 0.92; margin-top: auto; }
 
 /* Schedule blocks */
 .sched-block {
@@ -490,23 +559,30 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
 
 /* Quick actions */
 .qa-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
   padding: 14px;
 }
+/* Higher-contrast quick action: cream-soft on emerald-bordered surface, label
+   is ink (not muted), bolder weight, larger font — customer said the contrast
+   was too low to read at a glance. */
 .qa-btn {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 12px 8px; min-height: 72px;
-  background: #fff; border: 1px solid var(--line, #d8d2c2);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 8px; min-height: 80px;
+  background: var(--input-bg, #fff);
+  border: 1.5px solid var(--line);
   border-radius: 12px; cursor: pointer;
-  font-size: 11px; color: var(--ink, #2b2118); text-align: center;
-  line-height: 1.25; font-weight: 500;
-  transition: border-color 0.15s, transform 0.08s;
+  font-size: 13px; color: var(--ink);
+  text-align: center; line-height: 1.3; font-weight: 600;
+  transition: border-color 0.15s, transform 0.08s, background 0.15s;
 }
-.qa-btn:hover:not(:disabled) { border-color: var(--gold, #b8956a); }
+.qa-btn:hover:not(:disabled) { border-color: var(--emerald); background: var(--emerald-soft); }
 .qa-btn:active:not(:disabled) { transform: scale(0.97); }
 .qa-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.qa-btn svg { color: var(--gold, #b8956a); }
-@media (max-width: 560px) { .qa-grid { grid-template-columns: 1fr; } .qa-btn { flex-direction: row; min-height: 52px; text-align: left; } }
+.qa-btn svg { color: var(--gold-bright, #c9904f); }
+@media (max-width: 560px) {
+  .qa-grid { grid-template-columns: 1fr; }
+  .qa-btn { flex-direction: row; min-height: 56px; text-align: left; gap: 12px; padding: 12px 14px; }
+}
 
 /* Toast */
 .toast {
