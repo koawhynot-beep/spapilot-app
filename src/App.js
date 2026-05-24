@@ -479,6 +479,10 @@ const TRANSLATIONS = {
     verifyCodeLabel: 'Verification code',
     verifyCodeSubmit: 'Verify & continue',
     verifyCodeInvalid: 'Enter the 6-digit code from your email.',
+    changePassword: 'Change password',
+    currentPassword: 'Current password',
+    passwordChanged: 'Password updated',
+    chooseRole: 'Choose how you want to work',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -874,6 +878,10 @@ const TRANSLATIONS = {
     verifyCodeLabel: 'Kode verifikasi',
     verifyCodeSubmit: 'Verifikasi & lanjut',
     verifyCodeInvalid: 'Masukkan kode 6-digit dari email Anda.',
+    changePassword: 'Ubah kata sandi',
+    currentPassword: 'Kata sandi saat ini',
+    passwordChanged: 'Kata sandi diperbarui',
+    chooseRole: 'Pilih cara Anda bekerja',
   },
 };
 
@@ -2284,27 +2292,27 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleteErr, setDeleteErr] = useState(null);
+  // Change-password panel state
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [pwErr, setPwErr] = useState(null);
 
-  const exportData = async () => {
+  const changePassword = async () => {
+    setPwErr(null);
+    if (newPw.length < 8) { setPwErr(t('passwordTooShort')); return; }
     setBusy(true);
     try {
-      const token = getToken();
-      const res = await fetch(`${API}/api/auth/export-data`, {
-        headers: { Authorization: `Bearer ${token}` },
+      await api('/api/auth/change-password', {
+        method: 'POST',
+        body: { currentPassword: curPw, newPassword: newPw },
       });
-      if (!res.ok) throw new Error(t('exportFailed'));
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `spapilot-data-${user.id}-${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast(t('dataExported'));
-    } catch (e) { toast(e.message || t('exportFailed')); }
-    finally { setBusy(false); }
+      toast(t('passwordChanged'));
+      setShowChangePw(false);
+      setCurPw(''); setNewPw('');
+    } catch (e) {
+      setPwErr(e.message || t('failed'));
+    } finally { setBusy(false); }
   };
 
   const deleteAccount = async () => {
@@ -2473,14 +2481,55 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
         </button>
       </div>
 
+      {/* Change password */}
+      <div className="field">
+        {!showChangePw ? (
+          <button type="button" className="btn btn-ghost" style={{ width: '100%', fontSize: 13 }} disabled={busy} onClick={() => { setShowChangePw(true); setPwErr(null); }}>
+            <Lock size={14} aria-hidden="true" style={{ marginRight: 6, verticalAlign: 'middle' }} />
+            {t('changePassword')}
+          </button>
+        ) : (
+          <div style={{ padding: 12, background: 'var(--cream-2)', border: '1px solid var(--line)', borderRadius: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--emerald)', marginBottom: 10 }}>{t('changePassword')}</div>
+            <input
+              type="password"
+              className="input"
+              autoComplete="current-password"
+              aria-label={t('currentPassword')}
+              placeholder={t('currentPassword')}
+              value={curPw}
+              onChange={e => { setPwErr(null); setCurPw(e.target.value); }}
+              style={{ marginBottom: 8 }}
+            />
+            <input
+              type="password"
+              className="input"
+              autoComplete="new-password"
+              aria-label={t('newPassword')}
+              placeholder={t('newPassword')}
+              value={newPw}
+              onChange={e => { setPwErr(null); setNewPw(e.target.value); }}
+              style={{ marginBottom: 8 }}
+            />
+            {pwErr && <div role="alert" aria-live="assertive" style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 8 }}>{pwErr}</div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={busy}
+                onClick={() => { setShowChangePw(false); setCurPw(''); setNewPw(''); setPwErr(null); }}>
+                {t('cancel')}
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" style={{ flex: 1 }} disabled={busy || !curPw || newPw.length < 8}
+                onClick={changePassword}>
+                {busy ? t('saving') : t('save')}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="field" style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
           {t('privacyAndData')}
         </div>
-        <button type="button" className="btn btn-ghost" style={{ width: '100%', fontSize: 13, marginBottom: 8 }} disabled={busy} onClick={exportData}>
-          <Download size={14} aria-hidden="true" style={{ marginRight: 6, verticalAlign: 'middle' }} />
-          {t('exportMyData')}
-        </button>
         {!showDeleteConfirm ? (
           <button
             className="btn btn-ghost"
@@ -2655,7 +2704,7 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
     <div className="role-screen">
       <LangToggle floating />
       <div className="role-card">
-        <BrandMark sub={t('oneLast')} />
+        <BrandMark sub={t('chooseRole')} />
         {err && <div role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 14 }}><AlertTriangle size={14} aria-hidden="true" /> {err}</div>}
 
         {picking === 'staff' ? (

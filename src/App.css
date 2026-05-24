@@ -42,7 +42,7 @@
 .role-btn {
   display: flex; align-items: center; gap: 14px;
   width: 100%; padding: 16px 18px; margin-top: 14px;
-  background: #fff; border: 1px solid var(--line);
+  background: var(--input-bg, #fff); border: 1px solid var(--line);
   border-radius: 12px; text-align: left;
   transition: all 0.2s;
 }
@@ -191,7 +191,7 @@
 .role-card-btn {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   width: 100%; padding: 22px 18px; margin-top: 10px;
-  background: #fff; border: 1px solid var(--line);
+  background: var(--input-bg, #fff); border: 1px solid var(--line);
   border-radius: 14px; text-align: center; cursor: pointer;
   transition: all 0.18s;
   -webkit-tap-highlight-color: transparent;
