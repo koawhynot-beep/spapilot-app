@@ -20,8 +20,11 @@
   --border: #d6deea;
   --text: #1e293b;
   --danger: #c0392b;
-  --success: #2b7a78;      /* teal (reads as positive without being green) */
+  --danger-soft: #fbecec;
+  --success: #2563aa;      /* blue — positive without using green/teal */
+  --success-soft: #e4edf8;
   --warn: #b45309;         /* amber-orange */
+  --warn-soft: #fbeede;
   --radius: 14px;
   --shadow: 0 4px 20px rgba(30, 58, 95, 0.10);
 }

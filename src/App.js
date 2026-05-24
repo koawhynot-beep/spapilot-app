@@ -2582,7 +2582,7 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
             {t('deleteAccount')}
           </button>
         ) : (
-          <div style={{ padding: 12, background: '#fbecec', border: '1px solid #f0c8c8', borderRadius: 8, marginTop: 4 }}>
+          <div style={{ padding: 12, background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 8, marginTop: 4 }}>
             <div style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 10, fontWeight: 600 }}>
               {t('deleteAccountWarn')}
             </div>
@@ -2655,7 +2655,7 @@ function OfflineBanner() {
     : "⚠ You're offline — changes won't save until you reconnect";
   return (
     <div role="alert" style={{
-      background: '#fbecec', borderBottom: '1px solid #f0c8c8', color: 'var(--danger)',
+      background: 'var(--danger-soft)', borderBottom: '1px solid var(--danger)', color: 'var(--danger)',
       padding: '8px 14px', fontSize: 12, textAlign: 'center', fontWeight: 600,
     }}>
       {msg}
@@ -2680,9 +2680,9 @@ function TrialBanner({ user, onUpgrade }) {
       ? t('trialEndingSoon').replace('{n}', daysLeft)
       : t('trialActiveBanner').replace('{n}', daysLeft);
   const styles = ended
-    ? { bg: '#fbecec', border: '#f0c8c8', text: 'var(--danger)' }
+    ? { bg: 'var(--danger-soft)', border: 'var(--danger)', text: 'var(--danger)' }
     : urgent
-      ? { bg: '#fef3e0', border: '#f5d8a4', text: 'var(--warn)' }
+      ? { bg: 'var(--warn-soft)', border: 'var(--warn)', text: 'var(--warn)' }
       : { bg: 'var(--emerald-soft, #e6ede9)', border: 'var(--line)', text: 'var(--emerald)' };
   return (
     <div role="status" style={{
@@ -3824,7 +3824,7 @@ function ClientsTab({ bookings, staff, toast }) {
             </div>
 
             {detail.allergies && (
-              <div style={{ background: '#fbecec', padding: '10px 12px', borderRadius: 8, marginBottom: 14, fontSize: 13, color: 'var(--danger)' }}>
+              <div style={{ background: 'var(--danger-soft)', padding: '10px 12px', borderRadius: 8, marginBottom: 14, fontSize: 13, color: 'var(--danger)' }}>
                 <AlertTriangle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 4 }} />
                 <strong>{t('allergies')}:</strong> {detail.allergies}
               </div>
@@ -4801,7 +4801,7 @@ function AlertsTab({ inventory, requests, staff, bookings, onReload, toast }) {
                   <Badge label={formatType(req.type)} type="pending" />
                 </div>
                 {req.type === 'sick' && affected.length > 0 && (
-                  <div style={{ background: '#fbecec', padding: '8px 10px', borderRadius: 8, fontSize: 12, color: 'var(--danger)' }}>
+                  <div style={{ background: 'var(--danger-soft)', padding: '8px 10px', borderRadius: 8, fontSize: 12, color: 'var(--danger)' }}>
                     {affected.length} {affected.length === 1 ? t('bookingNeedReassign1') : t('bookingNeedReassign')}
                   </div>
                 )}
@@ -5048,7 +5048,7 @@ function StaffTodayView({ staff, bookings, staffId, sops, onSubmitRequest, toast
                 <div className="title">{b.client}</div>
                 <div className="meta">{b.treatment}{b.duration ? ` · ${fmtDuration(b.duration, lang)}` : ''}</div>
                 {b.allergies && (
-                  <div className="note-chip" style={{ background: '#fbecec', color: 'var(--danger)' }}>
+                  <div className="note-chip" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
                     <AlertTriangle size={12} aria-hidden="true" style={{ marginRight: 4, verticalAlign: 'middle' }} />
                     {t('allergies')}: {b.allergies}
                   </div>
@@ -5248,7 +5248,7 @@ function RequestModal({ type, staffId, staff, onClose, onSubmit }) {
         {/* Policy notice for sick calls */}
         {type === 'sick' && (
           <div style={{
-            background: '#fff8ec', border: '1px solid var(--gold)',
+            background: 'var(--warn-soft)', border: '1px solid var(--warn)',
             borderRadius: 10, padding: '10px 14px', marginBottom: 14,
             fontSize: 13, color: 'var(--ink)', lineHeight: 1.5,
           }}>
