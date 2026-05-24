@@ -5,20 +5,20 @@
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
-  background: radial-gradient(circle at 20% 20%, #ece3d3 0%, var(--cream) 50%);
+  background: radial-gradient(circle at 20% 20%, var(--emerald-soft) 0%, var(--cream) 55%);
   position: relative;
 }
 .lang-toggle-float {
   position: absolute; top: 16px; right: 16px;
-  background: #fff; border: 1px solid var(--line, #d8d2c2);
+  background: var(--cream-soft, #fff); border: 1px solid var(--line, #d6deea);
   border-radius: 999px; padding: 8px 14px;
-  font-size: 12px; color: var(--muted, #6b5d4a); cursor: pointer;
+  font-size: 12px; color: var(--muted, #566379); cursor: pointer;
   display: inline-flex; align-items: center;
   box-shadow: 0 2px 6px rgba(60, 50, 30, 0.06);
   min-height: 36px; z-index: 10;
   transition: border-color 0.15s, color 0.15s;
 }
-.lang-toggle-float:hover { border-color: var(--gold, #b8956a); color: var(--gold, #b8956a); }
+.lang-toggle-float:hover { border-color: var(--gold, #2f5fd0); color: var(--gold, #2f5fd0); }
 .role-card {
   width: 100%; max-width: 420px;
   background: var(--cream-soft);
@@ -319,7 +319,7 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
   border-top: 1px solid var(--line);
   display: flex;
   padding: 8px 4px 10px; z-index: 20;
-  box-shadow: 0 -2px 14px rgba(45, 90, 74, 0.06);
+  box-shadow: 0 -2px 14px rgba(30, 58, 95, 0.08);
   overflow-x: auto;
   /* proximity instead of mandatory so iOS edge-swipe-back gesture still works */
   scroll-snap-type: x proximity;
@@ -497,7 +497,7 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
 }
 
 .note-chip {
-  display: inline-block; background: var(--gold-soft); color: #6b4a1c;
+  display: inline-block; background: var(--gold-soft); color: var(--emerald);
   padding: 3px 10px; border-radius: 8px; font-size: 12px; margin-top: 6px;
   max-width: 100%; word-break: break-word;
 }
@@ -672,25 +672,26 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
 /* Dark mode (prefers-color-scheme dark) — reduces glare for low-vision users */
 @media (prefers-color-scheme: dark) {
   :root {
-    --cream: #1c1d20;
-    --cream-soft: #25272b;
-    --cream-deep: #2f3239;
-    --cream-2: #2a2d33;
-    --emerald: #74b69a;
-    --emerald-dark: #4e8e75;
-    --emerald-soft: #2a3a34;
-    --gold: #c9a36b;
-    --gold-soft: #44372a;
-    --ink: #ece7df;
-    --muted: #aaa097;
-    --line: #3a3d44;
-    --border: #3a3d44;
-    --text: #ece7df;
+    --cream: #0f172a;        /* slate-900 — deep navy background */
+    --cream-soft: #1e293b;   /* slate-800 — card surface */
+    --cream-deep: #334155;
+    --cream-2: #243044;
+    --emerald: #7aa6ef;      /* light navy/cobalt — primary text on dark */
+    --emerald-dark: #5e8be0;
+    --emerald-soft: #243a5e;
+    --gold: #7aa6ef;         /* accent — light cobalt */
+    --gold-bright: #98bcf8;
+    --gold-soft: #2a3a55;
+    --ink: #e7edf5;
+    --muted: #94a4ba;
+    --line: #334155;
+    --border: #334155;
+    --text: #e7edf5;
     --danger: #e07474;
-    --success: #74b69a;
+    --success: #4cc0bb;      /* teal */
     --warn: #d99c5a;
-    --shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
-    --input-bg: #2f3239;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    --input-bg: #243044;
   }
 }
 @media (min-width: 720px) {
@@ -709,8 +710,8 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
   word-break: break-word;
 }
 @media (prefers-color-scheme: dark) {
-  .error-banner { background: rgba(168,56,56,0.18); }
-  .success-banner { background: rgba(116, 182, 154, 0.15); }
+  .error-banner { background: rgba(192,57,43,0.18); }
+  .success-banner { background: rgba(43, 122, 120, 0.18); }
 }
 .success-banner {
   background: #e3efe6; color: var(--success);
@@ -774,7 +775,7 @@ button.week-cell:focus-visible { outline: 3px solid var(--gold); outline-offset:
 .row[role="button"]:focus-visible {
   outline: 3px solid var(--gold); outline-offset: -2px; border-radius: 8px;
 }
-.row[role="button"]:hover { background: rgba(45, 90, 74, 0.04); }
+.row[role="button"]:hover { background: rgba(30, 58, 95, 0.05); }
 @media (prefers-color-scheme: dark) {
   .row[role="button"]:hover { background: rgba(255, 255, 255, 0.04); }
 }
@@ -787,7 +788,7 @@ button.week-cell:focus-visible { outline: 3px solid var(--gold); outline-offset:
 
 /* Skeleton loaders */
 .skeleton {
-  background: linear-gradient(90deg, rgba(45,90,74,0.06) 0%, rgba(45,90,74,0.14) 50%, rgba(45,90,74,0.06) 100%);
+  background: linear-gradient(90deg, rgba(30,58,95,0.06) 0%, rgba(30,58,95,0.14) 50%, rgba(30,58,95,0.06) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
 }

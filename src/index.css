@@ -1,30 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
+/* Palette: navy (primary) + cobalt (accent) + slate (text/lines) + white (bg).
+   Variable NAMES kept (--emerald = primary navy, --gold = cobalt accent) so the
+   whole component tree re-themes without renaming every reference. */
 :root {
-  --cream: #f5f0e8;
-  --cream-soft: #faf6ef;
-  --cream-deep: #ece3d3;
-  /* Customer feedback: "rich dark green like watermelon / limes" — bumped emerald
-     a touch deeper + saturated. Old: #2d5a4a. */
-  --emerald: #1e5a44;
-  --emerald-dark: #15402f;
-  --emerald-soft: #dde9e3;
-  --gold: #8a6940;
-  /* "Needs to pop" — bright accent for badges, icons, dots. Keep --gold dark for
-     text contrast on cream. */
-  --gold-bright: #c9904f;
-  --gold-soft: #e7d8c2;
-  --ink: #2b2623;
-  --muted: #6b5d4a;
-  --line: #d8d2c2;
-  --border: #d8d2c2;
-  --text: #2b2623;
-  --cream-2: #f3ebde;
-  --danger: #a83838;
-  --success: #4a7d5a;
-  --warn: #a86d20;
+  --cream: #f4f7fb;        /* app background — cool near-white */
+  --cream-soft: #ffffff;   /* cards / surfaces — white */
+  --cream-deep: #dde5ef;   /* scrollbar thumb / deep slate tint */
+  --cream-2: #eef3f9;      /* empty-state icon backdrop */
+  --emerald: #1e3a5f;      /* PRIMARY — navy blue */
+  --emerald-dark: #14283f; /* navy hover */
+  --emerald-soft: #e6edf6; /* soft navy tint surface */
+  --gold: #2f5fd0;         /* ACCENT — cobalt blue */
+  --gold-bright: #4d7ef0;  /* brighter cobalt for icons/badges/dots */
+  --gold-soft: #dde6f8;    /* cobalt tint (note chips) */
+  --ink: #1e293b;          /* slate-800 — primary text */
+  --muted: #566379;        /* slate — muted text (AA on white) */
+  --line: #d6deea;         /* slate border / divider */
+  --border: #d6deea;
+  --text: #1e293b;
+  --danger: #c0392b;
+  --success: #2b7a78;      /* teal (reads as positive without being green) */
+  --warn: #b45309;         /* amber-orange */
   --radius: 14px;
-  --shadow: 0 4px 20px rgba(30, 90, 68, 0.08);
+  --shadow: 0 4px 20px rgba(30, 58, 95, 0.10);
 }
 
 * { box-sizing: border-box; }

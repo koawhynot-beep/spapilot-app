@@ -48,7 +48,7 @@ class ErrorBoundary extends Component {
           <button
             onClick={() => window.location.reload()}
             style={{
-              padding: '12px 22px', minHeight: 44, background: 'var(--emerald, #2d5a4a)', color: '#fff',
+              padding: '12px 22px', minHeight: 44, background: 'var(--emerald, #1e3a5f)', color: '#fff',
               border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 600,
             }}
           >
@@ -1208,16 +1208,18 @@ function useCollection(path, enabled = true, pollMs = 0) {
 }
 
 // ---------- Constants ----------
-const COLOR_OPTIONS = ['#2d5a4a', '#b8956a', '#8ba888', '#d4b896', '#6b8e7f', '#a17c52', '#c9a97a'];
+// Avatar / service accent swatches — navy + cobalt + slate + teal family to match
+// the app palette (no more greens/golds).
+const COLOR_OPTIONS = ['#1e3a5f', '#2f5fd0', '#4d7ef0', '#5b7a9e', '#2b7a78', '#7c8aa5', '#3a4a63'];
 // Friendly names for screen-reader aria-labels (hex codes are meaningless to NVDA).
 const COLOR_NAMES = {
-  '#2d5a4a': 'Emerald',
-  '#b8956a': 'Gold',
-  '#8ba888': 'Sage',
-  '#d4b896': 'Sand',
-  '#6b8e7f': 'Pine',
-  '#a17c52': 'Bronze',
-  '#c9a97a': 'Wheat',
+  '#1e3a5f': 'Navy',
+  '#2f5fd0': 'Cobalt',
+  '#4d7ef0': 'Sky',
+  '#5b7a9e': 'Slate',
+  '#2b7a78': 'Teal',
+  '#7c8aa5': 'Steel',
+  '#3a4a63': 'Indigo',
 };
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
@@ -3766,7 +3768,7 @@ function ClientsTab({ bookings, staff, toast }) {
             onClick={() => setOpen(c.key)}
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(c.key); } }}
           >
-            <Avatar initial={c.name[0]} color="#5b8a72" size={40} />
+            <Avatar initial={c.name[0]} color="#3b5b8c" size={40} />
             <div className="grow">
               <div className="title">{c.name}</div>
               <div className="meta">
@@ -3799,7 +3801,7 @@ function ClientsTab({ bookings, staff, toast }) {
         <Modal title={detail.name} onClose={() => setOpen(null)}>
           <div className="field">
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
-              <Avatar initial={detail.name[0]} color="#5b8a72" size={56} />
+              <Avatar initial={detail.name[0]} color="#3b5b8c" size={56} />
               <div>
                 <div style={{ fontFamily: 'Fraunces, serif', fontSize: 20, color: 'var(--emerald)' }}>{detail.name}</div>
                 {detail.phone && <div className="meta">{detail.phone}</div>}
@@ -4134,7 +4136,7 @@ function ServicesTab({ services, onReload, toast }) {
               </div>
               {items.map(s => (
                 <div key={s.id} className="row" style={{ marginBottom: 6 }}>
-                  <div style={{ width: 10, height: 30, borderRadius: 3, background: s.color || '#2d5a4a' }} />
+                  <div style={{ width: 10, height: 30, borderRadius: 3, background: s.color || '#1e3a5f' }} />
                   <div className="grow">
                     <div className="title" style={{ fontSize: 14 }}>{s.name}</div>
                     <div className="meta" style={{ fontSize: 11 }}>
@@ -4172,7 +4174,7 @@ function ServiceModal({ service, onClose, onSaved }) {
     durationMin: String(service.durationMin ?? ''),
     price: String(service.price ?? ''),
   } : {
-    name: '', category: 'General', durationMin: '60', price: '', color: '#2d5a4a',
+    name: '', category: 'General', durationMin: '60', price: '', color: '#1e3a5f',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -5606,8 +5608,8 @@ const OWNER_NAV = [
 function PrivacyPolicyScreen({ onBack }) {
   const { t } = useT();
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px', fontFamily: 'system-ui', lineHeight: 1.7, color: '#333' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2d5a4a', fontSize: 14, marginBottom: 24, padding: 0, minHeight: 44 }}>
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px', fontFamily: 'system-ui', lineHeight: 1.7, color: 'var(--ink)', background: 'var(--cream)', minHeight: '100vh' }}>
+      <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--emerald, #1e3a5f)', fontSize: 14, marginBottom: 24, padding: 0, minHeight: 44 }}>
         ← {t('back')}
       </button>
       <h1 style={{ fontSize: 24, marginBottom: 4 }}>{t('privacyPolicyTitle')}</h1>
@@ -5654,7 +5656,7 @@ function PrivacyPolicyScreen({ onBack }) {
       <p>{t('privacy8Body')}</p>
 
       <h2 style={{ fontSize: 16, marginTop: 28 }}>{t('privacy9Title')}</h2>
-      <p>{t('privacy9Body')} <a href="mailto:privacy@spapilot.app" style={{ color: '#2d5a4a' }} aria-label="Email privacy@spapilot.app">privacy@spapilot.app</a></p>
+      <p>{t('privacy9Body')} <a href="mailto:privacy@spapilot.app" style={{ color: 'var(--emerald, #1e3a5f)' }} aria-label="Email privacy@spapilot.app">privacy@spapilot.app</a></p>
 
       <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #eee', fontSize: 12, color: '#aaa' }}>
         © {new Date().getFullYear()} Spapilot. {t('privacyRights')}
