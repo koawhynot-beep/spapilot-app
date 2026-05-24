@@ -486,14 +486,15 @@ const TRANSLATIONS = {
     scheduleViewGrid: 'Grid',
     saved: 'Saved',
     verifyEmailTitle: 'Verify your email',
-    verifyEmailSent: "We sent a verification link to {email}. Click the link to finish signing up. The link expires in 24 hours.",
+    verifyEmailSent: "We emailed a 6-digit code to {email}. Enter it below to finish signing up. The code expires in 24 hours.",
     verifyEmailCheckInbox: "Don't see it? Check your spam folder.",
-    verifyEmailResend: 'Resend verification email',
-    verifyEmailResent: 'If that email is registered, we sent a new link.',
-    verifyEmailVerifying: 'Verifying your email…',
+    verifyEmailResend: 'Resend code',
+    verifyEmailResent: 'If that email is registered, we sent a new code.',
     verifyEmailSuccess: 'Email verified. Welcome to Spapilot!',
-    verifyEmailExpired: 'This verification link has expired or already been used. Sign in to request a new one.',
-    verifyEmailNotVerified: 'Please verify your email before signing in. Check your inbox for the link.',
+    verifyEmailNotVerified: 'Please verify your email before signing in. Check your inbox for the code.',
+    verifyCodeLabel: 'Verification code',
+    verifyCodeSubmit: 'Verify & continue',
+    verifyCodeInvalid: 'Enter the 6-digit code from your email.',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -880,14 +881,15 @@ const TRANSLATIONS = {
     scheduleViewGrid: 'Grid',
     saved: 'Tersimpan',
     verifyEmailTitle: 'Verifikasi email Anda',
-    verifyEmailSent: 'Kami mengirim tautan verifikasi ke {email}. Klik tautan untuk menyelesaikan pendaftaran. Tautan berlaku 24 jam.',
+    verifyEmailSent: 'Kami mengirim kode 6-digit ke {email}. Masukkan di bawah untuk menyelesaikan pendaftaran. Kode berlaku 24 jam.',
     verifyEmailCheckInbox: 'Tidak terlihat? Periksa folder spam.',
-    verifyEmailResend: 'Kirim ulang email verifikasi',
-    verifyEmailResent: 'Jika email terdaftar, kami mengirim tautan baru.',
-    verifyEmailVerifying: 'Memverifikasi email Anda…',
+    verifyEmailResend: 'Kirim ulang kode',
+    verifyEmailResent: 'Jika email terdaftar, kami mengirim kode baru.',
     verifyEmailSuccess: 'Email terverifikasi. Selamat datang di Spapilot!',
-    verifyEmailExpired: 'Tautan verifikasi ini sudah kedaluwarsa atau pernah digunakan. Masuk untuk meminta tautan baru.',
-    verifyEmailNotVerified: 'Silakan verifikasi email Anda sebelum masuk. Periksa kotak masuk untuk tautannya.',
+    verifyEmailNotVerified: 'Silakan verifikasi email Anda sebelum masuk. Periksa kotak masuk untuk kodenya.',
+    verifyCodeLabel: 'Kode verifikasi',
+    verifyCodeSubmit: 'Verifikasi & lanjut',
+    verifyCodeInvalid: 'Masukkan kode 6-digit dari email Anda.',
   },
 };
 
@@ -1546,10 +1548,11 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   const [forgotDone, setForgotDone] = useState(false);
-  // After a signup that requires email verification, swap form for a "check your
-  // email" screen showing the address used.
+  // After a signup that requires email verification, swap form for a code-entry
+  // screen showing the address used.
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState(null);
   const [resendDone, setResendDone] = useState(false);
+  const [verifyCode, setVerifyCode] = useState('');
 
   const switchMode = (m) => {
     setMode(m);
@@ -1557,16 +1560,37 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
     setForgotDone(false);
     setPendingVerifyEmail(null);
     setResendDone(false);
+    setVerifyCode('');
   };
 
   const resendVerification = async (addr) => {
     setBusy(true);
     setErr(null);
+    setResendDone(false);
     try {
       await api('/api/auth/resend-verification', { method: 'POST', body: { email: addr } });
       setResendDone(true);
     } catch { setResendDone(true); }
     finally { setBusy(false); }
+  };
+
+  const submitCode = async (e) => {
+    e.preventDefault();
+    setErr(null);
+    const code = verifyCode.trim();
+    if (!/^\d{6}$/.test(code)) { setErr(t('verifyCodeInvalid')); return; }
+    setBusy(true);
+    try {
+      const resp = await api('/api/auth/verify-email', {
+        method: 'POST',
+        body: { email: pendingVerifyEmail, code },
+      });
+      setToken(resp.token);
+      onAuthed(resp.user);
+    } catch (e) {
+      setErr(e.message || t('failed'));
+      setBusy(false);
+    }
   };
 
   const submit = async (e) => {
@@ -1646,33 +1670,59 @@ function AuthScreen({ onAuthed, initialMode, onBack }) {
         )}
 
         {pendingVerifyEmail ? (
-          <div role="status" aria-live="polite" style={{ marginTop: 24, textAlign: 'center' }}>
+          <form onSubmit={submitCode} style={{ marginTop: 24, textAlign: 'center' }} aria-busy={busy}>
             <Mail size={32} color="var(--emerald)" aria-hidden="true" style={{ marginBottom: 12 }} />
             <h2 style={{ fontFamily: 'Fraunces, serif', color: 'var(--emerald)', fontSize: 20, margin: '0 0 12px' }}>
               {t('verifyEmailTitle')}
             </h2>
-            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
               {t('verifyEmailSent').replace('{email}', pendingVerifyEmail)}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
+            <div className="field">
+              <label htmlFor="verify-code" className="sr-only">{t('verifyCodeLabel')}</label>
+              <input
+                id="verify-code"
+                className="input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                autoFocus
+                placeholder="000000"
+                value={verifyCode}
+                onChange={e => { setErr(null); setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); }}
+                aria-invalid={!!err}
+                aria-describedby={err ? 'verify-error' : undefined}
+                style={{ textAlign: 'center', fontSize: 28, letterSpacing: 8, fontFamily: 'monospace' }}
+              />
+            </div>
+            {err && (
+              <div id="verify-error" role="alert" aria-live="assertive" className="error-banner" style={{ marginTop: 4 }}>
+                <AlertTriangle size={14} aria-hidden="true" /> {err}
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy || verifyCode.length !== 6}>
+              {busy ? t('pleaseWait') : t('verifyCodeSubmit')}
+            </button>
+            <div style={{ fontSize: 12, color: 'var(--muted)', margin: '14px 0 6px' }}>
               {t('verifyEmailCheckInbox')}
             </div>
             <button
               type="button"
-              className="btn btn-primary"
-              style={{ width: '100%' }}
+              className="btn-link"
+              style={{ fontSize: 13 }}
               disabled={busy || resendDone}
               onClick={() => resendVerification(pendingVerifyEmail)}
             >
-              {resendDone ? t('verifyEmailResent') : (busy ? t('pleaseWait') : t('verifyEmailResend'))}
+              {resendDone ? t('verifyEmailResent') : t('verifyEmailResend')}
             </button>
             <button
               type="button"
               className="btn btn-ghost"
-              style={{ width: '100%', marginTop: 8, fontSize: 13 }}
+              style={{ width: '100%', marginTop: 10, fontSize: 13 }}
               onClick={() => switchMode('login')}
             >{t('backToLogin')}</button>
-          </div>
+          </form>
         ) : mode === 'forgot' && forgotDone ? (
           <div style={{ marginTop: 24, textAlign: 'center' }}>
             <CheckCircle size={32} color="var(--emerald)" aria-hidden="true" style={{ marginBottom: 12 }} />
@@ -1840,75 +1890,6 @@ function ResetPasswordScreen({ token, onDone }) {
             </button>
           </form>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ---------- Email verification (via signup link) ----------
-function VerifyEmailScreen({ token, onVerified, onCancel }) {
-  const { t } = useT();
-  // 'verifying' | 'success' | 'error'
-  const [status, setStatus] = useState('verifying');
-  const [err, setErr] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const resp = await api('/api/auth/verify-email', {
-          method: 'POST',
-          body: { token },
-        });
-        if (cancelled) return;
-        if (resp && resp.token) {
-          setToken(resp.token);
-          setStatus('success');
-          // Give user a beat to see the success message, then sign them in.
-          setTimeout(() => { if (!cancelled) onVerified(resp.user); }, 900);
-        } else {
-          setStatus('success');
-          setTimeout(() => { if (!cancelled) onCancel(); }, 1200);
-        }
-      } catch (e) {
-        if (cancelled) return;
-        setErr(e.message || t('verifyEmailExpired'));
-        setStatus('error');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [token, onVerified, onCancel, t]);
-
-  return (
-    <div className="role-screen">
-      <LangToggle floating />
-      <div className="role-card">
-        <BrandMark sub={t('verifyEmailTitle')} />
-        <div style={{ marginTop: 24, textAlign: 'center' }} role="status" aria-live="polite">
-          {status === 'verifying' && (
-            <>
-              <RefreshCw size={32} color="var(--emerald)" aria-hidden="true" style={{ marginBottom: 12, animation: 'spin 1s linear infinite' }} />
-              <div style={{ fontSize: 14, color: 'var(--muted)' }}>{t('verifyEmailVerifying')}</div>
-            </>
-          )}
-          {status === 'success' && (
-            <>
-              <CheckCircle size={32} color="var(--emerald)" aria-hidden="true" style={{ marginBottom: 12 }} />
-              <div style={{ fontSize: 14, color: 'var(--ink)' }}>{t('verifyEmailSuccess')}</div>
-            </>
-          )}
-          {status === 'error' && (
-            <>
-              <AlertTriangle size={32} color="var(--danger)" aria-hidden="true" style={{ marginBottom: 12 }} />
-              <div role="alert" aria-live="assertive" className="error-banner" style={{ marginBottom: 16 }}>
-                <AlertTriangle size={14} aria-hidden="true" /> {err}
-              </div>
-              <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={onCancel}>
-                {t('backToLogin')}
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -5948,17 +5929,6 @@ function AppInner() {
     }
     return tok || null;
   });
-  // Email verification token from signup link. Same referer-leak avoidance.
-  const [verifyToken, setVerifyToken] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tok = params.get('verify_token');
-    if (tok) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('verify_token');
-      try { window.history.replaceState({}, '', url.toString()); } catch {}
-    }
-    return tok || null;
-  });
   const [authMode, setAuthMode] = useState(null); // null | 'login' | 'signup'
   const [signupIntent, setSignupIntent] = useState(null); // null | 'owner' | 'staff' — drives post-signup onboarding
   const [onboardingChoice, setOnboardingChoice] = useState(null); // null | 'owner' | 'staff'
@@ -6112,17 +6082,6 @@ function AppInner() {
       url.searchParams.delete('reset_token');
       window.history.replaceState({}, '', url.toString());
     }} />
-  );
-
-  if (verifyToken) return (
-    <VerifyEmailScreen
-      token={verifyToken}
-      onVerified={(u) => {
-        setUser(u);
-        setVerifyToken(null);
-      }}
-      onCancel={() => setVerifyToken(null)}
-    />
   );
 
   if (authChecking) {
