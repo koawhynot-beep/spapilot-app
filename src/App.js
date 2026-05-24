@@ -483,6 +483,8 @@ const TRANSLATIONS = {
     currentPassword: 'Current password',
     passwordChanged: 'Password updated',
     chooseRole: 'Choose how you want to work',
+    enterStaffCode: 'Enter staff code',
+    enterStaffCodeSub: 'Enter the code your manager gave you to join.',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -882,6 +884,8 @@ const TRANSLATIONS = {
     currentPassword: 'Kata sandi saat ini',
     passwordChanged: 'Kata sandi diperbarui',
     chooseRole: 'Pilih cara Anda bekerja',
+    enterStaffCode: 'Masukkan kode staf',
+    enterStaffCodeSub: 'Masukkan kode dari manajer Anda untuk bergabung.',
   },
 };
 
@@ -1046,6 +1050,41 @@ function apiErr(en, id) {
   const lang = (typeof localStorage !== 'undefined' && localStorage.getItem(LANG_KEY)) || 'en';
   return lang === 'id' ? id : en;
 }
+
+// The backend doesn't know the UI language, so it returns English error strings.
+// Map the user-facing ones to Indonesian here and translate in api() before the
+// message reaches the UI. Unknown strings pass through unchanged.
+const SERVER_ERROR_ID = {
+  'Email already registered': 'Email sudah terdaftar',
+  'Invalid email or password': 'Email atau kata sandi salah',
+  'Account temporarily locked. Try again later.': 'Akun terkunci sementara. Coba lagi nanti.',
+  'Account locked due to too many failed attempts. Try again in 15 minutes.': 'Akun terkunci karena terlalu banyak percobaan gagal. Coba lagi dalam 15 menit.',
+  'Please verify your email before signing in. Check your inbox for the link.': 'Verifikasi email Anda sebelum masuk. Periksa kotak masuk untuk kodenya.',
+  'Please verify your email before signing in. Check your inbox for the code.': 'Verifikasi email Anda sebelum masuk. Periksa kotak masuk untuk kodenya.',
+  'Enter the 6-digit code from your email.': 'Masukkan kode 6-digit dari email Anda.',
+  'That code is wrong or expired. Request a new one.': 'Kode salah atau kedaluwarsa. Minta yang baru.',
+  'This email is already verified. Please sign in.': 'Email ini sudah diverifikasi. Silakan masuk.',
+  'Invalid business code': 'Kode bisnis tidak valid',
+  'Invalid business type': 'Jenis bisnis tidak valid',
+  'Invalid role': 'Peran tidak valid',
+  'Staff accounts cannot switch to manager.': 'Akun staf tidak bisa beralih ke manajer.',
+  'name and type required': 'Nama dan jenis wajib diisi',
+  'name required': 'Nama wajib diisi',
+  'Current password is incorrect.': 'Kata sandi saat ini salah.',
+  'New password must be 8–128 characters.': 'Kata sandi baru harus 8–128 karakter.',
+  'Incorrect password': 'Kata sandi salah',
+  'You already have a pending request for this date.': 'Anda sudah punya permintaan tertunda untuk tanggal ini.',
+  'Too many requests. Please slow down.': 'Terlalu banyak permintaan. Mohon pelan-pelan.',
+  'Your trial has ended. Subscribe to continue.': 'Uji coba Anda berakhir. Berlangganan untuk lanjut.',
+  'Internal server error': 'Kesalahan server. Coba lagi.',
+  'Could not generate unique business code': 'Tidak dapat membuat kode bisnis unik',
+  'Nothing to update': 'Tidak ada yang diperbarui',
+};
+function localizeServerError(msg) {
+  const lang = (typeof localStorage !== 'undefined' && localStorage.getItem(LANG_KEY)) || 'en';
+  if (lang !== 'id' || !msg) return msg;
+  return SERVER_ERROR_ID[msg] || msg;
+}
 async function api(path, opts = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -1103,7 +1142,8 @@ async function api(path, opts = {}) {
       'Too many requests. Please slow down and try again in a minute.',
       'Terlalu banyak permintaan. Pelan-pelan dan coba lagi dalam satu menit.'
     );
-    throw new Error(msg);
+    // Localize known backend English strings to the active language.
+    throw new Error(localizeServerError(msg));
   }
   if (res.status === 204) return null;
   return res.json();
@@ -2665,12 +2705,13 @@ function TrialBanner({ user, onUpgrade }) {
 }
 
 // ---------- Role selector ----------
-function RoleSelector({ user, staff, onSelected, onLogout }) {
+function RoleSelector({ user, staff, onSelected, onLogout, onBack }) {
   const { t } = useT();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [staffId, setStaffId] = useState(staff[0]?.id || null);
   const [picking, setPicking] = useState(null);
+  const [joinCode, setJoinCode] = useState('');
 
   useEffect(() => {
     // Pick first staff if none selected.
@@ -2695,6 +2736,21 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
     } catch (e) { setErr(e.message); setBusy(false); setPicking(null); }
   };
 
+  // When no team members exist, picking "Staff" lets the user join a team with a
+  // business code (the code their manager shares).
+  const joinByCode = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) { setErr(t('invalidBusinessCode')); return; }
+    setBusy(true); setErr(null);
+    try {
+      const { token, user: u } = await api('/api/businesses/join', {
+        method: 'POST', body: { code },
+      });
+      setToken(token);
+      onSelected(u);
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+
   const roles = [
     { id: 'manager', label: t('manager'), sub: t('managerSub'), icon: <LayoutDashboard size={22} aria-hidden="true" /> },
     { id: 'staff',   label: t('staff'),   sub: t('staffSub'),   icon: <Leaf size={22} aria-hidden="true" /> },
@@ -2710,9 +2766,27 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
         {picking === 'staff' ? (
           <div style={{ marginTop: 18 }}>
             {staff.length === 0 ? (
-              <div className="center-muted" style={{ padding: '20px 12px', fontSize: 14, lineHeight: 1.5 }}>
-                {t('noTeamMembersAskManager')}
-              </div>
+              <>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--emerald)', marginBottom: 4 }}>
+                  {t('enterStaffCode')}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.5 }}>
+                  {t('enterStaffCodeSub')}
+                </div>
+                <div className="field">
+                  <label htmlFor="role-join-code">{t('businessCode')}</label>
+                  <input
+                    id="role-join-code"
+                    className="input"
+                    autoFocus
+                    value={joinCode}
+                    placeholder={t('businessCodePh')}
+                    autoComplete="off"
+                    style={{ textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'monospace' }}
+                    onChange={e => { setErr(null); setJoinCode(e.target.value.toUpperCase()); }}
+                  />
+                </div>
+              </>
             ) : (
               <div className="field">
                 <label htmlFor="role-staff-select">{t('whichMember')}</label>
@@ -2722,8 +2796,12 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
               </div>
             )}
             <div className="modal-actions">
-              <button type="button" className="btn btn-ghost" onClick={() => setPicking(null)} disabled={busy}>{t('back')}</button>
-              {staff.length > 0 && (
+              <button type="button" className="btn btn-ghost" onClick={() => { setPicking(null); setErr(null); }} disabled={busy}>{t('back')}</button>
+              {staff.length === 0 ? (
+                <button type="button" className="btn btn-primary" onClick={joinByCode} disabled={busy || !joinCode.trim()}>
+                  {busy ? t('saving') : t('join')}
+                </button>
+              ) : (
                 <button type="button" className="btn btn-primary" onClick={() => pick('staff')} disabled={busy || !staffId}>
                   {busy ? t('saving') : t('continue')}
                 </button>
@@ -2744,7 +2822,15 @@ function RoleSelector({ user, staff, onSelected, onLogout }) {
           </div>
         )}
 
-        <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 16 }} onClick={onLogout}>
+        {/* Back — only when the user already has a role (i.e. they came here via the
+            topbar "Switch" button, not first-run onboarding). */}
+        {onBack && user?.role && picking !== 'staff' && (
+          <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 16 }} onClick={onBack} disabled={busy}>
+            ← {t('back')}
+          </button>
+        )}
+
+        <button type="button" className="btn btn-ghost" style={{ width: '100%', marginTop: 10 }} onClick={onLogout}>
           <LogOut size={14} aria-hidden="true" /> {t('signOut')}
         </button>
       </div>
@@ -5805,7 +5891,7 @@ function AppInner() {
     }
   }
 
-  if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} />;
+  if (!role) return <RoleSelector user={user} staff={staff.data} onSelected={(u) => { setUser(u); setRole(u.role || 'manager'); }} onLogout={logout} onBack={user.role ? () => setRole(user.role) : undefined} />;
 
   const currentStaffId = user.staffId || user.id;
 
