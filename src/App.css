@@ -116,32 +116,33 @@
 
 .page-title {
   font-family: 'Fraunces', serif;
-  font-size: 26px; font-weight: 500;
-  color: var(--emerald);
-  margin: 4px 0 16px;
+  font-size: 28px; font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 4px 0 18px;
 }
-.page-sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+.page-sub { color: var(--text-secondary); font-size: 13px; margin-bottom: 18px; }
 
-/* Card */
+/* Card — neutral surface, subtle border, soft elevation (Linear/Stripe feel) */
 .card {
-  background: var(--cream-soft);
-  border: 1px solid var(--line);
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius);
   padding: 18px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 14px;
   animation: fadein 0.3s ease;
   contain: layout style;
 }
 .card h2, .card h3 {
   margin: 0 0 12px;
-  font-size: 16px; color: var(--emerald);
+  font-size: 16px; color: var(--text-primary); font-weight: 600;
 }
 .card-head {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   margin-bottom: 12px;
 }
-.card-head h2, .card-head h3 { margin: 0; font-size: 17px; font-family: inherit; font-weight: 600; color: var(--emerald); }
+.card-head h2, .card-head h3 { margin: 0; font-size: 17px; font-family: inherit; font-weight: 600; color: var(--text-primary); }
 
 /* Buttons — min 44px touch target per Apple HIG */
 .btn {
@@ -156,12 +157,13 @@
 .btn:disabled, .btn-icon:disabled, .icon-btn:disabled {
   opacity: 0.55; cursor: not-allowed; transform: none;
 }
-.btn-primary { background: var(--emerald); color: #fff; }
-.btn-primary:hover { background: var(--emerald-dark); }
-.btn-gold { background: var(--gold); color: #fff; }
-.btn-gold:hover { filter: brightness(0.95); }
-.btn-ghost { background: transparent; color: var(--emerald); border: 1px solid var(--line); }
-.btn-ghost:hover { border-color: var(--emerald); }
+.btn-primary { background: var(--accent); color: var(--accent-contrast); font-weight: 600; box-shadow: var(--shadow-sm); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:focus-visible { outline: 3px solid var(--accent-ring); outline-offset: 2px; }
+.btn-gold { background: var(--accent); color: var(--accent-contrast); }
+.btn-gold:hover { background: var(--accent-hover); }
+.btn-ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--border-default); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid transparent; }
 .btn-danger:hover { background: var(--danger-soft); }
 .btn-sm { padding: 10px 14px; min-height: 40px; font-size: 12px; }
@@ -505,7 +507,7 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
 
 /* Modal */
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(30, 40, 33, 0.45);
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.62);
   display: flex; align-items: center; justify-content: center;
   padding: 16px; z-index: 50; animation: fadein 0.2s ease;
 }
@@ -669,34 +671,8 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-ra
   .card { box-shadow: none !important; break-inside: avoid; border: 1px solid #ccc; }
   body { background: #fff !important; color: #000 !important; }
 }
-/* Dark mode (prefers-color-scheme dark) — reduces glare for low-vision users */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --cream: #0f172a;        /* slate-900 — deep navy background */
-    --cream-soft: #1e293b;   /* slate-800 — card surface */
-    --cream-deep: #334155;
-    --cream-2: #243044;
-    --emerald: #7aa6ef;      /* light navy/cobalt — primary text on dark */
-    --emerald-dark: #5e8be0;
-    --emerald-soft: #243a5e;
-    --gold: #7aa6ef;         /* accent — light cobalt */
-    --gold-bright: #98bcf8;
-    --gold-soft: #2a3a55;
-    --ink: #e7edf5;
-    --muted: #94a4ba;
-    --line: #334155;
-    --border: #334155;
-    --text: #e7edf5;
-    --danger: #e07474;
-    --danger-soft: rgba(192,57,43,0.20);
-    --success: #6fa8e0;      /* light blue */
-    --success-soft: rgba(37,99,170,0.22);
-    --warn: #d99c5a;
-    --warn-soft: rgba(180,83,9,0.22);
-    --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --input-bg: #243044;
-  }
-}
+/* Theme tokens now live in index.css (dark-first base + accent presets + opt-in
+   light via [data-theme="light"]). No prefers-color-scheme override needed here. */
 @media (min-width: 720px) {
   .topbar { padding: 20px 36px; }
   .page { padding: 28px 28px 40px; }
@@ -774,10 +750,8 @@ button.week-cell:focus-visible { outline: 3px solid var(--gold); outline-offset:
 .row[role="button"]:focus-visible {
   outline: 3px solid var(--gold); outline-offset: -2px; border-radius: 8px;
 }
-.row[role="button"]:hover { background: rgba(30, 58, 95, 0.05); }
-@media (prefers-color-scheme: dark) {
-  .row[role="button"]:hover { background: rgba(255, 255, 255, 0.04); }
-}
+.row[role="button"]:hover { background: rgba(255, 255, 255, 0.04); }
+[data-theme="light"] .row[role="button"]:hover { background: rgba(17, 24, 39, 0.04); }
 
 /* Safe-area padding for notched iPhones */
 @supports (padding: max(0px)) {

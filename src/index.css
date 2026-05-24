@@ -1,32 +1,92 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
-/* Palette: navy (primary) + cobalt (accent) + slate (text/lines) + white (bg).
-   Variable NAMES kept (--emerald = primary navy, --gold = cobalt accent) so the
-   whole component tree re-themes without renaming every reference. */
+/* ============================================================================
+   THEME SYSTEM — neutral charcoal base + swappable accent (Linear/Stripe/Vercel
+   feel). Dark-mode-first. Two layers:
+     1. Semantic tokens (background.*, surface.*, border.*, text.*, accent.*).
+     2. Legacy aliases (--cream/--emerald/--gold/--ink/...) that point at the
+        semantic tokens, so every existing component re-themes for free.
+   Accent is overridable per business via [data-accent="..."] presets or inline
+   custom vars set at runtime. Only the 4 accent tokens change between presets;
+   everything else (neutral base) stays constant — that's the "stop tinting the
+   whole UI" fix.
+   ============================================================================ */
 :root {
-  --cream: #f4f7fb;        /* app background — cool near-white */
-  --cream-soft: #ffffff;   /* cards / surfaces — white */
-  --cream-deep: #dde5ef;   /* scrollbar thumb / deep slate tint */
-  --cream-2: #eef3f9;      /* empty-state icon backdrop */
-  --emerald: #1e3a5f;      /* PRIMARY — navy blue */
-  --emerald-dark: #14283f; /* navy hover */
-  --emerald-soft: #e6edf6; /* soft navy tint surface */
-  --gold: #2f5fd0;         /* ACCENT — cobalt blue */
-  --gold-bright: #4d7ef0;  /* brighter cobalt for icons/badges/dots */
-  --gold-soft: #dde6f8;    /* cobalt tint (note chips) */
-  --ink: #1e293b;          /* slate-800 — primary text */
-  --muted: #566379;        /* slate — muted text (AA on white) */
-  --line: #d6deea;         /* slate border / divider */
-  --border: #d6deea;
-  --text: #1e293b;
-  --danger: #c0392b;
-  --danger-soft: #fbecec;
-  --success: #2563aa;      /* blue — positive without using green/teal */
-  --success-soft: #e4edf8;
-  --warn: #b45309;         /* amber-orange */
-  --warn-soft: #fbeede;
+  /* ---- Neutral dark base (default theme) ---- */
+  --bg-primary: #0F1115;       /* app background */
+  --bg-secondary: #151922;     /* secondary surfaces / inset areas */
+  --surface-card: #1B2130;     /* cards */
+  --surface-elevated: #232B3B; /* inputs, popovers, elevated cards */
+  --border-default: #2B3342;   /* visible borders */
+  --border-subtle: #222a38;    /* hairline dividers */
+  --text-primary: #F3F4F6;     /* headings + body */
+  --text-secondary: #9CA3AF;   /* secondary / meta */
+  --text-muted: #6B7280;       /* muted / placeholder */
+
+  /* ---- Accent (emerald default). Presets below override these. ---- */
+  --accent: #22C55E;
+  --accent-hover: #34D399;
+  --accent-soft: rgba(34, 197, 94, 0.14);
+  --accent-ring: rgba(34, 197, 94, 0.45);
+  /* Foreground for text/icons sitting ON the accent (buttons). Bright accents
+     (emerald/gold/orange) need dark text for contrast; deep ones use white. */
+  --accent-contrast: #07210f;
+
+  /* ---- Status (independent of accent, semantic & constant) ---- */
+  --success: #22C55E;
+  --success-soft: rgba(34, 197, 94, 0.15);
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --danger-soft: rgba(239, 68, 68, 0.16);
+
   --radius: 14px;
-  --shadow: 0 4px 20px rgba(30, 58, 95, 0.10);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.40);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+
+  /* ---- Legacy aliases → semantic tokens (keep old component CSS working) ---- */
+  --cream: var(--bg-primary);
+  --cream-soft: var(--surface-card);
+  --cream-deep: var(--border-default);
+  --cream-2: var(--surface-elevated);
+  --emerald: var(--accent);
+  --emerald-dark: var(--accent-hover);
+  --emerald-soft: var(--accent-soft);
+  --gold: var(--accent);
+  --gold-bright: var(--accent-hover);
+  --gold-soft: var(--accent-soft);
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--border-default);
+  --border: var(--border-default);
+  --text: var(--text-primary);
+  --input-bg: var(--surface-elevated);
+  --warn: var(--warning);
+  --warn-soft: rgba(245, 158, 11, 0.16);
+}
+
+/* ---- Accent presets — businesses pick one; neutral base unchanged ---- */
+[data-accent="emerald"] { --accent: #22C55E; --accent-hover: #34D399; --accent-soft: rgba(34,197,94,0.14);  --accent-ring: rgba(34,197,94,0.45); --accent-contrast: #07210f; }
+[data-accent="blue"]    { --accent: #3B82F6; --accent-hover: #60A5FA; --accent-soft: rgba(59,130,246,0.14); --accent-ring: rgba(59,130,246,0.45); --accent-contrast: #ffffff; }
+[data-accent="purple"]  { --accent: #8B5CF6; --accent-hover: #A78BFA; --accent-soft: rgba(139,92,246,0.16); --accent-ring: rgba(139,92,246,0.45); --accent-contrast: #ffffff; }
+[data-accent="gold"]    { --accent: #D4A12A; --accent-hover: #E0B84D; --accent-soft: rgba(212,161,42,0.16); --accent-ring: rgba(212,161,42,0.45); --accent-contrast: #211800; }
+[data-accent="red"]     { --accent: #EF4444; --accent-hover: #F87171; --accent-soft: rgba(239,68,68,0.16);  --accent-ring: rgba(239,68,68,0.45); --accent-contrast: #ffffff; }
+[data-accent="orange"]  { --accent: #F97316; --accent-hover: #FB923C; --accent-soft: rgba(249,115,22,0.16); --accent-ring: rgba(249,115,22,0.45); --accent-contrast: #2a1400; }
+[data-accent="pink"]    { --accent: #EC4899; --accent-hover: #F472B6; --accent-soft: rgba(236,72,153,0.16); --accent-ring: rgba(236,72,153,0.45); --accent-contrast: #ffffff; }
+
+/* ---- Light theme (opt-in via data-theme="light"; dark stays the default) ---- */
+[data-theme="light"] {
+  --bg-primary: #F7F8FA;
+  --bg-secondary: #EEF1F5;
+  --surface-card: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --border-default: #E2E6EC;
+  --border-subtle: #EDF0F4;
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #6B7280;
+  --shadow: 0 6px 24px rgba(17, 24, 39, 0.08);
+  --shadow-sm: 0 1px 3px rgba(17, 24, 39, 0.06);
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 * { box-sizing: border-box; }

@@ -485,6 +485,9 @@ const TRANSLATIONS = {
     chooseRole: 'Choose how you want to work',
     enterStaffCode: 'Enter staff code',
     enterStaffCodeSub: 'Enter the code your manager gave you to join.',
+    accentTheme: 'Accent color',
+    accentCustom: 'Custom color',
+    accentHint: 'Changes highlight color across the app. Pick a preset or your own.',
   },
   id: {
     welcomeBack: 'Selamat datang kembali.', createWorkspace: 'Buat ruang kerja Anda.',
@@ -886,6 +889,9 @@ const TRANSLATIONS = {
     chooseRole: 'Pilih cara Anda bekerja',
     enterStaffCode: 'Masukkan kode staf',
     enterStaffCodeSub: 'Masukkan kode dari manajer Anda untuk bergabung.',
+    accentTheme: 'Warna aksen',
+    accentCustom: 'Warna kustom',
+    accentHint: 'Mengubah warna sorot di seluruh aplikasi. Pilih preset atau warna sendiri.',
   },
 };
 
@@ -1085,6 +1091,51 @@ function localizeServerError(msg) {
   if (lang !== 'id' || !msg) return msg;
   return SERVER_ERROR_ID[msg] || msg;
 }
+
+// ---------- Theme accent ----------
+const ACCENT_PRESETS = ['emerald', 'blue', 'purple', 'gold', 'red', 'orange', 'pink'];
+const ACCENT_SWATCH = {
+  emerald: '#22C55E', blue: '#3B82F6', purple: '#8B5CF6', gold: '#D4A12A',
+  red: '#EF4444', orange: '#F97316', pink: '#EC4899',
+};
+const ACCENT_KEY = 'app_accent';
+const ACCENT_CUSTOM_KEY = 'app_accent_custom';
+function hexToRgb(h) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(h || '');
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function relLuminance([r, g, b]) {
+  const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+// Apply an accent preset (data-accent attr → CSS preset) OR a custom hex from
+// which hover/soft/ring/contrast are derived for accessible variants.
+function applyAccent(accent, customHex) {
+  if (typeof document === 'undefined') return;
+  const el = document.documentElement;
+  const inlineVars = ['--accent', '--accent-hover', '--accent-soft', '--accent-ring', '--accent-contrast'];
+  if (accent === 'custom' && hexToRgb(customHex)) {
+    const rgb = hexToRgb(customHex);
+    const lighten = ([r, g, b], p) => `rgb(${Math.round(r + (255 - r) * p)}, ${Math.round(g + (255 - g) * p)}, ${Math.round(b + (255 - b) * p)})`;
+    el.dataset.accent = 'custom';
+    el.style.setProperty('--accent', customHex);
+    el.style.setProperty('--accent-hover', lighten(rgb, 0.18));
+    el.style.setProperty('--accent-soft', `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.16)`);
+    el.style.setProperty('--accent-ring', `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.45)`);
+    el.style.setProperty('--accent-contrast', relLuminance(rgb) > 0.45 ? '#10140c' : '#ffffff');
+  } else {
+    el.dataset.accent = ACCENT_PRESETS.includes(accent) ? accent : 'emerald';
+    inlineVars.forEach(v => el.style.removeProperty(v)); // let preset CSS win
+  }
+}
+// Apply persisted accent immediately at module load so pre-auth screens match.
+(function initAccent() {
+  try {
+    applyAccent(localStorage.getItem(ACCENT_KEY) || 'emerald', localStorage.getItem(ACCENT_CUSTOM_KEY));
+  } catch {}
+})();
 async function api(path, opts = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -2022,7 +2073,7 @@ function LandingPage({ onStartTrial, onSignIn, onJoinTeam, onShowPrivacy }) {
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
               padding: '3px 8px', borderRadius: 999,
-              background: 'var(--emerald)', color: '#fff',
+              background: 'var(--accent)', color: 'var(--accent-contrast)',
             }}>{t('freeForever')}</span>
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 14 }}>
@@ -2479,6 +2530,61 @@ function SettingsDrawer({ user, business, onClose, onSwitched, onAccountDeleted,
               <option key={c} value={c}>{c} · {fmtMoney(1000, lang, c)}</option>
             ))}
           </select>
+        </div>
+      )}
+
+      {/* Accent theme — neutral base stays, only the highlight color changes */}
+      {business && user?.onboardingRole === 'owner' && (
+        <div className="field">
+          <label htmlFor="settings-accent">{t('accentTheme')}</label>
+          <div role="group" aria-label={t('accentTheme')} style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+            {ACCENT_PRESETS.map(a => (
+              <button
+                key={a}
+                type="button"
+                aria-label={a}
+                aria-pressed={(business.accent || 'emerald') === a}
+                disabled={busy}
+                onClick={async () => {
+                  applyAccent(a, null); // instant live preview
+                  try {
+                    const updated = await api('/api/businesses/me', { method: 'PUT', body: { accent: a, accentCustom: null } });
+                    if (updated) { business.accent = updated.accent; business.accentCustom = updated.accentCustom; }
+                    try { localStorage.setItem(ACCENT_KEY, a); localStorage.removeItem(ACCENT_CUSTOM_KEY); } catch {}
+                    toast(t('saved'));
+                  } catch (err) { toast(err.message || t('failed')); }
+                }}
+                style={{
+                  width: 44, height: 44, borderRadius: 12, cursor: 'pointer',
+                  background: ACCENT_SWATCH[a],
+                  border: (business.accent || 'emerald') === a ? '3px solid var(--text-primary)' : '2px solid var(--border-default)',
+                }}
+              />
+            ))}
+            <label style={{
+              width: 44, height: 44, borderRadius: 12, cursor: 'pointer', position: 'relative',
+              border: business.accent === 'custom' ? '3px solid var(--text-primary)' : '2px solid var(--border-default)',
+              background: business.accentCustom || 'conic-gradient(from 0deg, #ef4444, #f97316, #d4a12a, #22c55e, #3b82f6, #8b5cf6, #ec4899, #ef4444)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }} title={t('accentCustom')} aria-label={t('accentCustom')}>
+              <input
+                type="color"
+                value={business.accentCustom || '#22c55e'}
+                disabled={busy}
+                onChange={async (e) => {
+                  const hex = e.target.value;
+                  applyAccent('custom', hex);
+                  try {
+                    const updated = await api('/api/businesses/me', { method: 'PUT', body: { accent: 'custom', accentCustom: hex } });
+                    if (updated) { business.accent = updated.accent; business.accentCustom = updated.accentCustom; }
+                    try { localStorage.setItem(ACCENT_KEY, 'custom'); localStorage.setItem(ACCENT_CUSTOM_KEY, hex); } catch {}
+                  } catch (err) { toast(err.message || t('failed')); }
+                }}
+                style={{ opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+              />
+            </label>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{t('accentHint')}</div>
         </div>
       )}
 
@@ -3064,7 +3170,7 @@ function ManagerDashboard({ staff, bookings, inventory, requests, announcements,
             style={{ flex: 1 }}
           />
           <button type="button" className="btn btn-sm" onClick={addItem} disabled={!newTask.trim()}
-            style={{ padding: '0 14px', background: 'var(--emerald)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            style={{ padding: '0 14px', background: 'var(--accent)', color: 'var(--accent-contrast)', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <Plus size={16} aria-hidden="true" />
           </button>
         </div>
@@ -5801,6 +5907,18 @@ function AppInner() {
     if (!user?.businessId) { setBusiness(null); return; }
     api('/api/businesses/me').then(setBusiness).catch(() => setBusiness(null));
   }, [user?.businessId]);
+
+  // Apply the business's accent theme (and persist so pre-auth screens match next
+  // load). Falls back to the locally-stored accent until the business loads.
+  useEffect(() => {
+    const accent = business?.accent || localStorage.getItem(ACCENT_KEY) || 'emerald';
+    const custom = business?.accentCustom || localStorage.getItem(ACCENT_CUSTOM_KEY) || null;
+    applyAccent(accent, custom);
+    try {
+      localStorage.setItem(ACCENT_KEY, accent);
+      if (custom) localStorage.setItem(ACCENT_CUSTOM_KEY, custom);
+    } catch {}
+  }, [business]);
 
   // Reflect current tab in browser tab title so multi-tab users can tell windows apart.
   useEffect(() => {
