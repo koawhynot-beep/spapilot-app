@@ -158,11 +158,9 @@ function LandingScreen({ onStart, onSignIn, onJoinTeam }) {
         </div>
 
         <button className="btn btn-primary btn-block btn-large" onClick={onStart}>
-          Start 7-day free trial
+          Create owner account
         </button>
-        <p style={{ textAlign: 'center', color: '#666', fontSize: 14, margin: '14px 0 24px' }}>
-          $10/month after trial · cancel anytime
-        </p>
+        <div style={{ height: 16 }} />
 
         <button className="btn btn-ghost btn-block" onClick={onJoinTeam}>
           I have an invite code
@@ -206,9 +204,11 @@ function SignupOwnerScreen({ onAuthed, onBack }) {
     if (password.length < 8) { setErr('Password must be at least 8 characters'); return; }
     setBusy(true);
     try {
+      let accessCode = '';
+      try { accessCode = localStorage.getItem(ACCESS_CODE_KEY) || ''; } catch {}
       const d = await api('/api/auth/signup', {
         method: 'POST',
-        body: { email: email.trim().toLowerCase(), password, businessName: businessName.trim() },
+        body: { email: email.trim().toLowerCase(), password, businessName: businessName.trim(), accessCode },
       });
       setToken(d.token);
       onAuthed(d.user, d.business);
@@ -223,7 +223,7 @@ function SignupOwnerScreen({ onAuthed, onBack }) {
         </button>
         <div className="brand">
           <h1>Create account</h1>
-          <p>Start your 7-day free trial</p>
+          <p>Set up the owner login</p>
         </div>
         {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
         <form onSubmit={submit}>
@@ -245,7 +245,7 @@ function SignupOwnerScreen({ onAuthed, onBack }) {
             </div>
           </div>
           <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
-            {busy ? 'Creating account…' : 'Create account & start trial'}
+            {busy ? 'Creating account…' : 'Create account'}
           </button>
         </form>
       </div>
@@ -681,8 +681,6 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
       </div>
 
       <div className="container">
-        <TrialBanner user={user} />
-
         <nav className="nav">
           {tabs.map(t => (
             <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
@@ -731,27 +729,6 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
 }
 
 // ── Trial banner ──────────────────────────────────────────
-function TrialBanner({ user }) {
-  if (user.subscriptionStatus === 'active') return null;
-  const ends = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
-  const daysLeft = ends ? Math.max(0, Math.ceil((ends - new Date()) / (24 * 60 * 60 * 1000))) : 0;
-  const expired = ends ? new Date() > ends : false;
-  if (expired) {
-    return (
-      <div className="error-banner" style={{ background: 'rgba(196,69,58,0.08)' }}>
-        <strong>Your free trial has ended.</strong> Subscribe for $10/month to keep using Mitra Samadi.
-      </div>
-    );
-  }
-  if (daysLeft <= 3) {
-    return (
-      <div style={{ padding: 14, background: 'rgba(214,138,28,0.08)', borderRadius: 12, border: '1px solid rgba(214,138,28,0.3)', color: '#8a5a0e', marginBottom: 16, fontSize: 15 }}>
-        <strong>{daysLeft} day{daysLeft === 1 ? '' : 's'} left in your free trial.</strong>
-      </div>
-    );
-  }
-  return null;
-}
 
 // ═══════════════════════════════════════════════════════════
 // STOCK VIEW
@@ -2533,20 +2510,6 @@ function SettingsModal({ user, onClose, onLogout, onUserUpdate }) {
   const [delConfirm, setDelConfirm] = useState('');
   const [delErr, setDelErr] = useState(null);
 
-  const trialEnd = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
-  const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - new Date()) / (24 * 60 * 60 * 1000))) : 0;
-  const isPaid = user.subscriptionStatus === 'active';
-
-  const subscribe = async () => {
-    setBusy(true);
-    try {
-      const d = await api('/api/billing/subscribe', { method: 'POST', body: {} });
-      if (d.checkoutUrl) window.location.href = d.checkoutUrl;
-      else toast(d.message || 'Coming soon');
-    } catch (e) { toast(e.message); }
-    finally { setBusy(false); }
-  };
-
   const exportData = async () => {
     setBusy(true);
     try {
@@ -2588,17 +2551,6 @@ function SettingsModal({ user, onClose, onLogout, onUserUpdate }) {
         <div style={{ fontSize: 16, fontWeight: 500 }}>{user.role === 'owner' ? 'Owner' : 'Staff'}</div>
       </div>
 
-      <div style={{ marginBottom: 24, padding: 16, background: isPaid ? 'rgba(45,134,89,0.06)' : 'rgba(214,138,28,0.06)', borderRadius: 12, border: `1px solid ${isPaid ? 'rgba(45,134,89,0.2)' : 'rgba(214,138,28,0.2)'}` }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
-          {isPaid ? 'Active subscription — $10/month' : `Free trial · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
-        </div>
-        {!isPaid && (
-          <button className="btn btn-primary btn-block" onClick={subscribe} disabled={busy} style={{ marginTop: 10 }}>
-            Subscribe — $10/month
-          </button>
-        )}
-      </div>
-
       <button className="btn btn-ghost btn-block" onClick={exportData} disabled={busy} style={{ marginBottom: 10 }}>
         Export my data
       </button>
@@ -2634,11 +2586,65 @@ function SettingsModal({ user, onClose, onLogout, onUserUpdate }) {
 // ═══════════════════════════════════════════════════════════
 // APP ROOT
 // ═══════════════════════════════════════════════════════════
+const ACCESS_KEY = 'mitrasamadi_access_ok';
+const ACCESS_CODE_KEY = 'mitrasamadi_access_code';
+
+function AccessGate({ onUnlock }) {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try {
+      const res = await api('/api/auth/verify-access', { method: 'POST', body: { code } });
+      if (res && res.ok) {
+        try { localStorage.setItem(ACCESS_KEY, '1'); localStorage.setItem(ACCESS_CODE_KEY, code); } catch {}
+        onUnlock();
+      } else {
+        setErr('That code is not right.');
+      }
+    } catch (e) {
+      setErr(e.message || 'Could not check the code.');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <div className="brand">
+          <h1>Mitra Samadi</h1>
+          <p>Enter the access code to continue.</p>
+        </div>
+        <form onSubmit={submit}>
+          <input
+            className="input"
+            type="password"
+            placeholder="Access code"
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            autoFocus
+            style={{ marginBottom: 14 }}
+          />
+          {err && <div className="error-banner" style={{ marginBottom: 14 }}>{err}</div>}
+          <button className="btn btn-primary btn-block btn-large" disabled={busy || !code}>
+            {busy ? 'Checking…' : 'Enter'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   const [user, setUser] = useState(null);
   const [business, setBusiness] = useState(null);
   const [checking, setChecking] = useState(true);
   const [authMode, setAuthMode] = useState(null); // null | 'landing' | 'signup' | 'join' | 'signin' | 'forgot'
+  const [accessOk, setAccessOk] = useState(() => {
+    try { return localStorage.getItem(ACCESS_KEY) === '1'; } catch { return false; }
+  });
 
   useEffect(() => {
     const token = getToken();
@@ -2670,6 +2676,12 @@ function AppInner() {
         </div>
       </div>
     );
+  }
+
+  // Front-door gate — a logged-out visitor must enter the shared access code first.
+  // (Already-logged-in users have a token and skip this.)
+  if (!user && !accessOk) {
+    return <AccessGate onUnlock={() => setAccessOk(true)} />;
   }
 
   if (!user) {
