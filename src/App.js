@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, Component } from 'rea
 import {
   Package, Store, Plus, Trash2, Edit2,
   RefreshCw, Check, X, AlertTriangle, Copy, Settings,
-  ChevronRight, Minus,
+  ChevronRight, Minus, ScanLine,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import './App.css';
@@ -164,6 +164,7 @@ function MainApp({ user, business }) {
   const isOwner = user.role === 'owner';
 
   const tabs = [
+    { id: 'sell', label: 'Sell', icon: ScanLine },
     { id: 'stock', label: 'Stock', icon: Package },
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'transfer', label: 'Transfer', icon: TrendingDown },
@@ -194,6 +195,9 @@ function MainApp({ user, business }) {
           ))}
         </nav>
 
+        {tab === 'sell' && (
+          <SellView shops={shops.data} />
+        )}
         {tab === 'stock' && (
           <StockView
             shops={shops.data}
@@ -402,15 +406,15 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
 
   // ── Aggregate summary for visible shop scope ─────────────
   const summary = useMemo(() => {
-    let totalItems = 0, totalUnits = 0, totalValue = 0, lowCount = 0, outCount = 0;
+    let totalItems = 0, totalUnits = 0, inStockCount = 0, lowCount = 0, outCount = 0;
     for (const i of items) {
       totalItems += 1;
       totalUnits += i.qty || 0;
-      totalValue += (i.qty || 0) * (Number(i.price) || 0);
       if (i.qty === 0) outCount += 1;
       else if (i.qty <= i.threshold) lowCount += 1;
+      else inStockCount += 1;   // healthy — above the low threshold
     }
-    return { totalItems, totalUnits, totalValue, lowCount, outCount };
+    return { totalItems, totalUnits, inStockCount, lowCount, outCount };
   }, [items]);
 
   const dragEnabled = perms.canEditStock && sortBy === 'default' && statusFilter === 'all' && !isAll;
@@ -549,12 +553,10 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           <div className="stat-num">{summary.totalUnits.toLocaleString()}</div>
           <div className="stat-label">units</div>
         </div>
-        {summary.totalValue > 0 && (
-          <div className="stat">
-            <div className="stat-num" style={{ fontSize: 20 }}>{idr(summary.totalValue)}</div>
-            <div className="stat-label">total value</div>
-          </div>
-        )}
+        <div className="stat stat-good">
+          <div className="stat-num">{summary.inStockCount}</div>
+          <div className="stat-label">in stock</div>
+        </div>
         {summary.lowCount > 0 && (
           <div className="stat stat-warning">
             <div className="stat-num">{summary.lowCount}</div>
@@ -1340,6 +1342,109 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
         ))}
       </div>
     </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELL VIEW — barcode scan-to-sell
+// ═══════════════════════════════════════════════════════════
+function SellView({ shops }) {
+  const [shopId, setShopId] = useState(shops[0]?.id || null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);      // { type: 'ok'|'err', text }
+  const [recent, setRecent] = useState([]);  // [{ name, sku, qty, ts }]
+  const inputRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!shopId && shops[0]) setShopId(shops[0].id);
+  }, [shops, shopId]);
+
+  const focusInput = () => { try { inputRef.current && inputRef.current.focus(); } catch {} };
+  useEffect(() => { focusInput(); }, [shopId]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const c = code.trim();
+    if (!c || !shopId) return;
+    setBusy(true); setMsg(null);
+    try {
+      const d = await api(`/api/shops/${shopId}/sell`, { method: 'POST', body: { code: c } });
+      setMsg({ type: 'ok', text: `Sold: ${d.item.name} — ${d.item.qty} left` });
+      setRecent(r => [{ name: d.item.name, sku: d.item.sku, qty: d.item.qty, ts: Date.now() }, ...r].slice(0, 30));
+    } catch (err) {
+      setMsg({ type: 'err', text: err.message || 'Could not sell that item' });
+    } finally {
+      setCode('');
+      setBusy(false);
+      focusInput();
+    }
+  };
+
+  const shopName = shops.find(s => s.id === shopId)?.name || '';
+
+  if (shops.length === 0) {
+    return <div className="card"><div className="empty"><Store size={48} color="#666" style={{ margin: '0 auto' }} /><h3>No shops yet</h3></div></div>;
+  }
+
+  return (
+    <div>
+      <div className="field">
+        <label>Selling from shop</label>
+        <select className="select" value={shopId || ''} onChange={e => setShopId(Number(e.target.value))}>
+          {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>Scan barcode (or type the item code) — each scan sells 1</label>
+          <input
+            ref={inputRef}
+            className="input"
+            style={{ fontSize: 22, fontFamily: 'monospace', letterSpacing: 1 }}
+            placeholder="Waiting for scan…"
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            autoFocus
+            autoComplete="off"
+            inputMode="text"
+          />
+        </div>
+        <button className="btn btn-primary btn-block btn-large" disabled={busy || !code.trim()}>
+          <ScanLine size={20} /> Sell one
+        </button>
+      </form>
+
+      {msg && (
+        <div
+          className={msg.type === 'ok' ? '' : 'error-banner'}
+          style={msg.type === 'ok'
+            ? { marginTop: 16, padding: 14, borderRadius: 12, background: 'rgba(45,134,89,0.10)', border: '1px solid rgba(45,134,89,0.35)', color: '#1f6e44', fontWeight: 600 }
+            : { marginTop: 16 }}
+        >
+          {msg.text}
+        </div>
+      )}
+
+      {recent.length > 0 && (
+        <>
+          <h2 style={{ margin: '24px 0 12px' }}>Sold just now ({shopName})</h2>
+          {recent.map((r, i) => (
+            <div key={r.ts + '-' + i} className="stock-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div className="list-item-title">{r.name}</div>
+                {r.sku && <div className="list-item-sub" style={{ fontFamily: 'monospace', fontSize: 13 }}>SKU: {r.sku}</div>}
+              </div>
+              <div style={{ textAlign: 'right', color: '#666', fontSize: 14 }}>
+                {r.qty} left<br />
+                <span style={{ fontSize: 12 }}>{new Date(r.ts).toLocaleTimeString()}</span>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
   );
 }
 

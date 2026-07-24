@@ -630,6 +630,11 @@
   background: rgba(196,69,58,0.06);
 }
 .stock-summary .stat-danger .stat-num { color: var(--danger); }
+.stock-summary .stat-good {
+  border-color: rgba(45,134,89,0.4);
+  background: rgba(45,134,89,0.06);
+}
+.stock-summary .stat-good .stat-num { color: #2d8659; }
 
 /* Filter segmented + sort row */
 .stock-controls {
