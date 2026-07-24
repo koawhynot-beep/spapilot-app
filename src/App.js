@@ -10,7 +10,7 @@ import './App.css';
 
 // ── Config ────────────────────────────────────────────────
 const API = process.env.REACT_APP_API_URL || 'http://localhost:3000';
-const TOKEN_KEY = 'stockpilot_token';
+const TOKEN_KEY = 'mitrasamadi_token';
 
 const getToken = () => localStorage.getItem(TOKEN_KEY);
 const setToken = (t) => {
@@ -147,7 +147,7 @@ function LandingScreen({ onStart, onSignIn, onJoinTeam }) {
     <div className="auth-screen">
       <div className="auth-card">
         <div className="brand">
-          <h1>StockPilot</h1>
+          <h1>Mitra Samadi</h1>
           <p>Multi-shop inventory tracking made simple.</p>
         </div>
 
@@ -357,7 +357,7 @@ function SignInScreen({ onAuthed, onBack, onForgot }) {
         </button>
         <div className="brand">
           <h1>Sign in</h1>
-          <p>Welcome back to StockPilot</p>
+          <p>Welcome back to Mitra Samadi</p>
         </div>
         {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
         <form onSubmit={submit}>
@@ -578,7 +578,7 @@ function VerifyEmailScreen({ user, onVerified, onLogout }) {
           </div>
           <h1 style={{ fontSize: 26, margin: '0 0 8px' }}>Verify your email</h1>
           <p style={{ color: '#666', lineHeight: 1.5, margin: 0 }}>
-            We sent a 6-digit code to <strong style={{ color: '#1e3a5f' }}>{user.email}</strong>.<br/>Enter it below to start using StockPilot.
+            We sent a 6-digit code to <strong style={{ color: '#1e3a5f' }}>{user.email}</strong>.<br/>Enter it below to start using Mitra Samadi.
           </p>
         </div>
         {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
@@ -657,6 +657,8 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
 
   const tabs = [
     { id: 'stock', label: 'Stock', icon: Package },
+    { id: 'overview', label: 'Overview', icon: TrendingUp },
+    { id: 'transfer', label: 'Transfer', icon: TrendingDown },
     { id: 'shops', label: 'Shops', icon: Store },
     ...(isOwner ? [
       { id: 'team', label: 'Team', icon: Users },
@@ -668,7 +670,7 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
     <div className="app">
       <div className="topbar">
         <div>
-          <h1>StockPilot</h1>
+          <h1>Mitra Samadi</h1>
           <div className="topbar-sub">{business?.name || 'Your business'}</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -698,6 +700,12 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
             user={user}
             onReloadShops={shops.reload}
           />
+        )}
+        {tab === 'overview' && (
+          <OverviewView />
+        )}
+        {tab === 'transfer' && (
+          <TransferView shops={shops.data} />
         )}
         {tab === 'shops' && (
           <ShopsView shops={shops} isOwner={isOwner} />
@@ -731,7 +739,7 @@ function TrialBanner({ user }) {
   if (expired) {
     return (
       <div className="error-banner" style={{ background: 'rgba(196,69,58,0.08)' }}>
-        <strong>Your free trial has ended.</strong> Subscribe for $10/month to keep using StockPilot.
+        <strong>Your free trial has ended.</strong> Subscribe for $10/month to keep using Mitra Samadi.
       </div>
     );
   }
@@ -763,6 +771,10 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   const [dragId, setDragId] = useState(null);
   const [overId, setOverId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'low' | 'out'
+  const [fabricFilter, setFabricFilter] = useState('');
+  const [colorFilter, setColorFilter] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [facets, setFacets] = useState({ fabrics: [], colors: [], sizes: [] });
   const [sortBy, setSortBy] = useState('default'); // 'default'|'name'|'qty-asc'|'qty-desc'|'recent'|'sold'
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [reorderOpen, setReorderOpen] = useState(false);
@@ -792,14 +804,34 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (selectedGroup !== 'all') params.set('group', selectedGroup);
+    if (fabricFilter) params.set('fabric', fabricFilter);
+    if (colorFilter) params.set('color', colorFilter);
+    if (sizeFilter) params.set('size', sizeFilter);
     const qs = params.toString();
     const url = `/api/shops/${selectedShopId}/stock${qs ? `?${qs}` : ''}`;
     api(url)
       .then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
-  }, [selectedShopId, search, selectedGroup]);
+  }, [selectedShopId, search, selectedGroup, fabricFilter, colorFilter, sizeFilter]);
 
   useEffect(() => { loadStock(); }, [loadStock]);
+
+  // Load distinct fabric/color/size values for the current shop (populates dropdowns).
+  useEffect(() => {
+    if (!selectedShopId) { setFacets({ fabrics: [], colors: [], sizes: [] }); return; }
+    api(`/api/shops/${selectedShopId}/facets`)
+      .then(d => setFacets({
+        fabrics: Array.isArray(d?.fabrics) ? d.fabrics : [],
+        colors: Array.isArray(d?.colors) ? d.colors : [],
+        sizes: Array.isArray(d?.sizes) ? d.sizes : [],
+      }))
+      .catch(() => setFacets({ fabrics: [], colors: [], sizes: [] }));
+  }, [selectedShopId]);
+
+  // Reset filters when shop changes so a filter from shop A doesn't carry to shop B (may not apply).
+  useEffect(() => {
+    setFabricFilter(''); setColorFilter(''); setSizeFilter('');
+  }, [selectedShopId]);
 
   const moveItemToGroup = async (item, groupId) => {
     try {
@@ -936,6 +968,53 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           </button>
         )}
       </div>
+
+      {(facets.fabrics.length > 0 || facets.colors.length > 0 || facets.sizes.length > 0) && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          {facets.fabrics.length > 0 && (
+            <select
+              className="sort-select"
+              value={fabricFilter}
+              onChange={e => setFabricFilter(e.target.value)}
+              aria-label="filter by fabric"
+            >
+              <option value="">All fabrics ({facets.fabrics.length})</option>
+              {facets.fabrics.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          )}
+          {facets.colors.length > 0 && (
+            <select
+              className="sort-select"
+              value={colorFilter}
+              onChange={e => setColorFilter(e.target.value)}
+              aria-label="filter by colour"
+            >
+              <option value="">All colours ({facets.colors.length})</option>
+              {facets.colors.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          {facets.sizes.length > 0 && (
+            <select
+              className="sort-select"
+              value={sizeFilter}
+              onChange={e => setSizeFilter(e.target.value)}
+              aria-label="filter by size"
+            >
+              <option value="">All sizes ({facets.sizes.length})</option>
+              {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {(fabricFilter || colorFilter || sizeFilter) && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => { setFabricFilter(''); setColorFilter(''); setSizeFilter(''); }}
+            >
+              <X size={16} /> Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <button
@@ -1746,6 +1825,362 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// OVERVIEW VIEW — master aggregation across all shops
+// ═══════════════════════════════════════════════════════════
+function OverviewView() {
+  const [data, setData] = useState({ shops: [], items: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
+  const [fabricFilter, setFabricFilter] = useState('');
+  const [colorFilter, setColorFilter] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [facets, setFacets] = useState({ fabrics: [], colors: [], sizes: [] });
+  const [sortBy, setSortBy] = useState('name'); // 'name' | 'total-desc' | 'total-asc'
+
+  const load = useCallback(() => {
+    setLoading(true); setError(null);
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (fabricFilter) params.set('fabric', fabricFilter);
+    if (colorFilter) params.set('color', colorFilter);
+    if (sizeFilter) params.set('size', sizeFilter);
+    const qs = params.toString();
+    api(`/api/business/stock-overview${qs ? `?${qs}` : ''}`)
+      .then(d => { setData(d || { shops: [], items: [] }); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [search, fabricFilter, colorFilter, sizeFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    api('/api/business/facets')
+      .then(d => setFacets({
+        fabrics: Array.isArray(d?.fabrics) ? d.fabrics : [],
+        colors: Array.isArray(d?.colors) ? d.colors : [],
+        sizes: Array.isArray(d?.sizes) ? d.sizes : [],
+      }))
+      .catch(() => {});
+  }, []);
+
+  const sortedItems = useMemo(() => {
+    const arr = [...data.items];
+    if (sortBy === 'total-desc') arr.sort((a, b) => b.total - a.total);
+    else if (sortBy === 'total-asc') arr.sort((a, b) => a.total - b.total);
+    else arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return arr;
+  }, [data.items, sortBy]);
+
+  const summary = useMemo(() => {
+    const perShop = {};
+    let grand = 0;
+    for (const s of data.shops) perShop[s] = 0;
+    for (const it of data.items) {
+      grand += it.total || 0;
+      for (const s of data.shops) perShop[s] += it.byShop[s] || 0;
+    }
+    return { perShop, grand, skuCount: data.items.length };
+  }, [data]);
+
+  return (
+    <div>
+      <div className="search-bar">
+        <input
+          className="input"
+          placeholder="Search product, code, fabric, colour…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
+      {(facets.fabrics.length > 0 || facets.colors.length > 0 || facets.sizes.length > 0) && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          {facets.fabrics.length > 0 && (
+            <select className="sort-select" value={fabricFilter} onChange={e => setFabricFilter(e.target.value)} aria-label="filter by fabric">
+              <option value="">All fabrics ({facets.fabrics.length})</option>
+              {facets.fabrics.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          )}
+          {facets.colors.length > 0 && (
+            <select className="sort-select" value={colorFilter} onChange={e => setColorFilter(e.target.value)} aria-label="filter by colour">
+              <option value="">All colours ({facets.colors.length})</option>
+              {facets.colors.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          {facets.sizes.length > 0 && (
+            <select className="sort-select" value={sizeFilter} onChange={e => setSizeFilter(e.target.value)} aria-label="filter by size">
+              <option value="">All sizes ({facets.sizes.length})</option>
+              {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          <select className="sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="sort">
+            <option value="name">Sort: Name A-Z</option>
+            <option value="total-desc">Sort: Most stock first</option>
+            <option value="total-asc">Sort: Least stock first</option>
+          </select>
+          {(fabricFilter || colorFilter || sizeFilter) && (
+            <button type="button" className="btn btn-ghost" onClick={() => { setFabricFilter(''); setColorFilter(''); setSizeFilter(''); }}>
+              <X size={16} /> Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="stock-summary">
+        <div className="stat">
+          <div className="stat-num">{summary.skuCount}</div>
+          <div className="stat-label">products</div>
+        </div>
+        <div className="stat">
+          <div className="stat-num">{summary.grand.toLocaleString()}</div>
+          <div className="stat-label">total units</div>
+        </div>
+        {data.shops.map(s => (
+          <div className="stat" key={s}>
+            <div className="stat-num">{(summary.perShop[s] || 0).toLocaleString()}</div>
+            <div className="stat-label">{s}</div>
+          </div>
+        ))}
+      </div>
+
+      {loading && <div className="loading">Loading…</div>}
+      {error && <div className="error-banner">{error}</div>}
+
+      {!loading && !error && sortedItems.length === 0 && (
+        <div className="card">
+          <div className="empty">
+            <Package size={48} color="#666" style={{ margin: '0 auto' }} />
+            <h3>Nothing matches</h3>
+            <p>Try clearing filters or the search box.</p>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && sortedItems.length > 0 && (
+        <div className="card overview-card">
+          <div className="overview-scroll">
+            <table className="overview-table">
+              <thead>
+                <tr>
+                  <th className="sticky-col">Product</th>
+                  <th>Fabric</th>
+                  <th>Colour</th>
+                  <th>Size</th>
+                  {data.shops.map(s => <th key={s} className="num">{s}</th>)}
+                  <th className="num total-col">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedItems.map(item => (
+                  <tr key={item.sku}>
+                    <td className="sticky-col">
+                      <div style={{ fontWeight: 600 }}>{item.name}</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>{item.sku}{item.style ? ` · ${item.style}` : ''}</div>
+                    </td>
+                    <td>{item.fabric}</td>
+                    <td>{item.color}</td>
+                    <td>{item.size}</td>
+                    {data.shops.map(s => (
+                      <td key={s} className="num" style={{ color: (item.byShop[s] || 0) === 0 ? '#bbb' : undefined }}>
+                        {item.byShop[s] || 0}
+                      </td>
+                    ))}
+                    <td className="num total-col"><strong>{item.total}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TRANSFER VIEW — record moving stock between shops
+// ═══════════════════════════════════════════════════════════
+function TransferView({ shops }) {
+  const toast = useToast();
+  // Default source = the shop most likely to be the warehouse (name contains "office" or "kantor"),
+  // else the first shop. Destination = the second shop that isn't source.
+  const officeShop = useMemo(
+    () => shops.find(s => /office|kantor|warehouse/i.test(s.name)) || shops[0],
+    [shops]
+  );
+  const [fromShopId, setFromShopId] = useState(officeShop ? String(officeShop.id) : '');
+  const [toShopId, setToShopId] = useState('');
+  const [sku, setSku] = useState('');
+  const [qty, setQty] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(null); // { name, fromQty, ... } from a lookup
+  const [lastResult, setLastResult] = useState(null);
+
+  useEffect(() => {
+    if (!fromShopId && officeShop) setFromShopId(String(officeShop.id));
+  }, [officeShop, fromShopId]);
+
+  // When SKU and fromShop are both set, look up the item so the user sees name + current qty before submitting.
+  useEffect(() => {
+    if (!fromShopId || !sku.trim()) { setPreview(null); return; }
+    const params = new URLSearchParams({ search: sku.trim() });
+    let cancelled = false;
+    api(`/api/shops/${fromShopId}/stock?${params}`)
+      .then(rows => {
+        if (cancelled) return;
+        const exact = (rows || []).find(r => (r.sku || '').toLowerCase() === sku.trim().toLowerCase());
+        setPreview(exact || null);
+      })
+      .catch(() => setPreview(null));
+    return () => { cancelled = true; };
+  }, [fromShopId, sku]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLastResult(null);
+    if (!fromShopId || !toShopId) { toast('Choose both a source and destination shop'); return; }
+    if (fromShopId === toShopId)  { toast('Source and destination must differ'); return; }
+    if (!sku.trim())              { toast('Enter the item code (KODE)'); return; }
+    const n = Number(qty);
+    if (!Number.isInteger(n) || n <= 0) { toast('Quantity must be a positive whole number'); return; }
+    setBusy(true);
+    try {
+      const result = await api('/api/transfers', {
+        method: 'POST',
+        body: {
+          sku: sku.trim(),
+          fromShopId: Number(fromShopId),
+          toShopId: Number(toShopId),
+          qty: n,
+          note: note.trim(),
+        },
+      });
+      toast(`Sent ${n} × ${sku.trim()} to ${result.to.shopName}`);
+      setLastResult(result);
+      setSku(''); setQty(''); setNote('');
+      setPreview(null);
+    } catch (err) {
+      toast(err.message);
+    } finally { setBusy(false); }
+  };
+
+  if (shops.length < 2) {
+    return (
+      <div className="card">
+        <div className="empty">
+          <Store size={48} color="#666" style={{ margin: '0 auto' }} />
+          <h3>Need at least two shops</h3>
+          <p>Add a second shop before recording transfers.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Record a transfer</h3>
+        <p style={{ color: '#666', marginTop: 0 }}>Moves stock from one shop to another and updates both totals.</p>
+
+        <form onSubmit={submit}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+            <label>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>From</div>
+              <select className="input" value={fromShopId} onChange={e => setFromShopId(e.target.value)} required>
+                <option value="">Choose shop…</option>
+                {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </label>
+            <label>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>To</div>
+              <select className="input" value={toShopId} onChange={e => setToShopId(e.target.value)} required>
+                <option value="">Choose shop…</option>
+                {shops.filter(s => String(s.id) !== fromShopId).map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label style={{ display: 'block', marginBottom: 14 }}>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Item code (KODE)</div>
+            <input
+              className="input"
+              placeholder="e.g. AG-1004"
+              value={sku}
+              onChange={e => setSku(e.target.value)}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              required
+            />
+          </label>
+
+          {preview && (
+            <div style={{ padding: 12, background: '#f4f6f9', borderRadius: 10, marginBottom: 14 }}>
+              <div style={{ fontWeight: 600 }}>{preview.name}</div>
+              <div style={{ fontSize: 14, color: '#555' }}>
+                {preview.fabric && <>{preview.fabric} · </>}
+                {preview.color && <>{preview.color} · </>}
+                {preview.size && <>{preview.size} · </>}
+                In stock: <strong>{preview.qty}</strong>
+              </div>
+            </div>
+          )}
+          {!preview && sku.trim() && fromShopId && (
+            <div style={{ padding: 12, background: '#fff4e6', color: '#8a5a0e', borderRadius: 10, marginBottom: 14, fontSize: 14 }}>
+              No item with code “{sku.trim()}” found in the source shop.
+            </div>
+          )}
+
+          <label style={{ display: 'block', marginBottom: 14 }}>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Quantity</div>
+            <input
+              className="input"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              step="1"
+              placeholder="0"
+              value={qty}
+              onChange={e => setQty(e.target.value)}
+              required
+            />
+          </label>
+
+          <label style={{ display: 'block', marginBottom: 18 }}>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Note (optional)</div>
+            <input
+              className="input"
+              placeholder="e.g. Pengambilan 25-07-2026"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              maxLength={500}
+            />
+          </label>
+
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? 'Recording…' : 'Record transfer'}
+          </button>
+        </form>
+      </div>
+
+      {lastResult && (
+        <div className="card" style={{ marginTop: 14, background: 'rgba(45,134,89,0.06)', border: '1px solid rgba(45,134,89,0.3)' }}>
+          <div style={{ fontWeight: 600, color: '#1f6e44', marginBottom: 4 }}>
+            <Check size={18} style={{ verticalAlign: 'middle' }} /> Transfer recorded
+          </div>
+          <div style={{ fontSize: 14, color: '#333' }}>
+            {lastResult.from.shopName} now has <strong>{lastResult.from.newQty}</strong> of {lastResult.from.sku}.
+            {' '}{lastResult.to.shopName} now has <strong>{lastResult.to.newQty}</strong>.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // SHOPS VIEW
 // ═══════════════════════════════════════════════════════════
 function ShopsView({ shops, isOwner }) {
@@ -2121,7 +2556,7 @@ function SettingsModal({ user, onClose, onLogout, onUserUpdate }) {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `stockpilot-data-${Date.now()}.json`;
+      a.href = url; a.download = `mitra-samadi-data-${Date.now()}.json`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
       toast('Data exported');

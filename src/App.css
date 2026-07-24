@@ -1,4 +1,4 @@
-/* StockPilot — large, simple UI. Big inputs, big buttons, no tiny icons. */
+/* Mitra Samadi — large, simple UI. Big inputs, big buttons, no tiny icons. */
 
 :root {
   --primary: #1e3a5f;
@@ -869,3 +869,42 @@
   .stock-row { grid-template-columns: 1fr; }
   .stock-row .list-item-actions { justify-content: flex-end; }
 }
+
+/* Overview table — master aggregation across shops */
+.overview-card { padding: 0; overflow: hidden; }
+.overview-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.overview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  min-width: 700px;
+}
+.overview-table thead th {
+  background: #f4f6f9;
+  color: #1e3a5f;
+  font-weight: 700;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  white-space: nowrap;
+}
+.overview-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.overview-table tbody tr:hover { background: #fafbfd; }
+.overview-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.overview-table .total-col { background: #f4f6f9; }
+.overview-table .sticky-col {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 0;
+  min-width: 220px;
+}
+.overview-table thead .sticky-col { background: #f4f6f9; z-index: 2; }
+.overview-table tbody tr:hover .sticky-col { background: #fafbfd; }
