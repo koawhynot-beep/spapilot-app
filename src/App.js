@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, Component } from 'react';
 import {
-  Package, Store, Users, ShieldCheck, LogOut, Plus, Trash2, Edit2,
+  Package, Store, Users, LogOut, Plus, Trash2, Edit2,
   RefreshCw, Check, X, AlertTriangle, Copy, Megaphone, Settings,
-  ChevronRight, Eye, EyeOff, Minus, ArrowLeft, Lock,
+  ChevronRight, Minus, Lock,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
-  Mail,
 } from 'lucide-react';
 import './App.css';
 
@@ -134,500 +133,6 @@ function Modal({ title, onClose, children }) {
           </button>
         </div>
         {children}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// LANDING (pre-auth)
-// ═══════════════════════════════════════════════════════════
-function LandingScreen({ onStart, onSignIn, onJoinTeam }) {
-  return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <div className="brand">
-          <h1>Mitra Samadi</h1>
-          <p>Multi-shop inventory tracking made simple.</p>
-        </div>
-
-        <div style={{ marginBottom: 28 }}>
-          <FeatureRow icon={Store} text="Manage stock across all your shops in one place" />
-          <FeatureRow icon={Users} text="Invite your staff with simple one-use codes" />
-          <FeatureRow icon={ShieldCheck} text="Big buttons, big text — easy for everyone" />
-        </div>
-
-        <button className="btn btn-primary btn-block btn-large" onClick={onStart}>
-          Create owner account
-        </button>
-        <div style={{ height: 16 }} />
-
-        <button className="btn btn-ghost btn-block" onClick={onJoinTeam}>
-          I have an invite code
-        </button>
-        <p style={{ textAlign: 'center', color: '#666', fontSize: 14, marginTop: 18 }}>
-          Already have an account?{' '}
-          <button onClick={onSignIn} style={{ background: 'none', border: 'none', color: '#1e3a5f', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'underline', padding: 0 }}>
-            Sign in
-          </button>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function FeatureRow({ icon: Icon, text }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
-      <div style={{ background: '#e8eef5', borderRadius: 10, padding: 10, color: '#1e3a5f', flexShrink: 0 }}>
-        <Icon size={20} />
-      </div>
-      <div style={{ fontSize: 15, color: '#222', paddingTop: 2 }}>{text}</div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// SIGN UP (owner)
-// ═══════════════════════════════════════════════════════════
-function SignupOwnerScreen({ onAuthed, onBack }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [businessName, setBusinessName] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [err, setErr] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr(null);
-    if (password.length < 8) { setErr('Password must be at least 8 characters'); return; }
-    setBusy(true);
-    try {
-      let accessCode = '';
-      try { accessCode = localStorage.getItem(ACCESS_CODE_KEY) || ''; } catch {}
-      const d = await api('/api/auth/signup', {
-        method: 'POST',
-        body: { email: email.trim().toLowerCase(), password, businessName: businessName.trim(), accessCode },
-      });
-      setToken(d.token);
-      onAuthed(d.user, d.business);
-    } catch (e) { setErr(e.message); setBusy(false); }
-  };
-
-  return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={onBack}>
-          <ArrowLeft size={18} /> Back
-        </button>
-        <div className="brand">
-          <h1>Create account</h1>
-          <p>Set up the owner login</p>
-        </div>
-        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
-        <form onSubmit={submit}>
-          <div className="field">
-            <label>Your business name</label>
-            <input className="input" required placeholder="e.g. Acme Stores" value={businessName} onChange={e => setBusinessName(e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Email</label>
-            <input className="input" type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <div style={{ position: 'relative' }}>
-              <input className="input" type={showPw ? 'text' : 'password'} required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 50 }} />
-              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 8 }}>
-                {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-          </div>
-          <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
-            {busy ? 'Creating account…' : 'Create account'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// JOIN TEAM (staff via invite)
-// ═══════════════════════════════════════════════════════════
-function JoinTeamScreen({ onAuthed, onBack }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [err, setErr] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr(null);
-    if (password.length < 8) { setErr('Password must be at least 8 characters'); return; }
-    setBusy(true);
-    try {
-      const d = await api('/api/auth/signup-with-code', {
-        method: 'POST',
-        body: { email: email.trim().toLowerCase(), password, code: code.trim().toUpperCase() },
-      });
-      setToken(d.token);
-      onAuthed(d.user, d.business);
-    } catch (e) { setErr(e.message); setBusy(false); }
-  };
-
-  return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={onBack}>
-          <ArrowLeft size={18} /> Back
-        </button>
-        <div className="brand">
-          <h1>Join your team</h1>
-          <p>Enter the invite code from your manager</p>
-        </div>
-        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
-        <form onSubmit={submit}>
-          <div className="field">
-            <label>Invite code</label>
-            <input
-              className="input"
-              required
-              placeholder="6-character code"
-              value={code}
-              onChange={e => setCode(e.target.value.toUpperCase())}
-              style={{ fontFamily: 'monospace', fontSize: 22, letterSpacing: 4, textAlign: 'center', textTransform: 'uppercase' }}
-              maxLength={8}
-            />
-          </div>
-          <div className="field">
-            <label>Email</label>
-            <input className="input" type="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <div style={{ position: 'relative' }}>
-              <input className="input" type={showPw ? 'text' : 'password'} required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 50 }} />
-              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 8 }}>
-                {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-          </div>
-          <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
-            {busy ? 'Joining…' : 'Join team'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// SIGN IN
-// ═══════════════════════════════════════════════════════════
-function SignInScreen({ onAuthed, onBack, onForgot }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [err, setErr] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr(null);
-    setBusy(true);
-    try {
-      const d = await api('/api/auth/login', {
-        method: 'POST',
-        body: { email: email.trim().toLowerCase(), password },
-      });
-      setToken(d.token);
-      onAuthed(d.user, d.business);
-    } catch (e) { setErr(e.message); setBusy(false); }
-  };
-
-  return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={onBack}>
-          <ArrowLeft size={18} /> Back
-        </button>
-        <div className="brand">
-          <h1>Sign in</h1>
-          <p>Welcome back to Mitra Samadi</p>
-        </div>
-        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
-        <form onSubmit={submit}>
-          <div className="field">
-            <label>Email</label>
-            <input className="input" type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <div style={{ position: 'relative' }}>
-              <input className="input" type={showPw ? 'text' : 'password'} required autoComplete="current-password" placeholder="Your password" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 50 }} />
-              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 8 }}>
-                {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-          </div>
-          <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
-            {busy ? 'Signing in…' : 'Sign in'}
-          </button>
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <button
-              type="button"
-              onClick={onForgot}
-              style={{ background: 'none', border: 'none', color: '#1e3a5f', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'underline', padding: 0 }}
-            >
-              Forgot password?
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// FORGOT PASSWORD — 3 steps in one screen:
-//   1) enter email → request code
-//   2) enter code + new password → reset
-// ═══════════════════════════════════════════════════════════
-function ForgotPasswordScreen({ onBack, onDone }) {
-  const [stage, setStage] = useState('email'); // 'email' | 'reset'
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  const [success, setSuccess] = useState(false);
-
-  const requestCode = async (e) => {
-    e?.preventDefault();
-    setErr(null); setBusy(true);
-    try {
-      await api('/api/auth/forgot-password', { method: 'POST', body: { email: email.trim().toLowerCase() } });
-      setStage('reset');
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(false); }
-  };
-
-  const submitReset = async (e) => {
-    e.preventDefault();
-    setErr(null);
-    const c = code.trim();
-    if (!/^\d{6}$/.test(c)) { setErr('Enter the 6-digit code from your email'); return; }
-    if (password.length < 8) { setErr('Password must be at least 8 characters'); return; }
-    if (password !== confirm) { setErr('Passwords do not match'); return; }
-    setBusy(true);
-    try {
-      await api('/api/auth/reset-password', {
-        method: 'POST',
-        body: { email: email.trim().toLowerCase(), code: c, password },
-      });
-      setSuccess(true);
-    } catch (e) { setErr(e.message); setBusy(false); }
-  };
-
-  if (success) {
-    return (
-      <div className="auth-screen">
-        <div className="auth-card">
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ display: 'inline-flex', width: 72, height: 72, borderRadius: '50%', background: 'rgba(45,134,89,0.1)', color: '#2d8659', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <Check size={36} />
-            </div>
-            <h1 style={{ fontSize: 26, margin: '0 0 8px' }}>Password updated</h1>
-            <p style={{ color: '#666' }}>Sign in with your new password.</p>
-          </div>
-          <button className="btn btn-primary btn-block btn-large" onClick={onDone || onBack}>
-            Sign in
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (stage === 'reset') {
-    return (
-      <div className="auth-screen">
-        <div className="auth-card">
-          <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={() => { setStage('email'); setErr(null); }}>
-            <ArrowLeft size={18} /> Back
-          </button>
-          <div className="brand">
-            <h1>Enter code</h1>
-            <p>We sent a 6-digit code to <strong>{email}</strong>. Enter it below with your new password.</p>
-          </div>
-          {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
-          <form onSubmit={submitReset}>
-            <div className="field">
-              <label>6-digit code</label>
-              <input
-                className="input code-input"
-                inputMode="numeric"
-                pattern="\d{6}"
-                maxLength={6}
-                autoFocus
-                required
-                placeholder="------"
-                value={code}
-                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              />
-            </div>
-            <div className="field">
-              <label>New password</label>
-              <div style={{ position: 'relative' }}>
-                <input className="input" type={showPw ? 'text' : 'password'} required minLength={8} placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 50 }} />
-                <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 8 }}>
-                  {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-            <div className="field">
-              <label>Confirm new password</label>
-              <input className="input" type={showPw ? 'text' : 'password'} required minLength={8} placeholder="Type it again" value={confirm} onChange={e => setConfirm(e.target.value)} />
-            </div>
-            <button className="btn btn-primary btn-block btn-large" disabled={busy} type="submit">
-              {busy ? 'Updating…' : 'Update password'}
-            </button>
-            <button
-              type="button"
-              onClick={requestCode}
-              disabled={busy}
-              style={{ background: 'none', border: 'none', color: '#1e3a5f', cursor: 'pointer', fontSize: 14, fontWeight: 600, textDecoration: 'underline', padding: 0, marginTop: 16, display: 'block', width: '100%', textAlign: 'center' }}
-            >
-              {busy ? '…' : 'Resend code'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <button className="btn btn-ghost" style={{ marginBottom: 20, padding: '10px 16px', minHeight: 'auto', fontSize: 15 }} onClick={onBack}>
-          <ArrowLeft size={18} /> Back
-        </button>
-        <div className="brand">
-          <h1>Forgot password</h1>
-          <p>We'll email you a 6-digit code to reset it.</p>
-        </div>
-        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
-        <form onSubmit={requestCode}>
-          <div className="field">
-            <label>Email</label>
-            <input className="input" type="email" required autoFocus placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
-          <button className="btn btn-primary btn-block btn-large" disabled={busy || !email} type="submit">
-            {busy ? 'Sending…' : 'Send code'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// VERIFY EMAIL — enter 6-digit code (authed). Blocks main app.
-// ═══════════════════════════════════════════════════════════
-function VerifyEmailScreen({ user, onVerified, onLogout }) {
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [err, setErr] = useState(null);
-  const [info, setInfo] = useState(null);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr(null); setInfo(null);
-    const c = code.trim();
-    if (!/^\d{6}$/.test(c)) { setErr('Enter the 6-digit code'); return; }
-    setBusy(true);
-    try {
-      await api('/api/auth/verify-code', { method: 'POST', body: { code: c } });
-      onVerified();
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(false); }
-  };
-
-  const resend = async () => {
-    setErr(null); setInfo(null); setResending(true);
-    try {
-      const d = await api('/api/auth/send-verification', { method: 'POST', body: {} });
-      if (d?.alreadyVerified) onVerified();
-      else setInfo('New code sent. Check your inbox (and spam).');
-    } catch (e) { setErr(e.message); }
-    finally { setResending(false); }
-  };
-
-  return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ display: 'inline-flex', width: 72, height: 72, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <Mail size={36} />
-          </div>
-          <h1 style={{ fontSize: 26, margin: '0 0 8px' }}>Verify your email</h1>
-          <p style={{ color: '#666', lineHeight: 1.5, margin: 0 }}>
-            We sent a 6-digit code to <strong style={{ color: '#1e3a5f' }}>{user.email}</strong>.<br/>Enter it below to start using Mitra Samadi.
-          </p>
-        </div>
-        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
-        {info && (
-          <div style={{ padding: 12, background: 'rgba(45,134,89,0.08)', border: '1px solid rgba(45,134,89,0.3)', borderRadius: 12, color: '#1f6e44', marginBottom: 16, fontSize: 14 }}>
-            {info}
-          </div>
-        )}
-        <form onSubmit={submit}>
-          <div className="field">
-            <label>6-digit code</label>
-            <input
-              className="input code-input"
-              inputMode="numeric"
-              pattern="\d{6}"
-              maxLength={6}
-              autoFocus
-              required
-              placeholder="------"
-              value={code}
-              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            />
-          </div>
-          <button className="btn btn-primary btn-block btn-large" disabled={busy || code.length !== 6} type="submit">
-            {busy ? 'Verifying…' : 'Verify email'}
-          </button>
-        </form>
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button
-            type="button"
-            onClick={resend}
-            disabled={resending}
-            className="btn btn-ghost"
-            style={{ flex: 1, minHeight: 'auto', padding: '12px 16px', fontSize: 14 }}
-          >
-            {resending ? 'Sending…' : 'Resend code'}
-          </button>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="btn btn-ghost"
-            style={{ flex: 1, minHeight: 'auto', padding: '12px 16px', fontSize: 14 }}
-          >
-            <LogOut size={16} /> Sign out
-          </button>
-        </div>
-        <p style={{ fontSize: 12, color: '#888', textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
-          Wrong email? <button type="button" onClick={onLogout} style={{ background: 'none', border: 'none', color: '#1e3a5f', cursor: 'pointer', fontSize: 12, fontWeight: 600, textDecoration: 'underline', padding: 0 }}>Sign out</button> and sign up again with the correct one.
-        </p>
       </div>
     </div>
   );
@@ -2586,10 +2091,9 @@ function SettingsModal({ user, onClose, onLogout, onUserUpdate }) {
 // ═══════════════════════════════════════════════════════════
 // APP ROOT
 // ═══════════════════════════════════════════════════════════
-const ACCESS_KEY = 'mitrasamadi_access_ok';
-const ACCESS_CODE_KEY = 'mitrasamadi_access_code';
-
-function AccessGate({ onUnlock }) {
+// The only sign-in: enter the shared code → logged into the single master
+// account. No email, no signup, no separate users.
+function AccessGate({ onAuthed }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -2598,16 +2102,13 @@ function AccessGate({ onUnlock }) {
     e.preventDefault();
     setBusy(true); setErr(null);
     try {
-      const res = await api('/api/auth/verify-access', { method: 'POST', body: { code } });
-      if (res && res.ok) {
-        try { localStorage.setItem(ACCESS_KEY, '1'); localStorage.setItem(ACCESS_CODE_KEY, code); } catch {}
-        onUnlock();
-      } else {
-        setErr('That code is not right.');
-      }
+      const d = await api('/api/auth/access-login', { method: 'POST', body: { code } });
+      setToken(d.token);
+      onAuthed(d.user, d.business);
     } catch (e) {
-      setErr(e.message || 'Could not check the code.');
-    } finally { setBusy(false); }
+      setErr(e.message === 'Invalid access code' ? 'That code is not right.' : (e.message || 'Could not sign in.'));
+      setBusy(false);
+    }
   };
 
   return (
@@ -2625,11 +2126,12 @@ function AccessGate({ onUnlock }) {
             value={code}
             onChange={e => setCode(e.target.value)}
             autoFocus
+            autoComplete="off"
             style={{ marginBottom: 14 }}
           />
           {err && <div className="error-banner" style={{ marginBottom: 14 }}>{err}</div>}
           <button className="btn btn-primary btn-block btn-large" disabled={busy || !code}>
-            {busy ? 'Checking…' : 'Enter'}
+            {busy ? 'Entering…' : 'Enter'}
           </button>
         </form>
       </div>
@@ -2641,21 +2143,17 @@ function AppInner() {
   const [user, setUser] = useState(null);
   const [business, setBusiness] = useState(null);
   const [checking, setChecking] = useState(true);
-  const [authMode, setAuthMode] = useState(null); // null | 'landing' | 'signup' | 'join' | 'signin' | 'forgot'
-  const [accessOk, setAccessOk] = useState(() => {
-    try { return localStorage.getItem(ACCESS_KEY) === '1'; } catch { return false; }
-  });
 
   useEffect(() => {
     const token = getToken();
-    if (!token) { setChecking(false); setAuthMode('landing'); return; }
+    if (!token) { setChecking(false); return; }
     api('/api/auth/me')
       .then(d => { setUser(d.user); setBusiness(d.business); setChecking(false); })
-      .catch(() => { setToken(null); setChecking(false); setAuthMode('landing'); });
+      .catch(() => { setToken(null); setChecking(false); });
   }, []);
 
   useEffect(() => {
-    const handler = () => { setUser(null); setBusiness(null); setAuthMode('landing'); };
+    const handler = () => { setUser(null); setBusiness(null); };
     window.addEventListener('app:unauth', handler);
     return () => window.removeEventListener('app:unauth', handler);
   }, []);
@@ -2665,7 +2163,6 @@ function AppInner() {
     setToken(null);
     setUser(null);
     setBusiness(null);
-    setAuthMode('landing');
   };
 
   if (checking) {
@@ -2678,36 +2175,9 @@ function AppInner() {
     );
   }
 
-  // Front-door gate — a logged-out visitor must enter the shared access code first.
-  // (Already-logged-in users have a token and skip this.)
-  if (!user && !accessOk) {
-    return <AccessGate onUnlock={() => setAccessOk(true)} />;
-  }
-
+  // The only way in: enter the shared access code. No accounts, no email.
   if (!user) {
-    if (authMode === 'signup') return <SignupOwnerScreen onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} />;
-    if (authMode === 'join')   return <JoinTeamScreen   onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} />;
-    if (authMode === 'signin') return <SignInScreen     onAuthed={(u, b) => { setUser(u); setBusiness(b); }} onBack={() => setAuthMode('landing')} onForgot={() => setAuthMode('forgot')} />;
-    if (authMode === 'forgot') return <ForgotPasswordScreen onBack={() => setAuthMode('signin')} onDone={() => setAuthMode('signin')} />;
-    return <LandingScreen
-      onStart={() => setAuthMode('signup')}
-      onSignIn={() => setAuthMode('signin')}
-      onJoinTeam={() => setAuthMode('join')}
-    />;
-  }
-
-  // Logged in but email not verified — gate everything
-  if (!user.emailVerified) {
-    return (
-      <VerifyEmailScreen
-        user={user}
-        onLogout={logout}
-        onVerified={() => {
-          // Refetch profile so banner gating clears
-          api('/api/auth/me').then(d => { setUser(d.user); setBusiness(d.business); }).catch(() => {});
-        }}
-      />
-    );
+    return <AccessGate onAuthed={(u, b) => { setUser(u); setBusiness(b); }} />;
   }
 
   return <MainApp user={user} business={business} onLogout={logout} onUserUpdate={setUser} />;
