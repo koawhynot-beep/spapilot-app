@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, Component } from 'react';
 import {
-  Package, Store, Users, LogOut, Plus, Trash2, Edit2,
-  RefreshCw, Check, X, AlertTriangle, Copy, Megaphone, Settings,
-  ChevronRight, Minus, Lock,
+  Package, Store, Plus, Trash2, Edit2,
+  RefreshCw, Check, X, AlertTriangle, Copy, Settings,
+  ChevronRight, Minus,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import './App.css';
@@ -141,7 +141,7 @@ function Modal({ title, onClose, children }) {
 // ═══════════════════════════════════════════════════════════
 // MAIN APP (post-auth)
 // ═══════════════════════════════════════════════════════════
-function MainApp({ user, business, onLogout, onUserUpdate }) {
+function MainApp({ user, business }) {
   const [tab, setTab] = useState('stock');
   const [showSettings, setShowSettings] = useState(false);
 
@@ -165,10 +165,6 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'transfer', label: 'Transfer', icon: TrendingDown },
     { id: 'shops', label: 'Shops', icon: Store },
-    ...(isOwner ? [
-      { id: 'team', label: 'Team', icon: Users },
-    ] : []),
-    { id: 'announcements', label: 'Announcements', icon: Megaphone },
   ];
 
   return (
@@ -213,21 +209,10 @@ function MainApp({ user, business, onLogout, onUserUpdate }) {
         {tab === 'shops' && (
           <ShopsView shops={shops} isOwner={isOwner} />
         )}
-        {tab === 'team' && isOwner && (
-          <TeamView />
-        )}
-        {tab === 'announcements' && (
-          <AnnouncementsView user={user} />
-        )}
       </div>
 
       {showSettings && (
-        <SettingsModal
-          user={user}
-          onClose={() => setShowSettings(false)}
-          onLogout={onLogout}
-          onUserUpdate={onUserUpdate}
-        />
+        <SettingsModal onClose={() => setShowSettings(false)} />
       )}
     </div>
   );
@@ -1775,245 +1760,11 @@ function ShopModal({ shop, onClose, onSaved }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// TEAM VIEW (owner only)
-// ═══════════════════════════════════════════════════════════
-const PERMISSIONS_DEF = [
-  { key: 'canViewStock',         label: 'View stock' },
-  { key: 'canEditStock',         label: 'Edit stock quantities' },
-  { key: 'canAddItems',          label: 'Add new items' },
-  { key: 'canDeleteItems',       label: 'Delete items' },
-  { key: 'canViewAllShops',      label: 'View all shops' },
-  { key: 'canSendAnnouncements', label: 'Send announcements' },
-];
-
-function TeamView() {
-  const toast = useToast();
-  const staff = useCollection('/api/staff', true);
-  const invites = useCollection('/api/invites', true);
-  const [editingStaff, setEditingStaff] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  const createInvite = async () => {
-    setBusy(true);
-    try {
-      await api('/api/invites', { method: 'POST', body: {} });
-      toast('Invite code created');
-      invites.reload();
-    } catch (e) { toast(e.message); }
-    finally { setBusy(false); }
-  };
-
-  const copyCode = async (code) => {
-    try { await navigator.clipboard.writeText(code); toast('Code copied'); } catch {}
-  };
-
-  const revokeInvite = async (id) => {
-    try {
-      await api(`/api/invites/${id}`, { method: 'DELETE' });
-      invites.reload();
-      toast('Invite revoked');
-    } catch (e) { toast(e.message); }
-  };
-
-  const removeStaff = async (member) => {
-    if (!window.confirm(`Remove ${member.email} from your team?`)) return;
-    try {
-      await api(`/api/staff/${member.id}`, { method: 'DELETE' });
-      staff.reload();
-      toast('Staff removed');
-    } catch (e) { toast(e.message); }
-  };
-
-  const activeInvites = invites.data.filter(i => !i.usedAt && new Date(i.expiresAt) > new Date());
-  const staffOnly = staff.data.filter(m => m.role === 'staff');
-
-  return (
-    <div>
-      {/* Invite codes */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Invite codes</h2>
-          <button className="btn btn-primary" onClick={createInvite} disabled={busy}>
-            <Plus size={20} /> Generate code
-          </button>
-        </div>
-        <p style={{ fontSize: 14, color: '#666', marginTop: 0 }}>
-          Share a code with new staff. Codes expire in 24 hours and can only be used once.
-        </p>
-        {activeInvites.length === 0 && (
-          <div className="empty" style={{ padding: 24 }}>
-            <p>No active invite codes. Generate one above to invite staff.</p>
-          </div>
-        )}
-        {activeInvites.map(inv => {
-          const expiresIn = Math.max(0, Math.ceil((new Date(inv.expiresAt) - new Date()) / (60 * 60 * 1000)));
-          return (
-            <div key={inv.id} className="list-item">
-              <div className="list-item-main">
-                <div style={{ fontFamily: 'monospace', fontSize: 24, fontWeight: 700, letterSpacing: 3, color: '#1e3a5f' }}>
-                  {inv.code}
-                </div>
-                <div className="list-item-sub">Expires in {expiresIn} hour{expiresIn === 1 ? '' : 's'}</div>
-              </div>
-              <div className="list-item-actions">
-                <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => copyCode(inv.code)}>
-                  <Copy size={16} /> Copy
-                </button>
-                <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14, color: '#c4453a' }} onClick={() => revokeInvite(inv.id)}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Staff list */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Staff</h2>
-        </div>
-        {staffOnly.length === 0 && (
-          <div className="empty" style={{ padding: 24 }}>
-            <p>No staff yet. Generate an invite code above and share it with your team.</p>
-          </div>
-        )}
-        {staffOnly.map(m => (
-          <div key={m.id} className="list-item">
-            <div className="list-item-main">
-              <div className="list-item-title">{m.email}</div>
-              <div className="list-item-sub">
-                {Object.entries(m.permissions || {}).filter(([k, v]) => v).length} permission{Object.entries(m.permissions || {}).filter(([k, v]) => v).length === 1 ? '' : 's'} enabled
-              </div>
-            </div>
-            <div className="list-item-actions">
-              <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setEditingStaff(m)}>
-                <Lock size={16} /> Permissions
-              </button>
-              <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14, color: '#c4453a' }} onClick={() => removeStaff(m)}>
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {editingStaff && (
-        <PermissionsModal
-          staff={editingStaff}
-          onClose={() => setEditingStaff(null)}
-          onSaved={() => { setEditingStaff(null); staff.reload(); toast('Permissions updated'); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function PermissionsModal({ staff, onClose, onSaved }) {
-  const [perms, setPerms] = useState(() => {
-    const base = {};
-    for (const p of PERMISSIONS_DEF) base[p.key] = !!(staff.permissions && staff.permissions[p.key]);
-    return base;
-  });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const save = async () => {
-    setBusy(true); setErr(null);
-    try {
-      await api(`/api/staff/${staff.id}/permissions`, { method: 'PUT', body: perms });
-      onSaved();
-    } catch (e) { setErr(e.message); setBusy(false); }
-  };
-
-  return (
-    <Modal title={`Permissions for ${staff.email}`} onClose={onClose}>
-      {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
-      {PERMISSIONS_DEF.map(p => (
-        <div key={p.key} className="perm-row">
-          <span className="perm-label">{p.label}</span>
-          <div className={`toggle ${perms[p.key] ? 'on' : ''}`} onClick={() => setPerms({ ...perms, [p.key]: !perms[p.key] })} role="switch" aria-checked={perms[p.key]} />
-        </div>
-      ))}
-      <div className="modal-actions">
-        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
-      </div>
-    </Modal>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// ANNOUNCEMENTS VIEW
-// ═══════════════════════════════════════════════════════════
-function AnnouncementsView({ user }) {
-  const toast = useToast();
-  const announcements = useCollection('/api/announcements', true, 60000);
-  const [body, setBody] = useState('');
-  const [busy, setBusy] = useState(false);
-  const canSend = user.role === 'owner' || (user.permissions && user.permissions.canSendAnnouncements);
-
-  const send = async (e) => {
-    e.preventDefault();
-    if (!body.trim()) return;
-    setBusy(true);
-    try {
-      await api('/api/announcements', { method: 'POST', body: { body: body.trim() } });
-      setBody('');
-      announcements.reload();
-      toast('Announcement sent');
-    } catch (e) { toast(e.message); }
-    finally { setBusy(false); }
-  };
-
-  return (
-    <div>
-      {canSend && (
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>New announcement</h2>
-          <form onSubmit={send}>
-            <div className="field">
-              <textarea className="textarea" placeholder="Tell your team something…" value={body} onChange={e => setBody(e.target.value)} required maxLength={2000} />
-            </div>
-            <button className="btn btn-primary btn-block" disabled={busy || !body.trim()} type="submit">
-              <Megaphone size={18} /> Send to team
-            </button>
-          </form>
-        </div>
-      )}
-
-      <h2 style={{ margin: '24px 0 16px' }}>Recent announcements</h2>
-      {announcements.loading && <div className="loading">Loading…</div>}
-      {!announcements.loading && announcements.data.length === 0 && (
-        <div className="card">
-          <div className="empty" style={{ padding: 24 }}>
-            <Megaphone size={36} color="#666" style={{ margin: '0 auto' }} />
-            <p>No announcements yet.</p>
-          </div>
-        </div>
-      )}
-      {announcements.data.map(a => (
-        <div key={a.id} className="card">
-          <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-            {a.authorEmail || 'Team'} · {new Date(a.createdAt).toLocaleString()}
-          </div>
-          <div style={{ fontSize: 16, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{a.body}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
 // SETTINGS MODAL
 // ═══════════════════════════════════════════════════════════
-function SettingsModal({ user, onClose, onLogout, onUserUpdate }) {
+function SettingsModal({ onClose }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [delPw, setDelPw] = useState('');
-  const [delConfirm, setDelConfirm] = useState('');
-  const [delErr, setDelErr] = useState(null);
 
   const exportData = async () => {
     setBusy(true);
@@ -2032,58 +1783,14 @@ function SettingsModal({ user, onClose, onLogout, onUserUpdate }) {
     finally { setBusy(false); }
   };
 
-  const deleteAccount = async () => {
-    setDelErr(null);
-    if (delConfirm !== 'DELETE') { setDelErr('Type DELETE to confirm'); return; }
-    if (!delPw) { setDelErr('Password required'); return; }
-    setBusy(true);
-    try {
-      await api('/api/auth/account', { method: 'DELETE', body: { password: delPw, confirmation: 'DELETE' } });
-      toast('Account deleted');
-      onLogout();
-    } catch (e) { setDelErr(e.message); setBusy(false); }
-  };
-
   return (
     <Modal title="Settings" onClose={onClose}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Email</div>
-        <div style={{ fontSize: 16, fontWeight: 500 }}>{user.email}</div>
-      </div>
-
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Role</div>
-        <div style={{ fontSize: 16, fontWeight: 500 }}>{user.role === 'owner' ? 'Owner' : 'Staff'}</div>
-      </div>
-
-      <button className="btn btn-ghost btn-block" onClick={exportData} disabled={busy} style={{ marginBottom: 10 }}>
-        Export my data
+      <p style={{ color: '#666', marginTop: 0, marginBottom: 18, fontSize: 14 }}>
+        This is a shared workspace. Everyone with the access code sees and edits the same stock.
+      </p>
+      <button className="btn btn-ghost btn-block" onClick={exportData} disabled={busy}>
+        Export a backup of all data
       </button>
-
-      <button className="btn btn-ghost btn-block" onClick={onLogout} style={{ marginBottom: 24 }}>
-        <LogOut size={18} /> Sign out
-      </button>
-
-      <div style={{ paddingTop: 18, borderTop: '1px solid #e0e4eb' }}>
-        {!showDelete ? (
-          <button className="btn btn-ghost btn-block" style={{ color: '#c4453a' }} onClick={() => setShowDelete(true)}>
-            <Trash2 size={18} /> Delete account
-          </button>
-        ) : (
-          <div style={{ padding: 14, background: 'rgba(196,69,58,0.06)', borderRadius: 12, border: '1px solid rgba(196,69,58,0.3)' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#c4453a', marginBottom: 10 }}>
-              This permanently deletes your account and all data. Cannot be undone.
-            </div>
-            <input className="input" type="password" placeholder="Password" value={delPw} onChange={e => { setDelErr(null); setDelPw(e.target.value); }} style={{ marginBottom: 8 }} />
-            <input className="input" type="text" placeholder="Type DELETE" value={delConfirm} onChange={e => { setDelErr(null); setDelConfirm(e.target.value); }} style={{ marginBottom: 8 }} />
-            {delErr && <div style={{ color: '#c4453a', fontSize: 13, marginBottom: 8 }}>{delErr}</div>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setShowDelete(false); setDelPw(''); setDelConfirm(''); setDelErr(null); }}>Cancel</button>
-              <button className="btn btn-danger" style={{ flex: 1 }} disabled={busy} onClick={deleteAccount}>{busy ? 'Deleting…' : 'Delete'}</button>
-            </div>
-          </div>
-        )}
-      </div>
     </Modal>
   );
 }
@@ -2158,13 +1865,6 @@ function AppInner() {
     return () => window.removeEventListener('app:unauth', handler);
   }, []);
 
-  const logout = async () => {
-    try { await api('/api/auth/logout', { method: 'POST', body: {} }); } catch {}
-    setToken(null);
-    setUser(null);
-    setBusiness(null);
-  };
-
   if (checking) {
     return (
       <div className="auth-screen">
@@ -2180,7 +1880,7 @@ function AppInner() {
     return <AccessGate onAuthed={(u, b) => { setUser(u); setBusiness(b); }} />;
   }
 
-  return <MainApp user={user} business={business} onLogout={logout} onUserUpdate={setUser} />;
+  return <MainApp user={user} business={business} />;
 }
 
 export default function App() {
