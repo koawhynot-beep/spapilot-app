@@ -17,6 +17,9 @@ const setToken = (t) => {
   else localStorage.removeItem(TOKEN_KEY);
 };
 
+// Money is Indonesian Rupiah everywhere in this app.
+const idr = (n) => 'IDR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+
 // ── Error Boundary ────────────────────────────────────────
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -153,7 +156,7 @@ function MainApp({ user, business }) {
     if (!selectedShopId && shops.data.length > 0) {
       setSelectedShopId(shops.data[0].id);
     }
-    if (selectedShopId && !shops.data.find(s => s.id === selectedShopId)) {
+    if (selectedShopId && selectedShopId !== 'all' && !shops.data.find(s => s.id === selectedShopId)) {
       setSelectedShopId(shops.data[0]?.id || null);
     }
   }, [shops.data, selectedShopId]);
@@ -247,9 +250,10 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   const [reorderOpen, setReorderOpen] = useState(false);
   const isOwner = user.role === 'owner';
   const perms = isOwner ? { canEditStock: true, canAddItems: true, canDeleteItems: true } : user.permissions || {};
+  const isAll = selectedShopId === 'all';  // combined read-only view across all shops
 
   const loadGroups = useCallback(() => {
-    if (!selectedShopId) { setGroups([]); return; }
+    if (!selectedShopId || selectedShopId === 'all') { setGroups([]); return; }
     api(`/api/shops/${selectedShopId}/groups`)
       .then(d => setGroups(Array.isArray(d) ? d : []))
       .catch(() => {});
@@ -270,10 +274,35 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
     setLoading(true); setError(null);
     const params = new URLSearchParams();
     if (search) params.set('search', search);
-    if (selectedGroup !== 'all') params.set('group', selectedGroup);
     if (fabricFilter) params.set('fabric', fabricFilter);
     if (colorFilter) params.set('color', colorFilter);
     if (sizeFilter) params.set('size', sizeFilter);
+
+    if (selectedShopId === 'all') {
+      // Combined view — aggregate across every shop (read-only).
+      const qs = params.toString();
+      api(`/api/business/stock-overview${qs ? `?${qs}` : ''}`)
+        .then(d => {
+          const items = (d?.items || []).map((it, i) => ({
+            id: `all-${it.sku || i}-${i}`,
+            name: it.name,
+            sku: it.sku,
+            fabric: it.fabric,
+            color: it.color,
+            size: it.size,
+            price: it.price,
+            qty: it.total || 0,
+            threshold: 5,
+            byShop: it.byShop || {},
+          }));
+          setItems(items);
+          setLoading(false);
+        })
+        .catch(e => { setError(e.message); setLoading(false); });
+      return;
+    }
+
+    if (selectedGroup !== 'all') params.set('group', selectedGroup);
     const qs = params.toString();
     const url = `/api/shops/${selectedShopId}/stock${qs ? `?${qs}` : ''}`;
     api(url)
@@ -286,7 +315,8 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   // Load distinct fabric/color/size values for the current shop (populates dropdowns).
   useEffect(() => {
     if (!selectedShopId) { setFacets({ fabrics: [], colors: [], sizes: [] }); return; }
-    api(`/api/shops/${selectedShopId}/facets`)
+    const url = selectedShopId === 'all' ? '/api/business/facets' : `/api/shops/${selectedShopId}/facets`;
+    api(url)
       .then(d => setFacets({
         fabrics: Array.isArray(d?.fabrics) ? d.fabrics : [],
         colors: Array.isArray(d?.colors) ? d.colors : [],
@@ -383,7 +413,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
     return { totalItems, totalUnits, totalValue, lowCount, outCount };
   }, [items]);
 
-  const dragEnabled = perms.canEditStock && sortBy === 'default' && statusFilter === 'all';
+  const dragEnabled = perms.canEditStock && sortBy === 'default' && statusFilter === 'all' && !isAll;
 
   if (shops.length === 0) {
     return (
@@ -429,7 +459,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        {perms.canAddItems && (
+        {perms.canAddItems && !isAll && (
           <button className="btn btn-primary" onClick={() => setModal('new')}>
             <Plus size={20} /> Add item
           </button>
@@ -483,6 +513,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         </div>
       )}
 
+      {!isAll && (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <button
           type="button"
@@ -507,6 +538,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           </button>
         )}
       </div>
+      )}
 
       <div className="stock-summary">
         <div className="stat">
@@ -519,7 +551,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         </div>
         {summary.totalValue > 0 && (
           <div className="stat">
-            <div className="stat-num">{summary.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+            <div className="stat-num" style={{ fontSize: 20 }}>{idr(summary.totalValue)}</div>
             <div className="stat-label">total value</div>
           </div>
         )}
@@ -647,8 +679,8 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
               </div>
               {Number(item.price) > 0 && (
                 <div className="list-item-sub" style={{ fontSize: 13, marginTop: 4, fontWeight: 600, color: 'var(--primary)' }}>
-                  {Number(item.price).toLocaleString(undefined, { maximumFractionDigits: 2 })} per unit
-                  {item.qty > 0 && <span style={{ color: '#666', fontWeight: 400 }}> · total {(item.qty * Number(item.price)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
+                  {idr(item.price)} per unit
+                  {item.qty > 0 && <span style={{ color: '#666', fontWeight: 400 }}> · total {idr(item.qty * Number(item.price))}</span>}
                 </div>
               )}
               <div className="list-item-sub" style={{ fontSize: 12, marginTop: 4 }}>
@@ -664,13 +696,27 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
               {low && !out && <span className="badge badge-warning" style={{ marginTop: 6, display: 'inline-block' }}>LOW STOCK</span>}
               </div>
             </div>
-            <button className="qty-btn" disabled={!perms.canEditStock || item.qty === 0} onClick={() => updateQty(item, -1)} aria-label="decrease">
-              <Minus size={18} />
-            </button>
-            <div className={`stock-qty-large ${out ? 'out' : low ? 'low' : ''}`}>{item.qty}</div>
-            <button className="qty-btn" disabled={!perms.canEditStock} onClick={() => updateQty(item, 1)} aria-label="increase">
-              <Plus size={18} />
-            </button>
+            {isAll ? (
+              <div className={`stock-qty-large ${out ? 'out' : low ? 'low' : ''}`} style={{ gridColumn: '2 / -1', justifySelf: 'end' }}>{item.qty}</div>
+            ) : (
+              <>
+                <button className="qty-btn" disabled={!perms.canEditStock || item.qty === 0} onClick={() => updateQty(item, -1)} aria-label="decrease">
+                  <Minus size={18} />
+                </button>
+                <div className={`stock-qty-large ${out ? 'out' : low ? 'low' : ''}`}>{item.qty}</div>
+                <button className="qty-btn" disabled={!perms.canEditStock} onClick={() => updateQty(item, 1)} aria-label="increase">
+                  <Plus size={18} />
+                </button>
+              </>
+            )}
+            {isAll && (
+              <div className="list-item-sub" style={{ gridColumn: '1 / -1', marginTop: 8, fontSize: 13, color: '#555', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                {Object.entries(item.byShop || {}).map(([shopName, q]) => (
+                  <span key={shopName}><strong>{shopName}:</strong> {q}</span>
+                ))}
+              </div>
+            )}
+            {!isAll && (
             <div className="list-item-actions" style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
               {perms.canEditStock && (
                 <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '10px 14px', fontSize: 14 }} onClick={() => setLogModal(item)}>
@@ -693,6 +739,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
                 </button>
               )}
             </div>
+            )}
           </div>
         );
       })}
@@ -1052,7 +1099,12 @@ function ShopPicker({ shops, selectedShopId, onSelect }) {
   return (
     <div className="field">
       <label>Shop</label>
-      <select className="select" value={selectedShopId || ''} onChange={e => onSelect(Number(e.target.value))}>
+      <select
+        className="select"
+        value={selectedShopId == null ? '' : String(selectedShopId)}
+        onChange={e => onSelect(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+      >
+        <option value="all">All Stock (every shop)</option>
         {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
       </select>
     </div>
@@ -1166,7 +1218,7 @@ function StockModal({ item, shopId, onClose, onSaved }) {
           </div>
         </div>
         <div className="field">
-          <label>Price per unit (optional)</label>
+          <label>Price per unit (IDR, optional)</label>
           <input
             className="input"
             type="number"
