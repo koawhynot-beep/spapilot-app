@@ -244,12 +244,14 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   const [groupSelectorOpen, setGroupSelectorOpen] = useState(false);
   const [dragId, setDragId] = useState(null);
   const [overId, setOverId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'low' | 'out'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'in' | 'low' | 'out'
+  const [styleFilter, setStyleFilter] = useState('');
   const [fabricFilter, setFabricFilter] = useState('');
   const [colorFilter, setColorFilter] = useState('');
   const [sizeFilter, setSizeFilter] = useState('');
-  const [facets, setFacets] = useState({ fabrics: [], colors: [], sizes: [] });
-  const [sortBy, setSortBy] = useState('default'); // 'default'|'name'|'qty-asc'|'qty-desc'|'recent'|'sold'
+  const [facets, setFacets] = useState({ styles: [], fabrics: [], colors: [], sizes: [] });
+  // Default browse order: fabric → colour → style.
+  const [sortBy, setSortBy] = useState('fabric-color');
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [reorderOpen, setReorderOpen] = useState(false);
   const isOwner = user.role === 'owner';
@@ -278,9 +280,11 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
     setLoading(true); setError(null);
     const params = new URLSearchParams();
     if (search) params.set('search', search);
+    if (styleFilter) params.set('style', styleFilter);
     if (fabricFilter) params.set('fabric', fabricFilter);
     if (colorFilter) params.set('color', colorFilter);
     if (sizeFilter) params.set('size', sizeFilter);
+    params.set('sort', sortBy);
 
     if (selectedShopId === 'all') {
       // Combined view — aggregate across every shop (read-only).
@@ -291,6 +295,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
             id: `all-${it.sku || i}-${i}`,
             name: it.name,
             sku: it.sku,
+            category: it.style,
             fabric: it.fabric,
             color: it.color,
             size: it.size,
@@ -312,26 +317,29 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
     api(url)
       .then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
-  }, [selectedShopId, search, selectedGroup, fabricFilter, colorFilter, sizeFilter]);
+  }, [selectedShopId, search, selectedGroup, styleFilter, fabricFilter, colorFilter, sizeFilter, sortBy]);
 
   useEffect(() => { loadStock(); }, [loadStock]);
 
-  // Load distinct fabric/color/size values for the current shop (populates dropdowns).
+  // Load distinct style/fabric/color/size values for the current shop (populates dropdowns).
+  const EMPTY_FACETS = { styles: [], fabrics: [], colors: [], sizes: [] };
   useEffect(() => {
-    if (!selectedShopId) { setFacets({ fabrics: [], colors: [], sizes: [] }); return; }
+    if (!selectedShopId) { setFacets(EMPTY_FACETS); return; }
     const url = selectedShopId === 'all' ? '/api/business/facets' : `/api/shops/${selectedShopId}/facets`;
     api(url)
       .then(d => setFacets({
+        styles: Array.isArray(d?.styles) ? d.styles : [],
         fabrics: Array.isArray(d?.fabrics) ? d.fabrics : [],
         colors: Array.isArray(d?.colors) ? d.colors : [],
         sizes: Array.isArray(d?.sizes) ? d.sizes : [],
       }))
-      .catch(() => setFacets({ fabrics: [], colors: [], sizes: [] }));
+      .catch(() => setFacets(EMPTY_FACETS));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedShopId]);
 
   // Reset filters when shop changes so a filter from shop A doesn't carry to shop B (may not apply).
   useEffect(() => {
-    setFabricFilter(''); setColorFilter(''); setSizeFilter('');
+    setStyleFilter(''); setFabricFilter(''); setColorFilter(''); setSizeFilter('');
   }, [selectedShopId]);
 
   const moveItemToGroup = async (item, groupId) => {
@@ -385,24 +393,13 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
   };
   const onDragEndRow = () => { setDragId(null); setOverId(null); };
 
-  // ── Filter + sort (client-side over the loaded items) ────
+  // Sorting happens server-side; only the stock-status filter is client-side.
   const displayedItems = useMemo(() => {
-    let arr = items;
-    if (statusFilter === 'low') {
-      arr = arr.filter(i => i.qty > 0 && i.qty <= i.threshold);
-    } else if (statusFilter === 'out') {
-      arr = arr.filter(i => i.qty === 0);
-    }
-    if (sortBy !== 'default') {
-      arr = [...arr];
-      if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name));
-      else if (sortBy === 'qty-asc') arr.sort((a, b) => a.qty - b.qty);
-      else if (sortBy === 'qty-desc') arr.sort((a, b) => b.qty - a.qty);
-      else if (sortBy === 'recent') arr.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      else if (sortBy === 'sold') arr.sort((a, b) => new Date(b.lastSoldAt || 0) - new Date(a.lastSoldAt || 0));
-    }
-    return arr;
-  }, [items, statusFilter, sortBy]);
+    if (statusFilter === 'in')  return items.filter(i => i.qty > i.threshold);
+    if (statusFilter === 'low') return items.filter(i => i.qty > 0 && i.qty <= i.threshold);
+    if (statusFilter === 'out') return items.filter(i => i.qty === 0);
+    return items;
+  }, [items, statusFilter]);
 
   // ── Aggregate summary for visible shop scope ─────────────
   const summary = useMemo(() => {
@@ -417,7 +414,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
     return { totalItems, totalUnits, inStockCount, lowCount, outCount };
   }, [items]);
 
-  const dragEnabled = perms.canEditStock && sortBy === 'default' && statusFilter === 'all' && !isAll;
+  const dragEnabled = perms.canEditStock && sortBy === 'custom' && statusFilter === 'all' && !isAll;
 
   if (shops.length === 0) {
     return (
@@ -470,8 +467,19 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
         )}
       </div>
 
-      {(facets.fabrics.length > 0 || facets.colors.length > 0 || facets.sizes.length > 0) && (
+      {(facets.styles.length > 0 || facets.fabrics.length > 0 || facets.colors.length > 0 || facets.sizes.length > 0) && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          {facets.styles.length > 0 && (
+            <select
+              className="sort-select"
+              value={styleFilter}
+              onChange={e => setStyleFilter(e.target.value)}
+              aria-label="filter by style"
+            >
+              <option value="">All styles ({facets.styles.length})</option>
+              {facets.styles.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
           {facets.fabrics.length > 0 && (
             <select
               className="sort-select"
@@ -505,11 +513,11 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
               {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
-          {(fabricFilter || colorFilter || sizeFilter) && (
+          {(styleFilter || fabricFilter || colorFilter || sizeFilter) && (
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => { setFabricFilter(''); setColorFilter(''); setSizeFilter(''); }}
+              onClick={() => { setStyleFilter(''); setFabricFilter(''); setColorFilter(''); setSizeFilter(''); }}
             >
               <X size={16} /> Clear filters
             </button>
@@ -582,6 +590,13 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           </button>
           <button
             type="button"
+            className={`seg-btn ${statusFilter === 'in' ? 'seg-active seg-good' : ''}`}
+            onClick={() => setStatusFilter('in')}
+          >
+            In stock {summary.inStockCount > 0 && <span className="seg-count">{summary.inStockCount}</span>}
+          </button>
+          <button
+            type="button"
             className={`seg-btn ${statusFilter === 'low' ? 'seg-active seg-warning' : ''}`}
             onClick={() => setStatusFilter('low')}
           >
@@ -601,12 +616,13 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
           onChange={e => setSortBy(e.target.value)}
           aria-label="sort"
         >
-          <option value="default">Sort: Custom (drag)</option>
-          <option value="name">Sort: Name A-Z</option>
+          <option value="fabric-color">Sort: Fabric → Colour → Style</option>
+          <option value="color">Sort: Colour A-Z</option>
+          <option value="style">Sort: Style A-Z</option>
+          <option value="name">Sort: Product name A-Z</option>
           <option value="qty-asc">Sort: Quantity (low first)</option>
           <option value="qty-desc">Sort: Quantity (high first)</option>
-          <option value="recent">Sort: Recently added</option>
-          <option value="sold">Sort: Recently sold</option>
+          {!isAll && <option value="custom">Sort: Custom (drag)</option>}
         </select>
       </div>
 
@@ -674,11 +690,16 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops })
                 </button>
               )}
               <div className="row-text">
-              <div className="list-item-title">{item.name}</div>
-              <div className="list-item-sub">
-                {[item.category, item.fabric, item.print, item.size, item.color, item.brand].filter(Boolean).join(' · ') || 'No details'}
-                {item.sku && <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 13 }}>SKU: {item.sku}</span>}
+              {/* One bold line: STYLE · FABRIC · COLOUR · SIZE (no duplicate name line). */}
+              <div className="list-item-title">
+                {[item.category, item.fabric, item.print, item.color, item.size, item.brand]
+                  .filter(Boolean).join(' · ') || item.name}
               </div>
+              {item.sku && (
+                <div className="list-item-sub" style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                  SKU: {item.sku}
+                </div>
+              )}
               {Number(item.price) > 0 && (
                 <div className="list-item-sub" style={{ fontSize: 13, marginTop: 4, fontWeight: 600, color: 'var(--primary)' }}>
                   {idr(item.price)} per unit
@@ -1456,30 +1477,35 @@ function OverviewView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const [styleFilter, setStyleFilter] = useState('');
   const [fabricFilter, setFabricFilter] = useState('');
   const [colorFilter, setColorFilter] = useState('');
   const [sizeFilter, setSizeFilter] = useState('');
-  const [facets, setFacets] = useState({ fabrics: [], colors: [], sizes: [] });
-  const [sortBy, setSortBy] = useState('name'); // 'name' | 'total-desc' | 'total-asc'
+  const [facets, setFacets] = useState({ styles: [], fabrics: [], colors: [], sizes: [] });
+  // Default browse order: fabric → colour → style.
+  const [sortBy, setSortBy] = useState('fabric-color');
 
   const load = useCallback(() => {
     setLoading(true); setError(null);
     const params = new URLSearchParams();
     if (search) params.set('search', search);
+    if (styleFilter) params.set('style', styleFilter);
     if (fabricFilter) params.set('fabric', fabricFilter);
     if (colorFilter) params.set('color', colorFilter);
     if (sizeFilter) params.set('size', sizeFilter);
+    params.set('sort', sortBy);
     const qs = params.toString();
     api(`/api/business/stock-overview${qs ? `?${qs}` : ''}`)
       .then(d => { setData(d || { shops: [], items: [] }); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
-  }, [search, fabricFilter, colorFilter, sizeFilter]);
+  }, [search, styleFilter, fabricFilter, colorFilter, sizeFilter, sortBy]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     api('/api/business/facets')
       .then(d => setFacets({
+        styles: Array.isArray(d?.styles) ? d.styles : [],
         fabrics: Array.isArray(d?.fabrics) ? d.fabrics : [],
         colors: Array.isArray(d?.colors) ? d.colors : [],
         sizes: Array.isArray(d?.sizes) ? d.sizes : [],
@@ -1487,13 +1513,8 @@ function OverviewView() {
       .catch(() => {});
   }, []);
 
-  const sortedItems = useMemo(() => {
-    const arr = [...data.items];
-    if (sortBy === 'total-desc') arr.sort((a, b) => b.total - a.total);
-    else if (sortBy === 'total-asc') arr.sort((a, b) => a.total - b.total);
-    else arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    return arr;
-  }, [data.items, sortBy]);
+  // Server already returns rows in the requested order.
+  const sortedItems = data.items;
 
   const summary = useMemo(() => {
     const perShop = {};
@@ -1517,38 +1538,45 @@ function OverviewView() {
         />
       </div>
 
-      {(facets.fabrics.length > 0 || facets.colors.length > 0 || facets.sizes.length > 0) && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          {facets.fabrics.length > 0 && (
-            <select className="sort-select" value={fabricFilter} onChange={e => setFabricFilter(e.target.value)} aria-label="filter by fabric">
-              <option value="">All fabrics ({facets.fabrics.length})</option>
-              {facets.fabrics.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          )}
-          {facets.colors.length > 0 && (
-            <select className="sort-select" value={colorFilter} onChange={e => setColorFilter(e.target.value)} aria-label="filter by colour">
-              <option value="">All colours ({facets.colors.length})</option>
-              {facets.colors.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          )}
-          {facets.sizes.length > 0 && (
-            <select className="sort-select" value={sizeFilter} onChange={e => setSizeFilter(e.target.value)} aria-label="filter by size">
-              <option value="">All sizes ({facets.sizes.length})</option>
-              {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          )}
-          <select className="sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="sort">
-            <option value="name">Sort: Name A-Z</option>
-            <option value="total-desc">Sort: Most stock first</option>
-            <option value="total-asc">Sort: Least stock first</option>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        {facets.styles.length > 0 && (
+          <select className="sort-select" value={styleFilter} onChange={e => setStyleFilter(e.target.value)} aria-label="filter by style">
+            <option value="">All styles ({facets.styles.length})</option>
+            {facets.styles.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          {(fabricFilter || colorFilter || sizeFilter) && (
-            <button type="button" className="btn btn-ghost" onClick={() => { setFabricFilter(''); setColorFilter(''); setSizeFilter(''); }}>
-              <X size={16} /> Clear filters
-            </button>
-          )}
-        </div>
-      )}
+        )}
+        {facets.fabrics.length > 0 && (
+          <select className="sort-select" value={fabricFilter} onChange={e => setFabricFilter(e.target.value)} aria-label="filter by fabric">
+            <option value="">All fabrics ({facets.fabrics.length})</option>
+            {facets.fabrics.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        )}
+        {facets.colors.length > 0 && (
+          <select className="sort-select" value={colorFilter} onChange={e => setColorFilter(e.target.value)} aria-label="filter by colour">
+            <option value="">All colours ({facets.colors.length})</option>
+            {facets.colors.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+        {facets.sizes.length > 0 && (
+          <select className="sort-select" value={sizeFilter} onChange={e => setSizeFilter(e.target.value)} aria-label="filter by size">
+            <option value="">All sizes ({facets.sizes.length})</option>
+            {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+        <select className="sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="sort">
+          <option value="fabric-color">Sort: Fabric → Colour → Style</option>
+          <option value="color">Sort: Colour A-Z</option>
+          <option value="style">Sort: Style A-Z</option>
+          <option value="name">Sort: Product name A-Z</option>
+          <option value="total-desc">Sort: Most stock first</option>
+          <option value="total-asc">Sort: Least stock first</option>
+        </select>
+        {(styleFilter || fabricFilter || colorFilter || sizeFilter) && (
+          <button type="button" className="btn btn-ghost" onClick={() => { setStyleFilter(''); setFabricFilter(''); setColorFilter(''); setSizeFilter(''); }}>
+            <X size={16} /> Clear filters
+          </button>
+        )}
+      </div>
 
       <div className="stock-summary">
         <div className="stat">

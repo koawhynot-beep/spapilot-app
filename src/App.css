@@ -673,6 +673,7 @@
 }
 .filter-segment .seg-warning.seg-active { background: var(--warning); }
 .filter-segment .seg-danger.seg-active { background: var(--danger); }
+.filter-segment .seg-good.seg-active { background: #2d8659; }
 .filter-segment .seg-count {
   font-size: 12px;
   font-weight: 700;
@@ -903,7 +904,17 @@
 }
 .overview-table tbody tr:hover { background: #fafbfd; }
 .overview-table .num { text-align: right; font-variant-numeric: tabular-nums; }
-.overview-table .total-col { background: #f4f6f9; }
+/* Total is pinned to the right edge so it never scrolls out of view. */
+.overview-table .total-col {
+  position: sticky;
+  right: 0;
+  background: #eef1f6;
+  font-weight: 700;
+  z-index: 1;
+  box-shadow: inset 1px 0 0 var(--border);
+}
+.overview-table thead .total-col { background: #e7ebf2; z-index: 3; }
+.overview-table tbody tr:hover .total-col { background: #e4e9f1; }
 .overview-table .sticky-col {
   position: sticky;
   left: 0;
