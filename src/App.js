@@ -3,7 +3,7 @@ import {
   Package, Store, Plus, Trash2, Edit2,
   RefreshCw, Check, X, AlertTriangle, Copy, Settings,
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
-  MoreHorizontal, ArrowUp, ArrowDown,
+  MoreHorizontal,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import './App.css';
@@ -246,18 +246,6 @@ function StatCard({ value, label, tone, active, onClick }) {
     <button type="button" className={cls} onClick={onClick} aria-pressed={!!active}>
       {body}
     </button>
-  );
-}
-
-// ↑ / ↓ against the previous equivalent period. null = no prior data to compare.
-  if (value === null || value === undefined) return <span className="trend trend-flat">—</span>;
-  if (value === 0) return <span className="trend trend-flat">0%</span>;
-  const up = value > 0;
-  const pct = Math.abs(Math.round(value * 100));
-  return (
-    <span className={`trend ${up ? 'trend-up' : 'trend-down'}`}>
-      {up ? <ArrowUp size={13} /> : <ArrowDown size={13} />}{pct}%
-    </span>
   );
 }
 
@@ -1643,8 +1631,6 @@ function OverviewView({ onRestock }) {
   const [data, setData] = useState({ shops: [], items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [best, setBest] = useState(null);        // null until first load
-  const [activity, setActivity] = useState(null);
   const [search, setSearch] = useState('');
   const [styleFilter, setStyleFilter] = useState('');
   const [fabricFilter, setFabricFilter] = useState('');
@@ -1680,11 +1666,6 @@ function OverviewView({ onRestock }) {
         sizes: Array.isArray(d?.sizes) ? d.sizes : [],
       }))
       .catch(() => {});
-    // Dashboard panels are independent of the table's filters.
-    api('/api/business/best-sellers?days=365&limit=10')
-      .then(d => setBest(Array.isArray(d?.items) ? d.items : []))
-      .catch(() => setBest([]));
-    api('/api/business/activity?limit=12')
   }, []);
 
   // Server already returns rows in the requested order.
@@ -1701,9 +1682,6 @@ function OverviewView({ onRestock }) {
       for (const s of data.shops) perShop[s] += it.byShop[s] || 0;
     }
     return { perShop, grand, low, out, skuCount: data.items.length };
-  }, [data]);
-
-  // Products needing restock, most urgent first.
   }, [data]);
 
   const activeFilterCount =
