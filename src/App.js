@@ -238,7 +238,10 @@ function StatCard({ value, label, tone, active, onClick }) {
   const body = (
     <>
       <div className="stat-num">{typeof value === 'number' ? value.toLocaleString() : value}</div>
-      <div className="stat-label">{label}</div>
+      <div className="stat-label">
+        {tone && <span className="stat-dot" aria-hidden="true" />}
+        {label}
+      </div>
     </>
   );
   if (!onClick) return <div className={cls}>{body}</div>;
@@ -691,7 +694,14 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
         </div>
       )}
 
-      {/* The three numbers that matter — and the primary way to slice the list. */}
+      {/* The three numbers that matter — and the primary way to slice the list.
+          The scope note matters: per-shop counts are naturally larger than the
+          all-shops ones, because a product can be empty here but stocked elsewhere. */}
+      <p className="scope-note">
+        {isAll
+          ? 'Counted across all shops combined.'
+          : `Counted at ${shops.find(s => s.id === selectedShopId)?.name || 'this shop'} only — a product can be out here but still in stock at another shop.`}
+      </p>
       <div className="stat-grid">
         <StatCard
           value={summary.inStockCount}
@@ -717,24 +727,24 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
       </div>
 
       <Disclosure
-        title="More numbers"
-        tail={`${summary.totalItems.toLocaleString()} products · ${summary.totalUnits.toLocaleString()} units`}
+        title="Totals"
+        tail={`${summary.totalItems.toLocaleString()} products · ${summary.totalUnits.toLocaleString()} pieces`}
       >
         <div className="metric-row">
           <div>
-            <div className="metric-label">Products (SKUs)</div>
+            <div className="metric-label">Different products</div>
             <div className="metric-value">{summary.totalItems.toLocaleString()}</div>
-            <div className="detail-k" style={{ marginTop: 4 }}>different items in catalog</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>each colour and size counts once</div>
           </div>
           <div>
-            <div className="metric-label">Total units</div>
+            <div className="metric-label">Total pieces</div>
             <div className="metric-value">{summary.totalUnits.toLocaleString()}</div>
-            <div className="detail-k" style={{ marginTop: 4 }}>pieces across all locations</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>actual garments on the rails</div>
           </div>
           <div>
-            <div className="metric-label">Needs reorder</div>
+            <div className="metric-label">Need reordering</div>
             <div className="metric-value">{(summary.lowCount + summary.outCount).toLocaleString()}</div>
-            <div className="detail-k" style={{ marginTop: 4 }}>below low-stock threshold</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>low stock plus out of stock</div>
           </div>
         </div>
       </Disclosure>
@@ -819,13 +829,13 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
               </div>
 
               {isAll ? (
-                <div className={`qty-value ${out ? 'out' : low ? 'low' : ''}`}>{item.qty}</div>
+                <div className="qty-value">{item.qty}</div>
               ) : (
                 <div className="qty-group">
                   <button className="qty-btn" disabled={!perms.canEditStock || item.qty === 0} onClick={() => updateQty(item, -1)} aria-label="decrease">
                     <Minus size={16} />
                   </button>
-                  <div className={`qty-value ${out ? 'out' : low ? 'low' : ''}`}>{item.qty}</div>
+                  <div className="qty-value">{item.qty}</div>
                   <button className="qty-btn" disabled={!perms.canEditStock} onClick={() => updateQty(item, 1)} aria-label="increase">
                     <Plus size={16} />
                   </button>
@@ -1694,29 +1704,48 @@ function OverviewView({ onRestock }) {
     <div>
       {error && <div className="error-banner">{error}</div>}
 
-      {/* Shop selector at top */}
-      <div className="toolbar" style={{ marginBottom: 20 }}>
-        <SearchField value={search} onChange={setSearch} placeholder="Search product, code, fabric, colour…" />
-      </div>
-
-      {/* Six key numbers */}
+      {/* Same three numbers as the Stock tab, so the two views read alike. */}
+      <p className="scope-note">Counted across all shops combined.</p>
       <div className="stat-grid">
-        <StatCard value={summary.skuCount} label="Total products" />
-        <StatCard value={summary.grand} label="Total units" />
         <StatCard value={inStockCount} label="In stock" tone="good" />
         <StatCard value={summary.low} label="Low stock" tone="warn" />
         <StatCard value={summary.out} label="Out of stock" tone="bad" />
       </div>
 
-      {/* Filters */}
-      {/* Full inventory table */}
+      <Disclosure
+        title="Totals"
+        tail={`${summary.skuCount.toLocaleString()} products · ${summary.grand.toLocaleString()} pieces`}
+      >
+        <div className="metric-row">
+          <div>
+            <div className="metric-label">Different products</div>
+            <div className="metric-value">{summary.skuCount.toLocaleString()}</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>each colour and size counts once</div>
+          </div>
+          <div>
+            <div className="metric-label">Total pieces</div>
+            <div className="metric-value">{summary.grand.toLocaleString()}</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>across every shop and the office</div>
+          </div>
+          {data.shops.map(s => (
+            <div key={s}>
+              <div className="metric-label">{s}</div>
+              <div className="metric-value">{(summary.perShop[s] || 0).toLocaleString()}</div>
+              <div className="detail-k" style={{ marginTop: 4 }}>pieces at this location</div>
+            </div>
+          ))}
+        </div>
+      </Disclosure>
+
+      {/* The table is the point of this view: every product, every shop, side by side. */}
       <div className="section-head">
         <h2 className="section-title">All inventory</h2>
+        <span className="section-meta">{sortedItems.length.toLocaleString()} shown</span>
       </div>
-        <div className="toolbar" style={{ marginTop: 4 }}>
-          <SearchField value={search} onChange={setSearch} placeholder="Search product, code, fabric, colour…" />
-        </div>
-        <div className="filter-panel" style={{ boxShadow: 'none', padding: 0, background: 'transparent', marginBottom: 16 }}>
+      <div className="toolbar" style={{ marginTop: 4 }}>
+        <SearchField value={search} onChange={setSearch} placeholder="Search product, code, fabric, colour…" />
+      </div>
+      <div className="filter-panel" style={{ boxShadow: 'none', padding: 0, background: 'transparent', marginBottom: 16 }}>
           {facets.styles.length > 0 && (
             <div className="field">
               <label>Style</label>

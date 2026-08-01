@@ -18,13 +18,15 @@
   --primary-dark: #16263f;
   --primary-soft: #eef2f7;
 
-  /* Status — only ever used for stock health */
-  --good: #5ba876;
-  --good-soft: #eef5f0;
-  --warn: #d9a850;
-  --warn-soft: #fef8ef;
-  --bad: #d67c73;
-  --bad-soft: #fef3f1;
+  /* Status — only ever used for stock health, and only in small doses:
+     a dot beside a label, or a pill on a row that needs attention.
+     Deep + desaturated reads calmer than pastel, and stays legible. */
+  --good: #3d7a5a;
+  --good-soft: #eff4f1;
+  --warn: #8a6420;
+  --warn-soft: #f8f3ea;
+  --bad: #9c4a41;
+  --bad-soft: #f9f0ee;
 
   /* Hairlines — used sparingly */
   --line: #e7eaef;
@@ -373,17 +375,34 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   font-variant-numeric: tabular-nums;
 }
 .stat-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 13px;
   color: var(--text-3);
   font-weight: 500;
   margin-top: 5px;
 }
-.stat-card.tone-good .stat-num { color: var(--good); }
-.stat-card.tone-warn .stat-num { color: var(--warn); }
-.stat-card.tone-bad  .stat-num { color: var(--bad); }
-.stat-card.tone-good.is-active { box-shadow: 0 0 0 2px var(--good), var(--shadow-sm); }
-.stat-card.tone-warn.is-active { box-shadow: 0 0 0 2px var(--warn), var(--shadow-sm); }
-.stat-card.tone-bad.is-active  { box-shadow: 0 0 0 2px var(--bad),  var(--shadow-sm); }
+/* The number stays ink-black. Status is carried by a small dot beside the
+   label — enough to identify the card, quiet enough to not shout. */
+.stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-3);
+}
+.tone-good .stat-dot { background: var(--good); }
+.tone-warn .stat-dot { background: var(--warn); }
+.tone-bad  .stat-dot { background: var(--bad); }
+
+/* Explains what the three numbers above are counting. */
+.scope-note {
+  margin: 0 0 var(--s-3);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
 
 /* ── Disclosure (secondary details) ───────────────────────── */
 .disclosure {
@@ -509,8 +528,8 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.qty-value.low { color: var(--warn); }
-.qty-value.out { color: var(--bad); }
+/* Quantity stays neutral — the pill beside it already says "low"/"out",
+   and colouring both made every second row light up. */
 
 /* Status pill */
 .pill {
