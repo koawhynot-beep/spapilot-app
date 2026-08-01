@@ -3,7 +3,7 @@ import {
   Package, Store, Plus, Trash2, Edit2,
   RefreshCw, Check, X, AlertTriangle, Copy, Settings,
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
-  MoreHorizontal,
+  MoreHorizontal, Sun, Moon,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import './App.css';
@@ -232,6 +232,36 @@ function Disclosure({ title, tail, defaultOpen = false, children }) {
   );
 }
 
+// Light / dark switch. index.html has already applied the stored (or
+// system) choice before paint; this just reads it back and flips it.
+function ThemeToggle() {
+  const [dark, setDark] = useState(
+    () => document.documentElement.getAttribute('data-theme') === 'dark'
+  );
+
+  const toggle = () => {
+    // Read the DOM rather than state: the <head> script owns the initial
+    // value, so state is a mirror and could drift.
+    const next = document.documentElement.getAttribute('data-theme') !== 'dark';
+    setDark(next);
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    try { localStorage.setItem('ms-theme', next ? 'dark' : 'light'); } catch (e) { /* ignore */ }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', next ? '#16130f' : '#f2efe9');
+  };
+
+  return (
+    <button
+      className="topbar-btn"
+      onClick={toggle}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={dark ? 'Light mode' : 'Dark mode'}
+    >
+      {dark ? <Sun size={19} /> : <Moon size={19} />}
+    </button>
+  );
+}
+
 // Stat card. Clickable variants double as the stock-status filter.
 function StatCard({ value, label, tone, active, onClick }) {
   const cls = `stat-card ${tone ? `tone-${tone}` : ''} ${active ? 'is-active' : ''}`;
@@ -290,9 +320,12 @@ function MainApp({ user, business }) {
           <h1>Mitra Samadi</h1>
           <div className="topbar-sub">{business?.name || 'Your business'}</div>
         </div>
-        <button className="topbar-btn" onClick={() => setShowSettings(true)} aria-label="settings">
-          <Settings size={19} />
-        </button>
+        <div className="topbar-actions">
+          <ThemeToggle />
+          <button className="topbar-btn" onClick={() => setShowSettings(true)} aria-label="settings">
+            <Settings size={19} />
+          </button>
+        </div>
       </div>
 
       <div className="container">

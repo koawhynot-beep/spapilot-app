@@ -1,42 +1,57 @@
 /* Mitra Samadi — calm, modern inventory UI.
    Principles: whitespace over borders, soft shadows over outlines,
-   one navy accent, colour reserved for stock that needs attention. */
+   a near-black accent, colour reserved for stock that needs attention.
+   Every colour is a token below, so light and dark stay in step. */
 
+/* ── Light: warm paper ─────────────────────────────────────────
+   Cold white-on-white (#f7f8fa under #ffffff) had no tonal step, so
+   nothing read as layered. Warm paper under warm white gives cards
+   something to sit on, and suits a clothing boutique far better than
+   a blue-grey admin panel. */
 :root {
+  color-scheme: light;
+
   /* Surfaces */
-  --bg: #f7f8fa;
-  --card: #ffffff;
-  --surface-2: #f2f4f7;
+  --bg: #f2efe9;
+  --card: #fffefb;
+  --surface-2: #e9e4db;
+  --surface-3: #ded7cb;
+  --row-hover: #f7f4ee;
 
-  /* Ink */
-  --text: #1c2024;
-  --text-2: #5b6470;
-  --text-3: #8b949f;
+  /* Ink — warm near-black, not blue-black */
+  --text: #26211c;
+  --text-2: #5e564c;
+  --text-3: #746a5c;
 
-  /* Single accent */
-  --primary: #1e3a5f;
-  --primary-dark: #16263f;
-  --primary-soft: #eef2f7;
+  /* Accent: espresso. Deliberately near-black — it never competes with
+     the status colours, which stay the only real colour on screen. */
+  --primary: #33291f;
+  --primary-dark: #1f1811;
+  --primary-soft: #efe9e0;
+  --on-primary: #fffefb;
+  --focus-ring: rgba(51, 41, 31, 0.14);
+  --on-primary-veil: rgba(255, 255, 255, 0.22);
 
   /* Status — only ever used for stock health, and only in small doses:
-     a dot beside a label, or a pill on a row that needs attention.
-     Deep + desaturated reads calmer than pastel, and stays legible. */
-  --good: #3d7a5a;
-  --good-soft: #eff4f1;
+     a dot beside a label, or a pill on a row that needs attention. */
+  --good: #3d6b4f;
+  --good-soft: #e7eee8;
   --warn: #8a6420;
-  --warn-soft: #f8f3ea;
+  --warn-soft: #f4ecdb;
   --bad: #9c4a41;
-  --bad-soft: #f9f0ee;
+  --bad-soft: #f5e6e1;
+  --on-bad: #fffefb;
 
   /* Hairlines — used sparingly */
-  --line: #e7eaef;
-  --line-soft: #f0f2f5;
+  --line: #e2dbd0;
+  --line-soft: #ece7de;
 
   /* Soft elevation instead of outlines */
-  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.07), 0 1px 3px rgba(16, 24, 40, 0.04);
-  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.11), 0 2px 8px rgba(16, 24, 40, 0.05);
+  --overlay: rgba(38, 33, 28, 0.42);
+  --shadow-xs: 0 1px 2px rgba(38, 33, 28, 0.05);
+  --shadow-sm: 0 1px 3px rgba(38, 33, 28, 0.07), 0 1px 2px rgba(38, 33, 28, 0.04);
+  --shadow-md: 0 4px 16px rgba(38, 33, 28, 0.09), 0 1px 3px rgba(38, 33, 28, 0.05);
+  --shadow-lg: 0 12px 32px rgba(38, 33, 28, 0.14), 0 2px 8px rgba(38, 33, 28, 0.06);
 
   /* Consistent rounding */
   --r-sm: 8px;
@@ -53,6 +68,52 @@
   --s-5: 24px;
   --s-6: 32px;
   --s-7: 48px;
+}
+
+/* ── Dark: warm charcoal ───────────────────────────────────────
+   Browns rather than blue-blacks, so it reads as the same brand at
+   night. Status colours are lightened here — the deep light-mode
+   versions are unreadable on a dark surface. index.html sets
+   data-theme before paint, so there is no flash of the wrong theme. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #16130f;
+  --card: #211d17;
+  --surface-2: #2c2720;
+  --surface-3: #383129;
+  --row-hover: #282219;
+
+  --text: #f0ebe2;
+  --text-2: #b5ab9b;
+  --text-3: #948b7d;
+
+  /* Inverted: a pale button on a dark field, with dark ink on top. */
+  --primary: #e9e0d1;
+  --primary-dark: #d6cbb8;
+  --primary-soft: #2c2720;
+  --on-primary: #1c1813;
+  --focus-ring: rgba(233, 224, 209, 0.18);
+  --on-primary-veil: rgba(28, 24, 19, 0.16);
+
+  --good: #7fb08f;
+  --good-soft: #1f2a22;
+  --warn: #d3a85f;
+  --warn-soft: #2c2417;
+  --bad: #dd8b80;
+  --bad-soft: #2f1f1c;
+  --on-bad: #1c1813;
+
+  --line: #332d25;
+  --line-soft: #29241d;
+
+  /* Shadows barely register on dark, so they go deeper and the
+     hairlines above carry more of the separation. */
+  --overlay: rgba(0, 0, 0, 0.62);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.58), 0 2px 8px rgba(0, 0, 0, 0.36);
 }
 
 /* ── Typography scale ─────────────────────────────────────── */
@@ -101,7 +162,7 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
 
 .btn-primary {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   box-shadow: var(--shadow-xs);
 }
 .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
@@ -110,7 +171,7 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
   background: var(--surface-2);
   color: var(--text);
 }
-.btn-secondary:hover:not(:disabled) { background: #e8ebf0; }
+.btn-secondary:hover:not(:disabled) { background: var(--surface-3); }
 
 /* Ghost = quiet action. No heavy outline. */
 .btn-ghost {
@@ -119,7 +180,7 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
 }
 .btn-ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
 
-.btn-danger { background: var(--bad); color: #fff; }
+.btn-danger { background: var(--bad); color: var(--on-bad); }
 .btn-block { width: 100%; }
 .btn-large { padding: 16px 28px; font-size: 17px; min-height: 54px; }
 .btn-sm { padding: 8px 14px; font-size: 14px; min-height: 36px; border-radius: var(--r-sm); }
@@ -141,7 +202,7 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
 .input:focus, .select:focus, .textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.09);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .textarea { min-height: 90px; resize: vertical; }
 
@@ -196,6 +257,7 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
   color: var(--primary);
 }
 .topbar-sub { font-size: 13px; color: var(--text-3); margin-top: 1px; }
+.topbar-actions { display: flex; align-items: center; gap: var(--s-1); }
 .topbar-btn {
   display: inline-flex;
   align-items: center;
@@ -241,7 +303,7 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
   transition: background 0.15s ease, color 0.15s ease;
   white-space: nowrap;
 }
-.nav button.active { background: var(--primary); color: #fff; }
+.nav button.active { background: var(--primary); color: var(--on-primary); }
 .nav button:not(.active):hover { background: var(--surface-2); color: var(--text); }
 
 /* ── Toolbar: shop + search + add ─────────────────────────── */
@@ -310,7 +372,7 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
   transition: background 0.15s ease, color 0.15s ease;
 }
 .filter-toggle:hover { color: var(--text); background: var(--surface-2); }
-.filter-toggle.is-open { background: var(--primary); color: #fff; box-shadow: none; }
+.filter-toggle.is-open { background: var(--primary); color: var(--on-primary); box-shadow: none; }
 .filter-count {
   display: inline-flex;
   align-items: center;
@@ -320,11 +382,11 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
   padding: 0 6px;
   border-radius: var(--r-pill);
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   font-size: 12px;
   font-weight: 650;
 }
-.filter-toggle.is-open .filter-count { background: rgba(255, 255, 255, 0.25); }
+.filter-toggle.is-open .filter-count { background: var(--on-primary-veil); }
 
 .filter-panel {
   background: var(--card);
@@ -518,7 +580,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   justify-content: center;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.qty-btn:hover:not(:disabled) { background: #e4e8ee; color: var(--text); }
+.qty-btn:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
 .qty-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .qty-value {
   font-size: 20px;
@@ -743,7 +805,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(16, 24, 40, 0.45);
+  background: var(--overlay);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
@@ -796,7 +858,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   left: 50%;
   transform: translateX(-50%);
   background: var(--text);
-  color: #fff;
+  color: var(--card);
   padding: 12px 20px;
   border-radius: var(--r);
   box-shadow: var(--shadow-lg);
@@ -860,8 +922,8 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   transition: background 0.15s ease, color 0.15s ease;
 }
 .group-pick-row .group-pick { margin-bottom: 0; }
-.group-pick:hover { background: #e4e8ee; }
-.group-pick-active, .group-pick-active:hover { background: var(--primary); color: #fff; }
+.group-pick:hover { background: var(--surface-3); }
+.group-pick-active, .group-pick-active:hover { background: var(--primary); color: var(--on-primary); }
 .group-pick-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .group-pick-check { flex-shrink: 0; }
 .group-pick-delete {
@@ -960,7 +1022,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   color: var(--text-2);
 }
 .data-table tbody tr:last-child td { border-bottom: none; }
-.data-table tbody tr:hover td { background: #fafbfc; }
+.data-table tbody tr:hover td { background: var(--row-hover); }
 .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .data-table .zero { color: var(--text-3); }
 .data-table .cell-name { color: var(--text); font-weight: 550; }
@@ -975,7 +1037,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   box-shadow: inset 1px 0 0 var(--line);
 }
 .data-table thead .total-col { z-index: 3; }
-.data-table tbody tr:hover .total-col { background: #fafbfc; }
+.data-table tbody tr:hover .total-col { background: var(--row-hover); }
 .data-table .sticky-col {
   position: sticky;
   left: 0;
@@ -984,7 +1046,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   min-width: 210px;
 }
 .data-table thead .sticky-col { z-index: 2; }
-.data-table tbody tr:hover .sticky-col { background: #fafbfc; }
+.data-table tbody tr:hover .sticky-col { background: var(--row-hover); }
 
 /* ── Sell view ────────────────────────────────────────────── */
 .scan-card {
