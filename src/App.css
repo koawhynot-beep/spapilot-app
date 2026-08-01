@@ -19,12 +19,12 @@
   --primary-soft: #eef2f7;
 
   /* Status — only ever used for stock health */
-  --good: #1f7a52;
-  --good-soft: #e8f4ee;
-  --warn: #b4740f;
-  --warn-soft: #fdf3e3;
-  --bad: #b03a30;
-  --bad-soft: #fdeeec;
+  --good: #5ba876;
+  --good-soft: #eef5f0;
+  --warn: #d9a850;
+  --warn-soft: #fef8ef;
+  --bad: #d67c73;
+  --bad-soft: #fef3f1;
 
   /* Hairlines — used sparingly */
   --line: #e7eaef;

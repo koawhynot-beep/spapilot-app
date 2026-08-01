@@ -250,7 +250,6 @@ function StatCard({ value, label, tone, active, onClick }) {
 }
 
 // ↑ / ↓ against the previous equivalent period. null = no prior data to compare.
-function Trend({ value }) {
   if (value === null || value === undefined) return <span className="trend trend-flat">—</span>;
   if (value === 0) return <span className="trend trend-flat">0%</span>;
   const up = value > 0;
@@ -731,24 +730,23 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
 
       <Disclosure
         title="More numbers"
-        tail={`${summary.totalItems.toLocaleString()} items · ${summary.totalUnits.toLocaleString()} units`}
+        tail={`${summary.totalItems.toLocaleString()} products · ${summary.totalUnits.toLocaleString()} units`}
       >
         <div className="metric-row">
           <div>
-            <div className="metric-label">Products</div>
+            <div className="metric-label">Products (SKUs)</div>
             <div className="metric-value">{summary.totalItems.toLocaleString()}</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>different items in catalog</div>
           </div>
           <div>
             <div className="metric-label">Total units</div>
             <div className="metric-value">{summary.totalUnits.toLocaleString()}</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>pieces across all locations</div>
           </div>
           <div>
             <div className="metric-label">Needs reorder</div>
             <div className="metric-value">{(summary.lowCount + summary.outCount).toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="metric-label">Showing</div>
-            <div className="metric-value">{displayedItems.length.toLocaleString()}</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>below low-stock threshold</div>
           </div>
         </div>
       </Disclosure>
@@ -1687,8 +1685,6 @@ function OverviewView({ onRestock }) {
       .then(d => setBest(Array.isArray(d?.items) ? d.items : []))
       .catch(() => setBest([]));
     api('/api/business/activity?limit=12')
-      .then(d => setActivity(Array.isArray(d) ? d : []))
-      .catch(() => setActivity([]));
   }, []);
 
   // Server already returns rows in the requested order.
@@ -1708,150 +1704,37 @@ function OverviewView({ onRestock }) {
   }, [data]);
 
   // Products needing restock, most urgent first.
-  const lowStock = useMemo(() => {
-    return data.items
-      .filter(it => (it.total || 0) === 0 || (it.threshold > 0 && it.total <= it.threshold))
-      .sort((a, b) => (a.total || 0) - (b.total || 0))
-      .slice(0, 8);
   }, [data]);
 
   const activeFilterCount =
     (styleFilter ? 1 : 0) + (fabricFilter ? 1 : 0) + (colorFilter ? 1 : 0) + (sizeFilter ? 1 : 0);
 
-  const label = (it) => [it.style, it.fabric, it.color, it.size].filter(Boolean).join(' · ');
+
+  const inStockCount = summary.skuCount - summary.low - summary.out;
 
   return (
     <div>
       {error && <div className="error-banner">{error}</div>}
 
-      {/* The four numbers a manager checks first. */}
+      {/* Shop selector at top */}
+      <div className="toolbar" style={{ marginBottom: 20 }}>
+        <SearchField value={search} onChange={setSearch} placeholder="Search product, code, fabric, colour…" />
+      </div>
+
+      {/* Six key numbers */}
       <div className="stat-grid">
         <StatCard value={summary.skuCount} label="Total products" />
         <StatCard value={summary.grand} label="Total units" />
+        <StatCard value={inStockCount} label="In stock" tone="good" />
         <StatCard value={summary.low} label="Low stock" tone="warn" />
         <StatCard value={summary.out} label="Out of stock" tone="bad" />
       </div>
 
-      {/* ── Best sellers ──────────────────────────────────── */}
-      <div className="section-head">
-        <h2 className="section-title">Best sellers</h2>
-        <span className="section-meta">Last 12 months</span>
-      </div>
-      <div className="panel">
-        {best === null && <div className="loading">Loading…</div>}
-        {best !== null && best.length === 0 && (
-          <div className="empty empty-sm">
-            <TrendingUp size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-            <h3>No sales recorded yet</h3>
-            <p>Once items start selling — by barcode scan or a logged entry — your top performers appear here.</p>
-          </div>
-        )}
-        {best !== null && best.length > 0 && (
-          <div className="panel-body">
-            {best.map((it, i) => (
-              <div className="rank-row" key={it.sku}>
-                <div className="rank-num">{i + 1}</div>
-                <div className="rank-main">
-                  <div className="rank-name">{it.name}</div>
-                  <div className="rank-sub">{label(it) || it.sku}</div>
-                </div>
-                <div className="rank-stat">
-                  <div className="rank-stat-num">{it.units.toLocaleString()}</div>
-                  <div className="rank-stat-label">sold</div>
-                </div>
-                <div className="rank-stat">
-                  <div className="rank-stat-num">{idr(it.revenue)}</div>
-                  <div className="rank-stat-label">revenue</div>
-                </div>
-                <Trend value={it.trend} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Needs restocking ──────────────────────────────── */}
-      <div className="section-head">
-        <h2 className="section-title">Needs restocking</h2>
-        {(summary.low + summary.out) > lowStock.length && (
-          <span className="section-meta">Showing {lowStock.length} of {summary.low + summary.out}</span>
-        )}
-      </div>
-      <div className="panel">
-        {loading && <div className="loading">Loading…</div>}
-        {!loading && lowStock.length === 0 && (
-          <div className="empty empty-sm">
-            <Check size={28} color="var(--good)" style={{ margin: '0 auto' }} />
-            <h3>Everything is stocked</h3>
-            <p>No products are below their low-stock alert level.</p>
-          </div>
-        )}
-        {!loading && lowStock.length > 0 && (
-          <div className="panel-body">
-            {lowStock.map(it => (
-              <div className="rank-row" key={it.sku}>
-                <div className="rank-main">
-                  <div className="rank-name">{it.name}</div>
-                  <div className="rank-sub">{label(it) || it.sku}</div>
-                </div>
-                <div className={`qty-value ${it.total === 0 ? 'out' : 'low'}`}>{it.total}</div>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => onRestock(it.sku)}>
-                  Restock
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Recent activity ───────────────────────────────── */}
-      <div className="section-head">
-        <h2 className="section-title">Recent activity</h2>
-      </div>
-      <div className="panel">
-        {activity === null && <div className="loading">Loading…</div>}
-        {activity !== null && activity.length === 0 && (
-          <div className="empty empty-sm">
-            <History size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-            <h3>Nothing yet</h3>
-            <p>Sales, restocks and adjustments will show up here as they happen.</p>
-          </div>
-        )}
-        {activity !== null && activity.length > 0 && (
-          <div className="panel-body">
-            {activity.map(m => {
-              const n = Math.abs(m.qtyChange);
-              const isSale = m.type === 'sale' || (m.type === 'out' && m.qtyChange < 0);
-              const isIn = m.qtyChange > 0;
-              const kind = isSale ? 'out' : isIn ? 'in' : 'adjust';
-              const verb = isSale ? 'Sold' : isIn ? 'Restocked' : 'Adjusted';
-              return (
-                <div className="activity-row" key={m.id}>
-                  <div className={`activity-icon is-${kind}`}>
-                    {kind === 'out' ? <TrendingDown size={15} />
-                      : kind === 'in' ? <TrendingUp size={15} />
-                      : <Edit2 size={14} />}
-                  </div>
-                  <div className="activity-main">
-                    <div className="activity-text">
-                      {verb} <strong>{n}</strong> × {m.itemName} <span style={{ color: 'var(--text-3)' }}>at {m.shopName}</span>
-                    </div>
-                    <div className="activity-time">
-                      {new Date(m.occurredAt).toLocaleDateString()} · {n === 0 ? '' : `${m.qtyAfter} left`}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── Full inventory — collapsed; only for people who need the detail. ── */}
+      {/* Filters */}
+      {/* Full inventory table */}
       <div className="section-head">
         <h2 className="section-title">All inventory</h2>
       </div>
-      <Disclosure title="Show full stock table" tail={`${summary.skuCount.toLocaleString()} products`}>
         <div className="toolbar" style={{ marginTop: 4 }}>
           <SearchField value={search} onChange={setSearch} placeholder="Search product, code, fabric, colour…" />
         </div>
@@ -1959,7 +1842,6 @@ function OverviewView({ onRestock }) {
             </table>
           </div>
         )}
-      </Disclosure>
     </div>
   );
 }
