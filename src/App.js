@@ -43,6 +43,20 @@ const countByFabric = (list) => {
 
 const productCount = (n) => `${(n || 0).toLocaleString()} product${n === 1 ? '' : 's'}`;
 
+// Sizes and styles of one colour belong together — no gap between them. The
+// break she wants to see is the colour changing, so that is the only place a
+// gap opens (a fabric change gets its own heading instead).
+const colourKey = (it) => `${fabricOf(it)}|||${((it && it.color) || '').trim()}`;
+
+// True for the last row of a colour run, unless the fabric changes next —
+// in that case the fabric heading already provides the separation.
+const endsColourBlock = (list, i) => {
+  const next = list[i + 1];
+  if (!next) return false;
+  if (fabricOf(list[i]) !== fabricOf(next)) return false;
+  return colourKey(list[i]) !== colourKey(next);
+};
+
 // ── Error Boundary ────────────────────────────────────────
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -2178,6 +2192,9 @@ function OverviewView({ shops = [] }) {
               <tbody>
                 {sortedItems.map((item, i) => {
                   const soldRow = sold.items[item.sku];
+                  // Gaps track colour runs, which only exist in fabric order.
+                  const colourEnd = fabricBlocks && endsColourBlock(sortedItems, i);
+                  const gapCls = fabricBlocks ? (colourEnd ? 'colour-end' : '') : 'even-gap';
                   return (
                     <React.Fragment key={item.sku}>
                       {fabricBlocks && startsFabricBlock(sortedItems, i) && (
@@ -2190,7 +2207,7 @@ function OverviewView({ shops = [] }) {
                           </td>
                         </tr>
                       )}
-                      <tr className="item-row">
+                      <tr className={`item-row ${gapCls}`}>
                         <td className="sticky-col">
                           <div className="cell-name">{item.name}</div>
                           <div className="cell-sub">{item.sku}{item.style ? ` · ${item.style}` : ''}</div>
@@ -2208,7 +2225,7 @@ function OverviewView({ shops = [] }) {
                       {/* The sold line: same columns, half the weight, so the
                           big numbers stay stock and the small ones stay sales. */}
                       {showSold && (
-                        <tr className="sold-row">
+                        <tr className={`sold-row ${gapCls}`}>
                           <td className="sticky-col">
                             <span className="sold-tag">sold in {year}</span>
                           </td>

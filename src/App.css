@@ -1121,10 +1121,24 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   color: var(--text-3);
   text-transform: uppercase;
 }
-/* A hairline of page colour between products, so each style reads as its
-   own little block rather than one continuous ledger. */
-.data-table.with-sold tbody tr.sold-row td { border-bottom: 5px solid var(--bg); }
-.data-table.with-sold tbody tr.item-row td { border-bottom: none; }
+/* A hairline above the sold line, so the eye can tell where the stock
+   numbers stop and the sales numbers start without a gap opening between
+   them — they are two halves of one product, not two products. */
+.data-table.with-sold tbody tr.sold-row td { border-top: 1px solid var(--line-soft); }
+
+/* Gaps mark colour changes and nothing else. Sizes and styles of the same
+   colour sit flush together, because they are the same garment; the break
+   she scrolls for is the colour turning over. A fabric change gets a
+   heading instead, so it needs no gap of its own. */
+.data-table.with-sold tbody tr.item-row td,
+.data-table.with-sold tbody tr.sold-row td { border-bottom: none; }
+.data-table tbody tr.item-row.colour-end td { border-bottom: 12px solid var(--bg); }
+.data-table.with-sold tbody tr.item-row.colour-end td { border-bottom: none; }
+.data-table.with-sold tbody tr.sold-row.colour-end td { border-bottom: 12px solid var(--bg); }
+
+/* Sorted by anything other than fabric there are no colour runs to mark,
+   so every product keeps the same small gap. */
+.data-table.with-sold tbody tr.sold-row.even-gap td { border-bottom: 5px solid var(--bg); }
 
 /* ── Segmented switch ─────────────────────────────────────── */
 .view-switch-bar { display: flex; justify-content: flex-end; margin-bottom: var(--s-4); }
