@@ -993,7 +993,19 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ── Full inventory table (Overview, collapsed by default) ── */
-.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* The table is a surface, like every other panel in the app. Without this it
+   was transparent, so the product columns showed the page straight through
+   and only the two sticky columns looked solid — those carry a background
+   only because sticky cells must be opaque to scroll over their neighbours.
+   The effect was a table with its middle cut out. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--card);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--s-5);
+}
 .data-table {
   width: 100%;
   border-collapse: collapse;
