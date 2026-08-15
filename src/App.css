@@ -1065,6 +1065,220 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   padding: 16px;
 }
 
+/* ── Fabric blocks ─────────────────────────────────────────
+   She reads her stock fabric by fabric. A heading plus a generous gap ahead
+   of it turns one endless list into blocks she can scroll past and count. */
+.fabric-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  margin: var(--s-6) 0 var(--s-3);
+  padding: 0 var(--s-2);
+}
+.fabric-head:first-child { margin-top: var(--s-2); }
+.fabric-head-name {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-transform: capitalize;
+}
+.fabric-head-count { font-size: 12.5px; color: var(--text-3); }
+
+/* Same idea inside the overview table. The blank band above the heading is
+   the gap she asked for — it is what tells the eye a new fabric has begun. */
+.data-table tbody tr.fabric-row td {
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  padding: 26px var(--s-4) 10px;
+}
+.data-table tbody tr.fabric-row:first-child td { padding-top: 12px; }
+.data-table tbody tr.fabric-row:hover td { background: var(--bg); }
+.fabric-row-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: capitalize;
+}
+.fabric-row-count { font-size: 12px; color: var(--text-3); margin-left: var(--s-3); }
+
+/* ── The sold line under each product ──────────────────────
+   Half the weight of the stock row above it: the big numbers stay stock,
+   the small ones are what sold. */
+.data-table tbody tr.sold-row td {
+  padding-top: 3px;
+  padding-bottom: 3px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  border-bottom: none;
+}
+.data-table tbody tr.sold-row .total-col { font-weight: 600; color: var(--text-2); }
+.data-table tbody tr.sold-row .num { font-variant-numeric: tabular-nums; }
+.sold-tag {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+/* A hairline of page colour between products, so each style reads as its
+   own little block rather than one continuous ledger. */
+.data-table.with-sold tbody tr.sold-row td { border-bottom: 5px solid var(--bg); }
+.data-table.with-sold tbody tr.item-row td { border-bottom: none; }
+
+/* ── Segmented switch ─────────────────────────────────────── */
+.view-switch-bar { display: flex; justify-content: flex-end; margin-bottom: var(--s-4); }
+.segmented {
+  display: inline-flex;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  padding: 3px;
+  gap: 2px;
+}
+.segmented-wide { display: flex; width: 100%; margin-bottom: var(--s-4); }
+.segmented button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.segmented button:hover { color: var(--text); }
+.segmented button.is-active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── Scope picker (which shops / which year) ──────────────── */
+.scope-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.scope-picker-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-right: var(--s-1);
+}
+.scope-picker-note { font-size: 13px; color: var(--text-2); margin-left: var(--s-2); }
+.scope-chip {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 550;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.scope-chip:hover { border-color: var(--text-3); color: var(--text); }
+.scope-chip.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.select-inline { width: auto; min-width: 108px; }
+
+/* ── Sales ranking extras ─────────────────────────────────── */
+.rank-row-click { cursor: pointer; }
+.rank-row-click:hover { background: var(--row-hover); }
+.rank-bar {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.rank-bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  opacity: 0.55;
+}
+
+/* ── Manual sell: pick an item, then a quantity ───────────── */
+.pick-list {
+  margin-top: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.pick-empty { padding: 14px; font-size: 13.5px; color: var(--text-3); text-align: center; }
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: none;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 12px var(--s-4);
+  font-family: inherit;
+  cursor: pointer;
+}
+.pick-row:last-child { border-bottom: none; }
+.pick-row:hover:not(:disabled) { background: var(--row-hover); }
+.pick-row:disabled { opacity: 0.5; cursor: not-allowed; }
+.pick-main { flex: 1; min-width: 0; }
+.pick-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick-sub { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.pick-qty { flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.pick-qty.is-out { color: var(--bad); }
+.picked-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  background: var(--primary-soft);
+  border-radius: var(--r);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-4);
+}
+.picked-main { flex: 1; min-width: 0; }
+.picked-name { font-size: 15px; font-weight: 650; color: var(--text); }
+.picked-sub { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+.qty-group-large { justify-content: center; }
+.qty-group-large .qty-value { font-size: 26px; min-width: 72px; }
+
+/* Labelled theme switch — an unlabelled moon was never going to be found. */
+.topbar-btn-labelled {
+  width: auto;
+  gap: 6px;
+  padding: 0 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 640px) {
   .container { padding: var(--s-4) var(--s-4) 100px; }

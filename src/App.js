@@ -21,6 +21,26 @@ const setToken = (t) => {
 // Money is Indonesian Rupiah everywhere in this app.
 const idr = (n) => 'IDR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
+// ── Fabric blocks ─────────────────────────────────────────
+// The owner reads her stock fabric by fabric — all the cotton geisha, then
+// all the cotton bubble. When the list is in fabric order we break it into
+// labelled blocks with a gap before each, so scrolling past a heading tells
+// her she has moved on to the next fabric. Any other sort order has no
+// fabric runs to label, so the headings are suppressed there.
+const fabricOf = (it) => ((it && it.fabric) || '').trim() || 'Other';
+const isFabricGrouped = (sort) => sort === 'fabric-color';
+
+// True for the first row of each fabric run.
+const startsFabricBlock = (list, i) =>
+  i === 0 || fabricOf(list[i - 1]) !== fabricOf(list[i]);
+
+// { 'COTTON GEISHA': 42, … } — shown beside each heading.
+const countByFabric = (list) => {
+  const counts = {};
+  for (const it of list) counts[fabricOf(it)] = (counts[fabricOf(it)] || 0) + 1;
+  return counts;
+};
+
 // ── Error Boundary ────────────────────────────────────────
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -250,14 +270,18 @@ function ThemeToggle() {
     if (meta) meta.setAttribute('content', next ? '#16130f' : '#f2efe9');
   };
 
+  // Labelled, not just an icon: the light (cream) theme already existed but
+  // was impossible to find behind a bare moon, so the app looked dark to
+  // anyone whose phone is set to dark mode.
   return (
     <button
-      className="topbar-btn"
+      className="topbar-btn topbar-btn-labelled"
       onClick={toggle}
       aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={dark ? 'Light mode' : 'Dark mode'}
+      title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
-      {dark ? <Sun size={19} /> : <Moon size={19} />}
+      {dark ? <Sun size={17} /> : <Moon size={17} />}
+      <span>{dark ? 'Light' : 'Dark'}</span>
     </button>
   );
 }
@@ -309,7 +333,8 @@ function MainApp({ user, business }) {
   const tabs = [
     { id: 'sell', label: 'Sell', icon: ScanLine },
     { id: 'stock', label: 'Stock', icon: Package },
-    { id: 'overview', label: 'Overview', icon: TrendingUp },
+    { id: 'overview', label: 'Overview', icon: Package },
+    { id: 'sales', label: 'Sales', icon: TrendingUp },
     { id: 'shops', label: 'Shops', icon: Store },
   ];
 
@@ -353,8 +378,12 @@ function MainApp({ user, business }) {
           />
         )}
         {tab === 'overview' && (
-          <OverviewView
-            onRestock={(sku) => { setStockJump({ sku, at: Date.now() }); setTab('stock'); }}
+          <OverviewView shops={shops.data} />
+        )}
+        {tab === 'sales' && (
+          <SalesView
+            shops={shops.data}
+            onFindStock={(sku) => { setStockJump({ sku, at: Date.now() }); setTab('stock'); }}
           />
         )}
         {tab === 'shops' && (
@@ -572,6 +601,13 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
     }
     return { totalItems, totalUnits, inStockCount, lowCount, outCount };
   }, [items]);
+
+  // Fabric headings only make sense while the list is in fabric order.
+  const fabricBlocks = isFabricGrouped(sortBy);
+  const fabricCounts = useMemo(
+    () => (fabricBlocks ? countByFabric(displayedItems) : {}),
+    [fabricBlocks, displayedItems]
+  );
 
   const dragEnabled = perms.canEditStock && sortBy === 'custom' && statusFilter === 'all' && !isAll;
 
@@ -809,7 +845,8 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
         </div>
       )}
 
-      {displayedItems.map(item => {
+      {displayedItems.map((item, i) => {
+        const showFabricHead = fabricBlocks && startsFabricBlock(displayedItems, i);
         const low = item.qty > 0 && item.qty <= item.threshold;
         const out = item.qty === 0;
         const itemGroup = groups.find(g => g.id === item.groupId);
@@ -820,8 +857,16 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
         const title = [item.category, item.fabric, item.print, item.color, item.size, item.brand]
           .filter(Boolean).join(' · ') || item.name;
         return (
+          <React.Fragment key={item.id}>
+          {showFabricHead && (
+            <div className="fabric-head">
+              <span className="fabric-head-name">{fabricOf(item)}</span>
+              <span className="fabric-head-count">
+                {(fabricCounts[fabricOf(item)] || 0).toLocaleString()} products
+              </span>
+            </div>
+          )}
           <div
-            key={item.id}
             className={`product ${isDragging ? 'dragging' : ''} ${isOver ? 'drag-over' : ''} ${dragEnabled ? 'draggable' : ''}`}
             draggable={dragEnabled}
             onDragStart={dragEnabled ? onDragStartRow(item.id) : undefined}
@@ -955,6 +1000,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
               </div>
             )}
           </div>
+          </React.Fragment>
         );
       })}
 
@@ -1562,12 +1608,45 @@ function SellView({ shops }) {
   const [recent, setRecent] = useState([]);  // [{ name, sku, qty, ts }]
   const inputRef = React.useRef(null);
 
+  // Two ways to sell: scan the barcode, or look the item up and type it in.
+  // The scanner is not always to hand, and some sales never touch one.
+  const [mode, setMode] = useState('scan');  // 'scan' | 'manual'
+  const [lookup, setLookup] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState(null);
+  const [sellQty, setSellQty] = useState(1);
+
   useEffect(() => {
     if (!shopId && shops[0]) setShopId(shops[0].id);
   }, [shops, shopId]);
 
   const focusInput = () => { try { inputRef.current && inputRef.current.focus(); } catch {} };
-  useEffect(() => { focusInput(); }, [shopId]);
+  useEffect(() => { if (mode === 'scan') focusInput(); }, [shopId, mode]);
+
+  // Clear a half-finished manual sale when the shop changes — the picked item
+  // belongs to the old shop and would no longer be sellable.
+  useEffect(() => { setPicked(null); setResults([]); setLookup(''); }, [shopId]);
+
+  // Search this shop's stock as she types, a moment after she stops.
+  useEffect(() => {
+    const q = lookup.trim();
+    if (mode !== 'manual' || !shopId || q.length < 2) { setResults([]); return undefined; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      api(`/api/shops/${shopId}/stock?search=${encodeURIComponent(q)}`)
+        .then(d => { setResults((Array.isArray(d) ? d : []).slice(0, 25)); setSearching(false); })
+        .catch(() => { setResults([]); setSearching(false); });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [lookup, shopId, mode]);
+
+  const recordSale = (d) => {
+    setMsg({ type: 'ok', text: `Sold ${d.soldQty} × ${d.item.name} — ${d.item.qty} left` });
+    setRecent(r => [{
+      name: d.item.name, sku: d.item.sku, qty: d.item.qty, sold: d.soldQty, ts: Date.now(),
+    }, ...r].slice(0, 30));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -1576,14 +1655,30 @@ function SellView({ shops }) {
     setBusy(true); setMsg(null);
     try {
       const d = await api(`/api/shops/${shopId}/sell`, { method: 'POST', body: { code: c } });
-      setMsg({ type: 'ok', text: `Sold: ${d.item.name} — ${d.item.qty} left` });
-      setRecent(r => [{ name: d.item.name, sku: d.item.sku, qty: d.item.qty, ts: Date.now() }, ...r].slice(0, 30));
+      recordSale(d);
     } catch (err) {
       setMsg({ type: 'err', text: err.message || 'Could not sell that item' });
     } finally {
       setCode('');
       setBusy(false);
       focusInput();
+    }
+  };
+
+  const sellPicked = async () => {
+    if (!picked || !shopId) return;
+    setBusy(true); setMsg(null);
+    try {
+      const d = await api(`/api/shops/${shopId}/sell`, {
+        method: 'POST',
+        body: { itemId: picked.id, qty: sellQty, manual: true },
+      });
+      recordSale(d);
+      setPicked(null); setLookup(''); setResults([]); setSellQty(1);
+    } catch (err) {
+      setMsg({ type: 'err', text: err.message || 'Could not sell that item' });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -1604,30 +1699,125 @@ function SellView({ shops }) {
   return (
     <div>
       <div className="scan-card">
-        <form onSubmit={submit}>
-          <div className="field">
-            <label>Selling from</label>
-            <select className="select" value={shopId || ''} onChange={e => setShopId(Number(e.target.value))}>
-              {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>Scan a barcode — each scan sells one</label>
-            <input
-              ref={inputRef}
-              className="input scan-input"
-              placeholder="Waiting for scan…"
-              value={code}
-              onChange={e => setCode(e.target.value)}
-              autoFocus
-              autoComplete="off"
-              inputMode="text"
-            />
-          </div>
-          <button className="btn btn-primary btn-block btn-large" disabled={busy || !code.trim()}>
-            <ScanLine size={19} /> Sell one
+        <div className="field">
+          <label>Selling from</label>
+          <select className="select" value={shopId || ''} onChange={e => setShopId(Number(e.target.value))}>
+            {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+
+        <div className="segmented segmented-wide" role="group" aria-label="How to sell" style={{ marginBottom: 20 }}>
+          <button type="button" className={mode === 'scan' ? 'is-active' : ''} onClick={() => setMode('scan')}>
+            <ScanLine size={16} /> Scan barcode
           </button>
-        </form>
+          <button type="button" className={mode === 'manual' ? 'is-active' : ''} onClick={() => setMode('manual')}>
+            <Search size={16} /> Type it in
+          </button>
+        </div>
+
+        {mode === 'scan' && (
+          <form onSubmit={submit}>
+            <div className="field">
+              <label>Scan a barcode — each scan sells one</label>
+              <input
+                ref={inputRef}
+                className="input scan-input"
+                placeholder="Waiting for scan…"
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                autoFocus
+                autoComplete="off"
+                inputMode="text"
+              />
+            </div>
+            <button className="btn btn-primary btn-block btn-large" disabled={busy || !code.trim()}>
+              <ScanLine size={19} /> Sell one
+            </button>
+          </form>
+        )}
+
+        {/* No scanner needed: find the item, say how many, sell. */}
+        {mode === 'manual' && !picked && (
+          <div className="field">
+            <label>Find the item — name, code, fabric or colour</label>
+            <SearchField value={lookup} onChange={setLookup} placeholder="e.g. maxi top natural" />
+            {lookup.trim().length >= 2 && (
+              <div className="pick-list">
+                {searching && <div className="pick-empty">Searching…</div>}
+                {!searching && results.length === 0 && <div className="pick-empty">Nothing found in this shop.</div>}
+                {!searching && results.map(it => (
+                  <button
+                    type="button"
+                    key={it.id}
+                    className="pick-row"
+                    disabled={it.qty === 0}
+                    onClick={() => { setPicked(it); setSellQty(1); }}
+                  >
+                    <span className="pick-main">
+                      <span className="pick-name">
+                        {[it.category, it.fabric, it.print, it.color, it.size].filter(Boolean).join(' · ') || it.name}
+                      </span>
+                      <span className="pick-sub">{it.sku}{Number(it.price) > 0 ? ` · ${idr(it.price)}` : ''}</span>
+                    </span>
+                    <span className={`pick-qty ${it.qty === 0 ? 'is-out' : ''}`}>
+                      {it.qty === 0 ? 'none left' : `${it.qty} left`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {mode === 'manual' && picked && (
+          <div>
+            <div className="picked-card">
+              <div className="picked-main">
+                <div className="picked-name">
+                  {[picked.category, picked.fabric, picked.print, picked.color, picked.size].filter(Boolean).join(' · ') || picked.name}
+                </div>
+                <div className="picked-sub">{picked.sku} · {picked.qty} in stock</div>
+              </div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPicked(null)}>
+                <X size={15} /> Change
+              </button>
+            </div>
+
+            <div className="field">
+              <label>How many are you selling?</label>
+              <div className="qty-group qty-group-large">
+                <button
+                  type="button"
+                  className="qty-btn"
+                  disabled={sellQty <= 1}
+                  onClick={() => setSellQty(q => Math.max(1, q - 1))}
+                  aria-label="one fewer"
+                >
+                  <Minus size={18} />
+                </button>
+                <div className="qty-value">{sellQty}</div>
+                <button
+                  type="button"
+                  className="qty-btn"
+                  disabled={sellQty >= picked.qty}
+                  onClick={() => setSellQty(q => Math.min(picked.qty, q + 1))}
+                  aria-label="one more"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-primary btn-block btn-large"
+              disabled={busy || picked.qty === 0}
+              onClick={sellPicked}
+            >
+              <Check size={19} /> Sell {sellQty}
+            </button>
+          </div>
+        )}
 
         {msg && (
           <div className={msg.type === 'ok' ? 'success-banner' : 'error-banner'} style={{ marginTop: 16, marginBottom: 0 }}>
@@ -1651,6 +1841,10 @@ function SellView({ shops }) {
                     {r.sku && <div className="rank-sub product-sku">{r.sku}</div>}
                   </div>
                   <div className="rank-stat">
+                    <div className="rank-stat-num">{r.sold || 1}</div>
+                    <div className="rank-stat-label">sold</div>
+                  </div>
+                  <div className="rank-stat">
                     <div className="rank-stat-num">{r.qty}</div>
                     <div className="rank-stat-label">left</div>
                   </div>
@@ -1670,7 +1864,7 @@ function SellView({ shops }) {
 // ═══════════════════════════════════════════════════════════
 // OVERVIEW VIEW — master aggregation across all shops
 // ═══════════════════════════════════════════════════════════
-function OverviewView({ onRestock }) {
+function OverviewView({ shops = [] }) {
   const [data, setData] = useState({ shops: [], items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1683,6 +1877,27 @@ function OverviewView({ onRestock }) {
   // Default browse order: fabric → colour → style.
   const [sortBy, setSortBy] = useState('fabric-color');
 
+  // Two layouts of the same data, switchable from the top right. "Stock only"
+  // is the original table; "Stock + sold" adds a sold line under every row.
+  // Both are kept so she can flip between them and compare.
+  const [layout, setLayout] = useState(() => {
+    try { return localStorage.getItem('ms-overview-layout') || 'stock'; } catch (e) { return 'stock'; }
+  });
+  const chooseLayout = (v) => {
+    setLayout(v);
+    try { localStorage.setItem('ms-overview-layout', v); } catch (e) { /* ignore */ }
+  };
+
+  // Which shops this overview covers. Empty = all of them.
+  const [shopSel, setShopSel] = useState([]);
+  const shopsParam = shopSel.length ? shopSel.join(',') : '';
+
+  // Sold figures are read one calendar year at a time.
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [years, setYears] = useState([]);
+  const [sold, setSold] = useState({ items: {}, total: 0 });
+  const showSold = layout === 'sold';
+
   const load = useCallback(() => {
     setLoading(true); setError(null);
     const params = new URLSearchParams();
@@ -1691,14 +1906,31 @@ function OverviewView({ onRestock }) {
     if (fabricFilter) params.set('fabric', fabricFilter);
     if (colorFilter) params.set('color', colorFilter);
     if (sizeFilter) params.set('size', sizeFilter);
+    if (shopsParam) params.set('shops', shopsParam);
     params.set('sort', sortBy);
     const qs = params.toString();
     api(`/api/business/stock-overview${qs ? `?${qs}` : ''}`)
       .then(d => { setData(d || { shops: [], items: [] }); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
-  }, [search, styleFilter, fabricFilter, colorFilter, sizeFilter, sortBy]);
+  }, [search, styleFilter, fabricFilter, colorFilter, sizeFilter, sortBy, shopsParam]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Sold counts are only fetched for the layout that shows them.
+  useEffect(() => {
+    if (!showSold) return;
+    const params = new URLSearchParams({ year: String(year) });
+    if (shopsParam) params.set('shops', shopsParam);
+    api(`/api/business/sold-overview?${params.toString()}`)
+      .then(d => setSold(d || { items: {}, total: 0 }))
+      .catch(() => setSold({ items: {}, total: 0 }));
+  }, [showSold, year, shopsParam]);
+
+  useEffect(() => {
+    api('/api/business/sales-years')
+      .then(d => setYears(Array.isArray(d?.years) ? d.years : []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     api('/api/business/facets')
@@ -1730,15 +1962,93 @@ function OverviewView({ onRestock }) {
   const activeFilterCount =
     (styleFilter ? 1 : 0) + (fabricFilter ? 1 : 0) + (colorFilter ? 1 : 0) + (sizeFilter ? 1 : 0);
 
-
   const inStockCount = summary.skuCount - summary.low - summary.out;
+
+  // Fabric headings only make sense while the list is in fabric order.
+  const fabricBlocks = isFabricGrouped(sortBy);
+  const fabricCounts = useMemo(
+    () => (fabricBlocks ? countByFabric(sortedItems) : {}),
+    [fabricBlocks, sortedItems]
+  );
+  // Product · Fabric · Colour · Size + one per shop + Total.
+  const colCount = 4 + data.shops.length + 1;
+
+  const toggleShop = (id) => {
+    setShopSel(sel => (sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]));
+  };
+
+  const scopeText = shopSel.length === 0
+    ? 'Counted across all shops combined.'
+    : `Counted across ${data.shops.join(' + ')} only.`;
 
   return (
     <div>
       {error && <div className="error-banner">{error}</div>}
 
+      {/* Two ways to read the same page. Nothing is lost by switching — it is
+          the same stock, with or without the sold line underneath. */}
+      <div className="view-switch-bar">
+        <div className="segmented" role="group" aria-label="Overview layout">
+          <button
+            type="button"
+            className={layout === 'stock' ? 'is-active' : ''}
+            onClick={() => chooseLayout('stock')}
+          >
+            Stock only
+          </button>
+          <button
+            type="button"
+            className={layout === 'sold' ? 'is-active' : ''}
+            onClick={() => chooseLayout('sold')}
+          >
+            Stock + sold
+          </button>
+        </div>
+      </div>
+
+      {/* Which shops this page covers: all of them, one, or any few. */}
+      {shops.length > 1 && (
+        <div className="scope-picker">
+          <span className="scope-picker-label">Showing</span>
+          <button
+            type="button"
+            className={`scope-chip ${shopSel.length === 0 ? 'is-active' : ''}`}
+            onClick={() => setShopSel([])}
+          >
+            All shops
+          </button>
+          {shops.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              className={`scope-chip ${shopSel.includes(s.id) ? 'is-active' : ''}`}
+              onClick={() => toggleShop(s.id)}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showSold && (
+        <div className="scope-picker">
+          <span className="scope-picker-label">Sold in</span>
+          <select
+            className="select select-inline"
+            value={year}
+            onChange={e => setYear(Number(e.target.value))}
+            aria-label="Year for sold figures"
+          >
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <span className="scope-picker-note">
+            {sold.total.toLocaleString()} pieces sold in {year}
+          </span>
+        </div>
+      )}
+
       {/* Same three numbers as the Stock tab, so the two views read alike. */}
-      <p className="scope-note">Counted across all shops combined.</p>
+      <p className="scope-note">{scopeText}</p>
       <div className="stat-grid">
         <StatCard value={inStockCount} label="In stock" tone="good" />
         <StatCard value={summary.low} label="Low stock" tone="warn" />
@@ -1849,7 +2159,7 @@ function OverviewView({ onRestock }) {
         )}
         {!loading && sortedItems.length > 0 && (
           <div className="table-scroll">
-            <table className="data-table">
+            <table className={`data-table ${showSold ? 'with-sold' : ''}`}>
               <thead>
                 <tr>
                   <th className="sticky-col">Product</th>
@@ -1861,27 +2171,276 @@ function OverviewView({ onRestock }) {
                 </tr>
               </thead>
               <tbody>
-                {sortedItems.map(item => (
-                  <tr key={item.sku}>
-                    <td className="sticky-col">
-                      <div className="cell-name">{item.name}</div>
-                      <div className="cell-sub">{item.sku}{item.style ? ` · ${item.style}` : ''}</div>
-                    </td>
-                    <td>{item.fabric}</td>
-                    <td>{item.color}</td>
-                    <td>{item.size}</td>
-                    {data.shops.map(s => (
-                      <td key={s} className={`num ${(item.byShop[s] || 0) === 0 ? 'zero' : ''}`}>
-                        {item.byShop[s] || 0}
-                      </td>
-                    ))}
-                    <td className="num total-col">{item.total}</td>
-                  </tr>
-                ))}
+                {sortedItems.map((item, i) => {
+                  const soldRow = sold.items[item.sku];
+                  return (
+                    <React.Fragment key={item.sku}>
+                      {fabricBlocks && startsFabricBlock(sortedItems, i) && (
+                        <tr className="fabric-row">
+                          <td colSpan={colCount}>
+                            <span className="fabric-row-name">{fabricOf(item)}</span>
+                            <span className="fabric-row-count">
+                              {(fabricCounts[fabricOf(item)] || 0).toLocaleString()} products
+                            </span>
+                          </td>
+                        </tr>
+                      )}
+                      <tr className="item-row">
+                        <td className="sticky-col">
+                          <div className="cell-name">{item.name}</div>
+                          <div className="cell-sub">{item.sku}{item.style ? ` · ${item.style}` : ''}</div>
+                        </td>
+                        <td>{item.fabric}</td>
+                        <td>{item.color}</td>
+                        <td>{item.size}</td>
+                        {data.shops.map(s => (
+                          <td key={s} className={`num ${(item.byShop[s] || 0) === 0 ? 'zero' : ''}`}>
+                            {item.byShop[s] || 0}
+                          </td>
+                        ))}
+                        <td className="num total-col">{item.total}</td>
+                      </tr>
+                      {/* The sold line: same columns, half the weight, so the
+                          big numbers stay stock and the small ones stay sales. */}
+                      {showSold && (
+                        <tr className="sold-row">
+                          <td className="sticky-col">
+                            <span className="sold-tag">sold in {year}</span>
+                          </td>
+                          <td colSpan={3} />
+                          {data.shops.map(s => (
+                            <td key={s} className={`num ${!(soldRow && soldRow.byShop[s]) ? 'zero' : ''}`}>
+                              {(soldRow && soldRow.byShop[s]) || 0}
+                            </td>
+                          ))}
+                          <td className="num total-col">{(soldRow && soldRow.total) || 0}</td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SALES VIEW — what sold, sliced whichever way she wants
+// ═══════════════════════════════════════════════════════════
+// The same sales, ranked by product, fabric, colour, style or shop. She asked
+// to see "which fabric sells the best, which colour sells the best, and in
+// which store" — that is one query with a different GROUP BY, so it is one
+// screen with a row of buttons rather than five separate reports.
+const SALES_GROUPS = [
+  { id: 'sku',    label: 'Product' },
+  { id: 'fabric', label: 'Fabric' },
+  { id: 'color',  label: 'Colour' },
+  { id: 'style',  label: 'Style' },
+  { id: 'shop',   label: 'Shop' },
+];
+
+function SalesView({ shops = [], onFindStock }) {
+  const [groupBy, setGroupBy] = useState('sku');
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [years, setYears] = useState([]);
+  const [shopSel, setShopSel] = useState([]);          // empty = all shops
+  const [best, setBest] = useState({ items: [] });
+  const [recent, setRecent] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const shopsParam = shopSel.length ? shopSel.join(',') : '';
+
+  useEffect(() => {
+    api('/api/business/sales-years')
+      .then(d => setYears(Array.isArray(d?.years) ? d.years : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setLoading(true); setError(null);
+    const p = new URLSearchParams({ groupBy, year: String(year), limit: '25' });
+    if (shopsParam) p.set('shops', shopsParam);
+    api(`/api/business/best-sellers?${p.toString()}`)
+      .then(d => { setBest(d || { items: [] }); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [groupBy, year, shopsParam]);
+
+  useEffect(() => {
+    const p = new URLSearchParams({ year: String(year), limit: '100' });
+    if (shopsParam) p.set('shops', shopsParam);
+    api(`/api/business/recent-sales?${p.toString()}`)
+      .then(d => setRecent(Array.isArray(d) ? d : []))
+      .catch(() => setRecent([]));
+  }, [year, shopsParam]);
+
+  const toggleShop = (id) => {
+    setShopSel(sel => (sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]));
+  };
+
+  const totalSold = best.items.reduce((n, it) => n + it.units, 0);
+  const totalRevenue = best.items.reduce((n, it) => n + it.revenue, 0);
+  const groupLabel = (SALES_GROUPS.find(g => g.id === groupBy) || {}).label || '';
+
+  return (
+    <div>
+      {error && <div className="error-banner">{error}</div>}
+
+      <div className="scope-picker">
+        <span className="scope-picker-label">Year</span>
+        <select
+          className="select select-inline"
+          value={year}
+          onChange={e => setYear(Number(e.target.value))}
+          aria-label="Year"
+        >
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {shops.length > 1 && (
+        <div className="scope-picker">
+          <span className="scope-picker-label">Shops</span>
+          <button
+            type="button"
+            className={`scope-chip ${shopSel.length === 0 ? 'is-active' : ''}`}
+            onClick={() => setShopSel([])}
+          >
+            All shops
+          </button>
+          {shops.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              className={`scope-chip ${shopSel.includes(s.id) ? 'is-active' : ''}`}
+              onClick={() => toggleShop(s.id)}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="section-head">
+        <h2 className="section-title">Best sellers</h2>
+        <span className="section-meta">{year}</span>
+      </div>
+
+      {/* One row of buttons, five reports. */}
+      <div className="segmented segmented-wide" role="group" aria-label="Rank by">
+        {SALES_GROUPS.map(g => (
+          <button
+            key={g.id}
+            type="button"
+            className={groupBy === g.id ? 'is-active' : ''}
+            onClick={() => setGroupBy(g.id)}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div className="loading">Loading…</div>}
+
+      {!loading && best.items.length === 0 && (
+        <div className="empty empty-sm">
+          <TrendingUp size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
+          <h3>No sales recorded in {year}</h3>
+          <p>Sales appear here as soon as items are sold on the Sell tab.</p>
+        </div>
+      )}
+
+      {!loading && best.items.length > 0 && (
+        <>
+          <div className="stat-grid">
+            <StatCard value={totalSold} label={`Pieces sold (top ${best.items.length})`} />
+            <StatCard value={idr(totalRevenue)} label="Value sold" />
+            <StatCard value={best.items.length} label={`${groupLabel}s ranked`} />
+          </div>
+
+          <div className="panel">
+            <div className="panel-body">
+              {best.items.map((it, i) => {
+                const share = totalSold > 0 ? (it.units / totalSold) * 100 : 0;
+                const clickable = groupBy === 'sku' && it.sku && onFindStock;
+                return (
+                  <div
+                    key={it.key || i}
+                    className={`rank-row ${clickable ? 'rank-row-click' : ''}`}
+                    onClick={clickable ? () => onFindStock(it.sku) : undefined}
+                    role={clickable ? 'button' : undefined}
+                    tabIndex={clickable ? 0 : undefined}
+                    onKeyDown={clickable ? (e) => { if (e.key === 'Enter') onFindStock(it.sku); } : undefined}
+                    title={clickable ? 'See what is left in stock' : undefined}
+                  >
+                    <div className="rank-num">{i + 1}</div>
+                    <div className="rank-main">
+                      <div className="rank-name">{it.label}</div>
+                      <div className="rank-sub">
+                        {groupBy === 'sku'
+                          ? [it.sku, it.fabric, it.color, it.size].filter(Boolean).join(' · ')
+                          : `${share.toFixed(1)}% of the top ${best.items.length}`}
+                      </div>
+                      <div className="rank-bar">
+                        <span style={{ width: `${Math.max(2, share)}%` }} />
+                      </div>
+                    </div>
+                    <div className="rank-stat">
+                      <div className="rank-stat-num">{it.units.toLocaleString()}</div>
+                      <div className="rank-stat-label">sold</div>
+                    </div>
+                    <div className="rank-stat" style={{ minWidth: 68 }}>
+                      <div className="rank-stat-num" style={{ fontSize: 14 }}>
+                        {it.trend == null ? 'new' : `${it.trend > 0 ? '+' : ''}${Math.round(it.trend * 100)}%`}
+                      </div>
+                      <div className="rank-stat-label">vs {year - 1}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* "Where do I see what sold, and when?" — right here. */}
+      <div className="section-head">
+        <h2 className="section-title">Latest sales</h2>
+        <span className="section-meta">{recent.length} shown</span>
+      </div>
+      {recent.length === 0 ? (
+        <div className="empty empty-sm">
+          <History size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
+          <h3>Nothing sold yet in {year}</h3>
+          <p>Every sale is listed here with its date and shop.</p>
+        </div>
+      ) : (
+        <div className="panel">
+          <div className="panel-body">
+            {recent.map(r => (
+              <div className="rank-row" key={r.id}>
+                <div className="rank-main">
+                  <div className="rank-name">{r.name}</div>
+                  <div className="rank-sub">
+                    {[r.sku, r.fabric, r.color, r.size].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+                <div className="rank-stat" style={{ minWidth: 92 }}>
+                  <div className="rank-stat-num" style={{ fontSize: 14 }}>{r.shopName}</div>
+                  <div className="rank-stat-label">{new Date(r.occurredAt).toLocaleDateString()}</div>
+                </div>
+                <div className="rank-stat">
+                  <div className="rank-stat-num">{r.units}</div>
+                  <div className="rank-stat-label">sold</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
