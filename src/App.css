@@ -1152,9 +1152,9 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
    heading instead, so it needs no gap of its own. */
 .data-table.with-sold tbody tr.item-row td,
 .data-table.with-sold tbody tr.sold-row td { border-bottom: none; }
-.data-table tbody tr.item-row.colour-end td { border-bottom: 12px solid var(--bg); }
+.data-table tbody tr.item-row.colour-end td { border-bottom: 24px solid var(--bg); }
 .data-table.with-sold tbody tr.item-row.colour-end td { border-bottom: none; }
-.data-table.with-sold tbody tr.sold-row.colour-end td { border-bottom: 12px solid var(--bg); }
+.data-table.with-sold tbody tr.sold-row.colour-end td { border-bottom: 24px solid var(--bg); }
 
 /* Sorted by anything other than fabric there are no colour runs to mark,
    so every product keeps the same small gap. */
