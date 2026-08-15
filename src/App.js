@@ -41,6 +41,8 @@ const countByFabric = (list) => {
   return counts;
 };
 
+const productCount = (n) => `${(n || 0).toLocaleString()} product${n === 1 ? '' : 's'}`;
+
 // ── Error Boundary ────────────────────────────────────────
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -862,7 +864,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             <div className="fabric-head">
               <span className="fabric-head-name">{fabricOf(item)}</span>
               <span className="fabric-head-count">
-                {(fabricCounts[fabricOf(item)] || 0).toLocaleString()} products
+                {productCount(fabricCounts[fabricOf(item)])}
               </span>
             </div>
           )}
@@ -1880,8 +1882,11 @@ function OverviewView({ shops = [] }) {
   // Two layouts of the same data, switchable from the top right. "Stock only"
   // is the original table; "Stock + sold" adds a sold line under every row.
   // Both are kept so she can flip between them and compare.
+  // Opens on the sold layout: seeing what sold is the thing she asked for.
+  // "Stock only" is the old view, kept one click away so the two can be
+  // compared — but it is not what the page should greet her with.
   const [layout, setLayout] = useState(() => {
-    try { return localStorage.getItem('ms-overview-layout') || 'stock'; } catch (e) { return 'stock'; }
+    try { return localStorage.getItem('ms-overview-layout') || 'sold'; } catch (e) { return 'sold'; }
   });
   const chooseLayout = (v) => {
     setLayout(v);
@@ -2180,7 +2185,7 @@ function OverviewView({ shops = [] }) {
                           <td colSpan={colCount}>
                             <span className="fabric-row-name">{fabricOf(item)}</span>
                             <span className="fabric-row-count">
-                              {(fabricCounts[fabricOf(item)] || 0).toLocaleString()} products
+                              {productCount(fabricCounts[fabricOf(item)])}
                             </span>
                           </td>
                         </tr>
