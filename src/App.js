@@ -302,6 +302,82 @@ function ThemeToggle() {
   );
 }
 
+// ── Shop scope ────────────────────────────────────────────
+// Looking at one shop is the everyday case and must be one tap. Combining a
+// couple of shops is rare, so it hides behind "Compare shops" rather than
+// making her unclick "All shops" before every single look.
+// Value is an array of shop ids; empty means every shop.
+function ShopScope({ shops, value, onChange, label = 'Showing' }) {
+  const [combining, setCombining] = useState(value.length > 1);
+  if (shops.length < 2) return null;
+
+  const toggle = (id) => {
+    onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
+  };
+
+  if (!combining) {
+    const single = value.length === 1 ? String(value[0]) : 'all';
+    return (
+      <div className="scope-picker">
+        <span className="scope-picker-label">{label}</span>
+        <select
+          className="select select-inline"
+          value={single}
+          onChange={e => onChange(e.target.value === 'all' ? [] : [Number(e.target.value)])}
+          aria-label="Which shop"
+        >
+          <option value="all">All shops</option>
+          {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <button
+          type="button"
+          className="scope-link"
+          onClick={() => { setCombining(true); if (value.length < 1) onChange([shops[0].id]); }}
+        >
+          Compare shops
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="scope-picker">
+      <span className="scope-picker-label">Comparing</span>
+      {shops.map(s => (
+        <button
+          key={s.id}
+          type="button"
+          className={`scope-chip ${value.includes(s.id) ? 'is-active' : ''}`}
+          onClick={() => toggle(s.id)}
+        >
+          {s.name}
+        </button>
+      ))}
+      <button
+        type="button"
+        className="scope-link"
+        onClick={() => { setCombining(false); onChange([]); }}
+      >
+        Done
+      </button>
+    </div>
+  );
+}
+
+// ── Who is scanning ───────────────────────────────────────
+// Remembered per device, so the shop tablet keeps whoever is on shift rather
+// than asking on every scan.
+const STAFF_KEY = 'ms-staff-id';
+const readStaffId = () => {
+  try { const v = localStorage.getItem(STAFF_KEY); return v ? Number(v) : null; } catch (e) { return null; }
+};
+const writeStaffId = (id) => {
+  try {
+    if (id) localStorage.setItem(STAFF_KEY, String(id));
+    else localStorage.removeItem(STAFF_KEY);
+  } catch (e) { /* ignore */ }
+};
+
 // Stat card. Clickable variants double as the stock-status filter.
 function StatCard({ value, label, tone, active, onClick }) {
   const cls = `stat-card ${tone ? `tone-${tone}` : ''} ${active ? 'is-active' : ''}`;
@@ -332,6 +408,8 @@ function MainApp({ user, business }) {
   const [stockJump, setStockJump] = useState(null);
 
   const shops = useCollection('/api/shops', true);
+  const staff = useCollection('/api/staff', true);
+  const [showStaff, setShowStaff] = useState(false);
   const [selectedShopId, setSelectedShopId] = useState(null);
 
   // Auto-select first shop or only shop
@@ -351,6 +429,7 @@ function MainApp({ user, business }) {
     { id: 'stock', label: 'Stock', icon: Package },
     { id: 'overview', label: 'Overview', icon: Package },
     { id: 'sales', label: 'Sales', icon: TrendingUp },
+    { id: 'reports', label: 'Reports', icon: History },
     { id: 'shops', label: 'Shops', icon: Store },
   ];
 
@@ -380,7 +459,11 @@ function MainApp({ user, business }) {
         </nav>
 
         {tab === 'sell' && (
-          <SellView shops={shops.data} />
+          <SellView
+            shops={shops.data}
+            staff={staff.data}
+            onManageStaff={() => setShowStaff(true)}
+          />
         )}
         {tab === 'stock' && (
           <StockView
@@ -402,13 +485,28 @@ function MainApp({ user, business }) {
             onFindStock={(sku) => { setStockJump({ sku, at: Date.now() }); setTab('stock'); }}
           />
         )}
+        {tab === 'reports' && (
+          <ReportsView shops={shops.data} />
+        )}
         {tab === 'shops' && (
           <ShopsView shops={shops} isOwner={isOwner} />
         )}
       </div>
 
       {showSettings && (
-        <SettingsModal onClose={() => setShowSettings(false)} />
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onManageStaff={() => { setShowSettings(false); setShowStaff(true); }}
+        />
+      )}
+
+      {showStaff && (
+        <StaffModal
+          staff={staff.data}
+          shops={shops.data}
+          onClose={() => setShowStaff(false)}
+          onChanged={staff.reload}
+        />
       )}
     </div>
   );
@@ -1616,7 +1714,22 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
 // ═══════════════════════════════════════════════════════════
 // SELL VIEW — barcode scan-to-sell
 // ═══════════════════════════════════════════════════════════
-function SellView({ shops }) {
+// Four things a garment can do, all through the same scan box. Staff learn
+// one screen; only the mode button changes. Stock Out is deliberately NOT a
+// sale — a damaged or returned piece leaving the shop must never land in the
+// sales figures.
+const SCAN_MODES = [
+  { id: 'sell',     label: 'Sell',      icon: ScanLine,   verb: 'Sell',       hint: 'Each scan sells one' },
+  { id: 'in',       label: 'Stock In',  icon: TrendingUp, verb: 'Stock in',   hint: 'Each scan adds one to this shop' },
+  { id: 'out',      label: 'Stock Out', icon: TrendingDown, verb: 'Take out',  hint: 'Leaves the shop without being sold' },
+  { id: 'transfer', label: 'Transfer',  icon: Store,      verb: 'Move',       hint: 'Move stock to another shop' },
+];
+
+// Why a piece left the shop without being sold. Kept short because staff pick
+// one on a phone, mid-task.
+const OUT_REASONS = ['Reject', 'Damaged', 'Returned to factory', 'Lost', 'Sample', 'Other'];
+
+function SellView({ shops, staff, onManageStaff }) {
   const [shopId, setShopId] = useState(shops[0]?.id || null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1624,7 +1737,21 @@ function SellView({ shops }) {
   const [recent, setRecent] = useState([]);  // [{ name, sku, qty, ts }]
   const inputRef = React.useRef(null);
 
-  // Two ways to sell: scan the barcode, or look the item up and type it in.
+  // What this scan does. Sell is the everyday case and stays the default.
+  const [scanMode, setScanMode] = useState('sell');
+  const [outReason, setOutReason] = useState(OUT_REASONS[0]);
+  const [toShopId, setToShopId] = useState(null);
+
+  // Who is scanning. Remembered on this device across shifts.
+  const [staffId, setStaffId] = useState(readStaffId);
+  useEffect(() => { writeStaffId(staffId); }, [staffId]);
+  // Drop a remembered person who is no longer on the list.
+  useEffect(() => {
+    if (staffId && staff.length && !staff.find(s => s.id === staffId)) setStaffId(null);
+  }, [staff, staffId]);
+  const staffName = (staff.find(s => s.id === staffId) || {}).name || '';
+
+  // Two ways to identify an item: scan the barcode, or look it up and type it.
   // The scanner is not always to hand, and some sales never touch one.
   const [mode, setMode] = useState('scan');  // 'scan' | 'manual'
   const [lookup, setLookup] = useState('');
@@ -1657,23 +1784,55 @@ function SellView({ shops }) {
     return () => clearTimeout(t);
   }, [lookup, shopId, mode]);
 
-  const recordSale = (d) => {
-    setMsg({ type: 'ok', text: `Sold ${d.soldQty} × ${d.item.name} — ${d.item.qty} left` });
+  const record = (d, verb) => {
+    setMsg({ type: 'ok', text: `${verb} ${d.qtyChanged} × ${d.item.name} — ${d.item.qty} now in stock` });
     setRecent(r => [{
-      name: d.item.name, sku: d.item.sku, qty: d.item.qty, sold: d.soldQty, ts: Date.now(),
+      name: d.item.name, sku: d.item.sku, qty: d.item.qty,
+      moved: d.qtyChanged, mode: scanMode, who: d.staffName || staffName, ts: Date.now(),
     }, ...r].slice(0, 30));
   };
+
+  // Transfers move stock between two shops, so they go through the transfer
+  // endpoint rather than the single-shop scan one.
+  const doTransfer = async ({ sku, qty }) => {
+    const d = await api('/api/transfers', {
+      method: 'POST',
+      body: { sku, fromShopId: shopId, toShopId, qty, staffId: staffId || undefined },
+    });
+    const toName = shops.find(s => s.id === toShopId)?.name || 'the other shop';
+    setMsg({ type: 'ok', text: `Moved ${qty} × ${sku} to ${toName}` });
+    setRecent(r => [{
+      name: d?.item?.name || sku, sku, qty: d?.from?.qty ?? '', moved: qty,
+      mode: 'transfer', who: staffName, ts: Date.now(),
+    }, ...r].slice(0, 30));
+  };
+
+  const scanBody = (identifier, qty) => ({
+    ...identifier,
+    qty,
+    mode: scanMode,
+    reason: scanMode === 'out' ? outReason : '',
+    staffId: staffId || undefined,
+  });
 
   const submit = async (e) => {
     e.preventDefault();
     const c = code.trim();
     if (!c || !shopId) return;
+    if (scanMode === 'transfer' && !toShopId) {
+      setMsg({ type: 'err', text: 'Choose which shop it is going to first' });
+      return;
+    }
     setBusy(true); setMsg(null);
     try {
-      const d = await api(`/api/shops/${shopId}/sell`, { method: 'POST', body: { code: c } });
-      recordSale(d);
+      if (scanMode === 'transfer') {
+        await doTransfer({ sku: c, qty: 1 });
+      } else {
+        const d = await api(`/api/shops/${shopId}/scan`, { method: 'POST', body: scanBody({ code: c }, 1) });
+        record(d, d.label);
+      }
     } catch (err) {
-      setMsg({ type: 'err', text: err.message || 'Could not sell that item' });
+      setMsg({ type: 'err', text: err.message || 'Could not record that' });
     } finally {
       setCode('');
       setBusy(false);
@@ -1681,24 +1840,33 @@ function SellView({ shops }) {
     }
   };
 
-  const sellPicked = async () => {
+  const submitPicked = async () => {
     if (!picked || !shopId) return;
+    if (scanMode === 'transfer' && !toShopId) {
+      setMsg({ type: 'err', text: 'Choose which shop it is going to first' });
+      return;
+    }
     setBusy(true); setMsg(null);
     try {
-      const d = await api(`/api/shops/${shopId}/sell`, {
-        method: 'POST',
-        body: { itemId: picked.id, qty: sellQty, manual: true },
-      });
-      recordSale(d);
+      if (scanMode === 'transfer') {
+        await doTransfer({ sku: picked.sku, qty: sellQty });
+      } else {
+        const d = await api(`/api/shops/${shopId}/scan`, {
+          method: 'POST',
+          body: scanBody({ itemId: picked.id }, sellQty),
+        });
+        record(d, d.label);
+      }
       setPicked(null); setLookup(''); setResults([]); setSellQty(1);
     } catch (err) {
-      setMsg({ type: 'err', text: err.message || 'Could not sell that item' });
+      setMsg({ type: 'err', text: err.message || 'Could not record that' });
     } finally {
       setBusy(false);
     }
   };
 
   const shopName = shops.find(s => s.id === shopId)?.name || '';
+  const currentMode = SCAN_MODES.find(m => m.id === scanMode) || SCAN_MODES[0];
 
   if (shops.length === 0) {
     return (
@@ -1714,15 +1882,81 @@ function SellView({ shops }) {
 
   return (
     <div>
+      {/* What this scan does. Sell first — it is the everyday one. */}
+      <div className="segmented segmented-wide mode-switch" role="group" aria-label="What are you doing">
+        {SCAN_MODES.map(m => (
+          <button
+            key={m.id}
+            type="button"
+            className={scanMode === m.id ? 'is-active' : ''}
+            onClick={() => { setScanMode(m.id); setPicked(null); setMsg(null); }}
+          >
+            <m.icon size={16} /> {m.label}
+          </button>
+        ))}
+      </div>
+
       <div className="scan-card">
+        {/* Every scan is recorded against a name, which is what makes a
+            missing garment traceable later. */}
         <div className="field">
-          <label>Selling from</label>
+          <label>Who is scanning</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select
+              className="select"
+              value={staffId || ''}
+              onChange={e => setStaffId(e.target.value ? Number(e.target.value) : null)}
+              style={{ flex: 1 }}
+            >
+              <option value="">Not recorded</option>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onManageStaff}>
+              <Plus size={15} /> Names
+            </button>
+          </div>
+          {!staffId && staff.length > 0 && (
+            <div className="field-hint">Pick your name so sales are counted for you.</div>
+          )}
+          {staff.length === 0 && (
+            <div className="field-hint">No names yet — tap Names to add the people who work here.</div>
+          )}
+        </div>
+
+        <div className="field">
+          <label>{scanMode === 'transfer' ? 'Moving from' : scanMode === 'in' ? 'Stocking into' : 'At shop'}</label>
           <select className="select" value={shopId || ''} onChange={e => setShopId(Number(e.target.value))}>
             {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
 
-        <div className="segmented segmented-wide" role="group" aria-label="How to sell" style={{ marginBottom: 20 }}>
+        {scanMode === 'transfer' && (
+          <div className="field">
+            <label>Moving to</label>
+            <select
+              className="select"
+              value={toShopId || ''}
+              onChange={e => setToShopId(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Choose a shop…</option>
+              {shops.filter(s => s.id !== shopId).map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {scanMode === 'out' && (
+          <div className="field">
+            <label>Why is it leaving?</label>
+            <select className="select" value={outReason} onChange={e => setOutReason(e.target.value)}>
+              {OUT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+            <div className="field-hint">This does not count as a sale.</div>
+          </div>
+        )}
+
+        <div className="segmented segmented-wide" role="group" aria-label="How to find the item" style={{ marginBottom: 20 }}>
           <button type="button" className={mode === 'scan' ? 'is-active' : ''} onClick={() => setMode('scan')}>
             <ScanLine size={16} /> Scan barcode
           </button>
@@ -1734,7 +1968,7 @@ function SellView({ shops }) {
         {mode === 'scan' && (
           <form onSubmit={submit}>
             <div className="field">
-              <label>Scan a barcode — each scan sells one</label>
+              <label>Scan a barcode — {currentMode.hint.toLowerCase()}</label>
               <input
                 ref={inputRef}
                 className="input scan-input"
@@ -1747,7 +1981,7 @@ function SellView({ shops }) {
               />
             </div>
             <button className="btn btn-primary btn-block btn-large" disabled={busy || !code.trim()}>
-              <ScanLine size={19} /> Sell one
+              <ScanLine size={19} /> {currentMode.verb} one
             </button>
           </form>
         )}
@@ -1766,7 +2000,9 @@ function SellView({ shops }) {
                     type="button"
                     key={it.id}
                     className="pick-row"
-                    disabled={it.qty === 0}
+                    // Stocking in is the one mode where an empty peg is fine —
+                    // that is exactly what you are about to fill.
+                    disabled={it.qty === 0 && scanMode !== 'in'}
                     onClick={() => { setPicked(it); setSellQty(1); }}
                   >
                     <span className="pick-main">
@@ -1775,8 +2011,8 @@ function SellView({ shops }) {
                       </span>
                       <span className="pick-sub">{it.sku}{Number(it.price) > 0 ? ` · ${idr(it.price)}` : ''}</span>
                     </span>
-                    <span className={`pick-qty ${it.qty === 0 ? 'is-out' : ''}`}>
-                      {it.qty === 0 ? 'none left' : `${it.qty} left`}
+                    <span className={`pick-qty ${it.qty === 0 && scanMode !== 'in' ? 'is-out' : ''}`}>
+                      {it.qty === 0 ? 'none here' : `${it.qty} here`}
                     </span>
                   </button>
                 ))}
@@ -1800,7 +2036,7 @@ function SellView({ shops }) {
             </div>
 
             <div className="field">
-              <label>How many are you selling?</label>
+              <label>How many?</label>
               <div className="qty-group qty-group-large">
                 <button
                   type="button"
@@ -1815,8 +2051,10 @@ function SellView({ shops }) {
                 <button
                   type="button"
                   className="qty-btn"
-                  disabled={sellQty >= picked.qty}
-                  onClick={() => setSellQty(q => Math.min(picked.qty, q + 1))}
+                  // Stocking in has no ceiling; taking stock out cannot go
+                  // past what is actually on the rail.
+                  disabled={scanMode !== 'in' && sellQty >= picked.qty}
+                  onClick={() => setSellQty(q => (scanMode === 'in' ? q + 1 : Math.min(picked.qty, q + 1)))}
                   aria-label="one more"
                 >
                   <Plus size={18} />
@@ -1827,10 +2065,10 @@ function SellView({ shops }) {
             <button
               type="button"
               className="btn btn-primary btn-block btn-large"
-              disabled={busy || picked.qty === 0}
-              onClick={sellPicked}
+              disabled={busy || (scanMode !== 'in' && picked.qty === 0)}
+              onClick={submitPicked}
             >
-              <Check size={19} /> Sell {sellQty}
+              <Check size={19} /> {currentMode.verb} {sellQty}
             </button>
           </div>
         )}
@@ -1845,30 +2083,35 @@ function SellView({ shops }) {
       {recent.length > 0 && (
         <>
           <div className="section-head">
-            <h2 className="section-title">Sold just now</h2>
+            <h2 className="section-title">Just now</h2>
             <span className="section-meta">{shopName}</span>
           </div>
           <div className="panel">
             <div className="panel-body">
-              {recent.map((r, i) => (
-                <div className="rank-row" key={r.ts + '-' + i}>
-                  <div className="rank-main">
-                    <div className="rank-name">{r.name}</div>
-                    {r.sku && <div className="rank-sub product-sku">{r.sku}</div>}
+              {recent.map((r, i) => {
+                const m = SCAN_MODES.find(x => x.id === r.mode) || SCAN_MODES[0];
+                return (
+                  <div className="rank-row" key={r.ts + '-' + i}>
+                    <div className="rank-main">
+                      <div className="rank-name">{r.name}</div>
+                      <div className="rank-sub">
+                        {[r.sku, m.label, r.who && `by ${r.who}`].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <div className="rank-stat">
+                      <div className="rank-stat-num">{r.moved || 1}</div>
+                      <div className="rank-stat-label">{m.label.toLowerCase()}</div>
+                    </div>
+                    <div className="rank-stat">
+                      <div className="rank-stat-num">{r.qty}</div>
+                      <div className="rank-stat-label">left</div>
+                    </div>
+                    <div className="rank-stat">
+                      <div className="rank-stat-label">{new Date(r.ts).toLocaleTimeString()}</div>
+                    </div>
                   </div>
-                  <div className="rank-stat">
-                    <div className="rank-stat-num">{r.sold || 1}</div>
-                    <div className="rank-stat-label">sold</div>
-                  </div>
-                  <div className="rank-stat">
-                    <div className="rank-stat-num">{r.qty}</div>
-                    <div className="rank-stat-label">left</div>
-                  </div>
-                  <div className="rank-stat">
-                    <div className="rank-stat-label">{new Date(r.ts).toLocaleTimeString()}</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </>
@@ -1915,6 +2158,12 @@ function OverviewView({ shops = [] }) {
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [years, setYears] = useState([]);
   const [sold, setSold] = useState({ items: {}, total: 0 });
+  // Last year's figures, shown underneath on request — she asked to reach the
+  // previous year from the same row rather than switching the whole page.
+  const [compare, setCompare] = useState(false);
+  const [prevSold, setPrevSold] = useState({ items: {}, total: 0 });
+  // The product whose full in/out history is open.
+  const [historySku, setHistorySku] = useState(null);
   const showSold = layout === 'sold';
 
   const load = useCallback(() => {
@@ -1944,6 +2193,15 @@ function OverviewView({ shops = [] }) {
       .then(d => setSold(d || { items: {}, total: 0 }))
       .catch(() => setSold({ items: {}, total: 0 }));
   }, [showSold, year, shopsParam]);
+
+  useEffect(() => {
+    if (!showSold || !compare) return;
+    const params = new URLSearchParams({ year: String(year - 1) });
+    if (shopsParam) params.set('shops', shopsParam);
+    api(`/api/business/sold-overview?${params.toString()}`)
+      .then(d => setPrevSold(d || { items: {}, total: 0 }))
+      .catch(() => setPrevSold({ items: {}, total: 0 }));
+  }, [showSold, compare, year, shopsParam]);
 
   useEffect(() => {
     api('/api/business/sales-years')
@@ -1992,10 +2250,6 @@ function OverviewView({ shops = [] }) {
   // Product · Fabric · Colour · Size + one per shop + Total.
   const colCount = 4 + data.shops.length + 1;
 
-  const toggleShop = (id) => {
-    setShopSel(sel => (sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]));
-  };
-
   const scopeText = shopSel.length === 0
     ? 'Counted across all shops combined.'
     : `Counted across ${data.shops.join(' + ')} only.`;
@@ -2025,29 +2279,8 @@ function OverviewView({ shops = [] }) {
         </div>
       </div>
 
-      {/* Which shops this page covers: all of them, one, or any few. */}
-      {shops.length > 1 && (
-        <div className="scope-picker">
-          <span className="scope-picker-label">Showing</span>
-          <button
-            type="button"
-            className={`scope-chip ${shopSel.length === 0 ? 'is-active' : ''}`}
-            onClick={() => setShopSel([])}
-          >
-            All shops
-          </button>
-          {shops.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              className={`scope-chip ${shopSel.includes(s.id) ? 'is-active' : ''}`}
-              onClick={() => toggleShop(s.id)}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Which shops this page covers. */}
+      <ShopScope shops={shops} value={shopSel} onChange={setShopSel} />
 
       {showSold && (
         <div className="scope-picker">
@@ -2060,8 +2293,17 @@ function OverviewView({ shops = [] }) {
           >
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
+          <button
+            type="button"
+            className={`scope-chip ${compare ? 'is-active' : ''}`}
+            onClick={() => setCompare(c => !c)}
+            title={`Show ${year - 1} underneath for comparison`}
+          >
+            vs {year - 1}
+          </button>
           <span className="scope-picker-note">
             {sold.total.toLocaleString()} pieces sold in {year}
+            {compare && prevSold.total > 0 && ` · ${prevSold.total.toLocaleString()} in ${year - 1}`}
           </span>
         </div>
       )}
@@ -2207,7 +2449,11 @@ function OverviewView({ shops = [] }) {
                           </td>
                         </tr>
                       )}
-                      <tr className={`item-row ${gapCls}`}>
+                      <tr
+                        className={`item-row is-clickable ${gapCls}`}
+                        onClick={() => setHistorySku(item)}
+                        title="See every date this went in and out"
+                      >
                         <td className="sticky-col">
                           <div className="cell-name">{item.name}</div>
                           <div className="cell-sub">{item.sku}{item.style ? ` · ${item.style}` : ''}</div>
@@ -2225,7 +2471,7 @@ function OverviewView({ shops = [] }) {
                       {/* The sold line: same columns, half the weight, so the
                           big numbers stay stock and the small ones stay sales. */}
                       {showSold && (
-                        <tr className={`sold-row ${gapCls}`}>
+                        <tr className={`sold-row ${compare ? '' : gapCls}`}>
                           <td className="sticky-col">
                             <span className="sold-tag">sold in {year}</span>
                           </td>
@@ -2238,6 +2484,25 @@ function OverviewView({ shops = [] }) {
                           <td className="num total-col">{(soldRow && soldRow.total) || 0}</td>
                         </tr>
                       )}
+                      {showSold && compare && (
+                        <tr className={`sold-row sold-row-prev ${gapCls}`}>
+                          <td className="sticky-col">
+                            <span className="sold-tag">sold in {year - 1}</span>
+                          </td>
+                          <td colSpan={3} />
+                          {data.shops.map(s => {
+                            const p = prevSold.items[item.sku];
+                            return (
+                              <td key={s} className={`num ${!(p && p.byShop[s]) ? 'zero' : ''}`}>
+                                {(p && p.byShop[s]) || 0}
+                              </td>
+                            );
+                          })}
+                          <td className="num total-col">
+                            {(prevSold.items[item.sku] && prevSold.items[item.sku].total) || 0}
+                          </td>
+                        </tr>
+                      )}
                     </React.Fragment>
                   );
                 })}
@@ -2245,7 +2510,129 @@ function OverviewView({ shops = [] }) {
             </table>
           </div>
         )}
+
+      {historySku && (
+        <ItemHistoryModal
+          item={historySku}
+          shopsParam={shopsParam}
+          onClose={() => setHistorySku(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// ── One product's whole year ──────────────────────────────
+// "Click the item and it shows every date stock went in and every date it
+// sold." Months first so a year reads at a glance, then the dated detail
+// underneath with who handled each one.
+const MOVEMENT_LOOK = {
+  'in':           { label: 'Stocked in',  sign: '+', tone: 'good' },
+  'transfer-in':  { label: 'Moved in',    sign: '+', tone: '' },
+  'sale':         { label: 'Sold',        sign: '−', tone: 'bad' },
+  'out':          { label: 'Sold',        sign: '−', tone: 'bad' },
+  'removal':      { label: 'Taken out',   sign: '−', tone: 'warn' },
+  'transfer-out': { label: 'Moved out',   sign: '−', tone: '' },
+  'adjust':       { label: 'Corrected',   sign: '=', tone: '' },
+};
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+const monthLabel = (ym) => {
+  const [y, m] = ym.split('-');
+  return `${MONTH_NAMES[Number(m) - 1]} ${y}`;
+};
+
+function ItemHistoryModal({ item, shopsParam, onClose }) {
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [data, setData] = useState({ months: [], movements: [], years: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const p = new URLSearchParams({ sku: item.sku, year: String(year) });
+    if (shopsParam) p.set('shops', shopsParam);
+    api(`/api/business/sku-history?${p.toString()}`)
+      .then(d => { setData(d || { months: [], movements: [], years: [] }); setLoading(false); })
+      .catch(() => { setData({ months: [], movements: [], years: [] }); setLoading(false); });
+  }, [item.sku, year, shopsParam]);
+
+  const title = [item.style, item.fabric, item.color, item.size].filter(Boolean).join(' · ') || item.name;
+  const yearOptions = data.years && data.years.length ? data.years : [year];
+
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div className="scope-picker" style={{ marginTop: -4 }}>
+        <span className="scope-picker-label">Year</span>
+        <select
+          className="select select-inline"
+          value={year}
+          onChange={e => setYear(Number(e.target.value))}
+          aria-label="Year"
+        >
+          {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <span className="scope-picker-note">{item.sku}</span>
+      </div>
+
+      {loading && <div className="loading">Loading…</div>}
+
+      {!loading && data.movements.length === 0 && (
+        <div className="empty empty-sm">
+          <History size={26} color="var(--text-3)" style={{ margin: '0 auto' }} />
+          <h3>Nothing recorded in {year}</h3>
+          <p>Stock going in and out will show here once it is scanned.</p>
+        </div>
+      )}
+
+      {!loading && data.months.length > 0 && (
+        <>
+          <div className="detail-k" style={{ marginBottom: 8 }}>Month by month</div>
+          <div className="month-grid">
+            {data.months.map(m => (
+              <div className="month-cell" key={m.month}>
+                <div className="month-name">{monthLabel(m.month)}</div>
+                <div className="month-nums">
+                  {m.in > 0 && <span className="month-in">+{m.in} in</span>}
+                  {m.sold > 0 && <span className="month-sold">−{m.sold} sold</span>}
+                  {m.removed > 0 && <span className="month-other">−{m.removed} out</span>}
+                  {m.transferred > 0 && <span className="month-other">{m.transferred} moved</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {!loading && data.movements.length > 0 && (
+        <>
+          <div className="detail-k" style={{ margin: '18px 0 8px' }}>
+            Every movement · {data.movements.length}
+          </div>
+          <div className="ledger">
+            {data.movements.map(m => {
+              const look = MOVEMENT_LOOK[m.type] || { label: m.type, sign: '', tone: '' };
+              return (
+                <div className="ledger-row" key={m.id}>
+                  <div className="ledger-date">
+                    {new Date(m.occurredAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                  </div>
+                  <div className="ledger-main">
+                    <span className={`ledger-kind tone-${look.tone}`}>{look.label}</span>
+                    <span className="ledger-where">{m.shopName}</span>
+                    {m.staffName && <span className="ledger-who">by {m.staffName}</span>}
+                    {m.reason && <span className="ledger-reason">{m.reason}</span>}
+                  </div>
+                  <div className={`ledger-qty tone-${look.tone}`}>
+                    {look.sign}{Math.abs(m.qtyChange)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }
 
@@ -2262,6 +2649,7 @@ const SALES_GROUPS = [
   { id: 'color',  label: 'Colour' },
   { id: 'style',  label: 'Style' },
   { id: 'shop',   label: 'Shop' },
+  { id: 'staff',  label: 'Person' },
 ];
 
 function SalesView({ shops = [], onFindStock }) {
@@ -2299,10 +2687,6 @@ function SalesView({ shops = [], onFindStock }) {
       .catch(() => setRecent([]));
   }, [year, shopsParam]);
 
-  const toggleShop = (id) => {
-    setShopSel(sel => (sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]));
-  };
-
   const totalSold = best.items.reduce((n, it) => n + it.units, 0);
   const totalRevenue = best.items.reduce((n, it) => n + it.revenue, 0);
   const groupLabel = (SALES_GROUPS.find(g => g.id === groupBy) || {}).label || '';
@@ -2323,28 +2707,7 @@ function SalesView({ shops = [], onFindStock }) {
         </select>
       </div>
 
-      {shops.length > 1 && (
-        <div className="scope-picker">
-          <span className="scope-picker-label">Shops</span>
-          <button
-            type="button"
-            className={`scope-chip ${shopSel.length === 0 ? 'is-active' : ''}`}
-            onClick={() => setShopSel([])}
-          >
-            All shops
-          </button>
-          {shops.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              className={`scope-chip ${shopSel.includes(s.id) ? 'is-active' : ''}`}
-              onClick={() => toggleShop(s.id)}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-      )}
+      <ShopScope shops={shops} value={shopSel} onChange={setShopSel} />
 
       <div className="section-head">
         <h2 className="section-title">Best sellers</h2>
@@ -2468,6 +2831,259 @@ function SalesView({ shops = [], onFindStock }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// REPORTS — the back-office ledger, one shop at a time
+// ═══════════════════════════════════════════════════════════
+// Kept apart from the scanning screens on purpose: this is the manager's
+// view for tracing where a garment went, not something shop floor staff
+// need in front of them all day.
+const LEDGER_FILTERS = [
+  { id: '',        label: 'Everything' },
+  { id: 'in',      label: 'Came in' },
+  { id: 'out',     label: 'Went out' },
+];
+
+function ReportsView({ shops = [] }) {
+  const [shopId, setShopId] = useState(shops[0]?.id || null);
+  const [direction, setDirection] = useState('');
+  const [year, setYear] = useState('all');
+  const [years, setYears] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => { if (!shopId && shops[0]) setShopId(shops[0].id); }, [shops, shopId]);
+
+  useEffect(() => {
+    api('/api/business/sales-years')
+      .then(d => setYears(Array.isArray(d?.years) ? d.years : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!shopId) return;
+    setLoading(true); setError(null);
+    const p = new URLSearchParams({ limit: '500' });
+    if (year !== 'all') p.set('year', String(year));
+    if (direction) p.set('direction', direction);
+    api(`/api/shops/${shopId}/ledger?${p.toString()}`)
+      .then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [shopId, year, direction]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(r =>
+      [r.itemName, r.sku, r.fabric, r.color, r.size, r.staffName, r.reason]
+        .filter(Boolean).join(' ').toLowerCase().includes(q)
+    );
+  }, [rows, search]);
+
+  const totals = useMemo(() => {
+    let inQty = 0, outQty = 0;
+    for (const r of visible) {
+      if (r.qtyChange > 0) inQty += r.qtyChange;
+      else outQty += Math.abs(r.qtyChange);
+    }
+    return { inQty, outQty };
+  }, [visible]);
+
+  if (shops.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty">
+          <Store size={32} color="var(--text-3)" style={{ margin: '0 auto' }} />
+          <h3>No shops yet</h3>
+          <p>Add a shop to start keeping a stock record.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {error && <div className="error-banner">{error}</div>}
+
+      {/* A tab per shop — office, then each store. */}
+      <div className="segmented segmented-wide" role="group" aria-label="Which shop">
+        {shops.map(s => (
+          <button
+            key={s.id}
+            type="button"
+            className={shopId === s.id ? 'is-active' : ''}
+            onClick={() => setShopId(s.id)}
+          >
+            {s.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="scope-picker">
+        <span className="scope-picker-label">Show</span>
+        {LEDGER_FILTERS.map(f => (
+          <button
+            key={f.id || 'all'}
+            type="button"
+            className={`scope-chip ${direction === f.id ? 'is-active' : ''}`}
+            onClick={() => setDirection(f.id)}
+          >
+            {f.label}
+          </button>
+        ))}
+        <select
+          className="select select-inline"
+          value={year}
+          onChange={e => setYear(e.target.value)}
+          aria-label="Year"
+        >
+          <option value="all">All time</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      <div className="toolbar" style={{ marginTop: 4 }}>
+        <SearchField value={search} onChange={setSearch} placeholder="Find a product, code or person…" />
+      </div>
+
+      <div className="stat-grid">
+        <StatCard value={totals.inQty} label="Pieces in" tone="good" />
+        <StatCard value={totals.outQty} label="Pieces out" tone="bad" />
+        <StatCard value={visible.length} label="Movements" />
+      </div>
+
+      {loading && <div className="loading">Loading…</div>}
+
+      {!loading && visible.length === 0 && (
+        <div className="empty empty-sm">
+          <History size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
+          <h3>Nothing recorded</h3>
+          <p>Every scan at this shop will appear here with its date and who did it.</p>
+        </div>
+      )}
+
+      {!loading && visible.length > 0 && (
+        <div className="panel">
+          <div className="panel-body">
+            {visible.map(r => {
+              const look = MOVEMENT_LOOK[r.type] || { label: r.type, sign: '', tone: '' };
+              return (
+                <div className="ledger-row" key={r.id}>
+                  <div className="ledger-date">
+                    {new Date(r.occurredAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' })}
+                  </div>
+                  <div className="ledger-main">
+                    <div className="rank-name">{r.itemName}</div>
+                    <div className="ledger-sub">
+                      <span className={`ledger-kind tone-${look.tone}`}>{look.label}</span>
+                      {[r.sku, r.color, r.size].filter(Boolean).join(' · ')}
+                      {r.staffName && <span className="ledger-who">by {r.staffName}</span>}
+                      {r.reason && <span className="ledger-reason">{r.reason}</span>}
+                    </div>
+                  </div>
+                  <div className={`ledger-qty tone-${look.tone}`}>
+                    {look.sign}{Math.abs(r.qtyChange)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Staff list management ─────────────────────────────────
+function StaffModal({ staff, shops, onClose, onChanged }) {
+  const toast = useToast();
+  const [name, setName] = useState('');
+  const [shopId, setShopId] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const add = async () => {
+    const n = name.trim();
+    if (!n) return;
+    setBusy(true);
+    try {
+      await api('/api/staff', { method: 'POST', body: { name: n, shopId: shopId ? Number(shopId) : null } });
+      setName('');
+      onChanged();
+      toast('Added');
+    } catch (e) { toast(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const remove = async (s) => {
+    if (!window.confirm(`Remove ${s.name} from the list?`)) return;
+    try {
+      await api(`/api/staff/${s.id}`, { method: 'DELETE' });
+      onChanged();
+      toast('Removed');
+    } catch (e) { toast(e.message); }
+  };
+
+  return (
+    <Modal title="Who works here" onClose={onClose}>
+      <p style={{ color: 'var(--text-2)', marginTop: 0, fontSize: 14 }}>
+        Names, not accounts — nobody needs a password. Whoever is picked on the
+        Sell screen gets credited for what they scan, so you can see each
+        person's sales and trace where a piece went.
+      </p>
+
+      <div className="group-pick-list">
+        {staff.length === 0 && (
+          <div style={{ color: 'var(--text-2)', fontSize: 14, padding: '14px 8px', textAlign: 'center' }}>
+            No names yet.
+          </div>
+        )}
+        {staff.map(s => (
+          <div key={s.id} className="group-pick-row">
+            <div className="group-pick" style={{ cursor: 'default' }}>
+              <span className="group-pick-name">{s.name}</span>
+              {s.shopId != null && (
+                <span className="detail-k" style={{ marginLeft: 'auto' }}>
+                  {shops.find(x => x.id === s.shopId)?.name || ''}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="group-pick-delete"
+              onClick={() => remove(s)}
+              aria-label={`remove ${s.name}`}
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="group-pick-add">
+        <label>Add someone</label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input
+            className="input"
+            placeholder="Name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+            style={{ flex: '1 1 140px' }}
+          />
+          <select className="select" value={shopId} onChange={e => setShopId(e.target.value)} style={{ flex: '0 1 150px' }}>
+            <option value="">Any shop</option>
+            {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <button type="button" className="btn btn-primary" disabled={busy || !name.trim()} onClick={add}>
+            <Plus size={17} /> Add
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // SHOPS VIEW
 // ═══════════════════════════════════════════════════════════
 function ShopsView({ shops, isOwner }) {
@@ -2579,7 +3195,7 @@ function ShopModal({ shop, onClose, onSaved }) {
 // ═══════════════════════════════════════════════════════════
 // SETTINGS MODAL
 // ═══════════════════════════════════════════════════════════
-function SettingsModal({ onClose }) {
+function SettingsModal({ onClose, onManageStaff }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -2605,6 +3221,9 @@ function SettingsModal({ onClose }) {
       <p style={{ color: 'var(--text-2)', marginTop: 0, marginBottom: 18, fontSize: 14 }}>
         This is a shared workspace. Everyone with the access code sees and edits the same stock.
       </p>
+      <button className="btn btn-secondary btn-block" onClick={onManageStaff} style={{ marginBottom: 10 }}>
+        Who works here
+      </button>
       <button className="btn btn-ghost btn-block" onClick={exportData} disabled={busy}>
         Export a backup of all data
       </button>
