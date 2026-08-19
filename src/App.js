@@ -3,7 +3,7 @@ import {
   Package, Store, Plus, Trash2, Edit2,
   RefreshCw, Check, X, AlertTriangle, Copy, Settings,
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
-  MoreHorizontal, Sun, Moon,
+  MoreHorizontal, Sun, Moon, Printer,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import './App.css';
@@ -1733,6 +1733,11 @@ function SellView({ shops, staff, onManageStaff }) {
   const [shopId, setShopId] = useState(shops[0]?.id || null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [inFlight, setInFlight] = useState(0);   // scans still awaiting the server
+  // Everything sold since the last receipt. One customer usually buys several
+  // pieces, so the receipt is per sale, not per scan.
+  const [basket, setBasket] = useState([]);
+  const [receipt, setReceipt] = useState(null);   // frozen copy while printing
   const [msg, setMsg] = useState(null);      // { type: 'ok'|'err', text }
   const [recent, setRecent] = useState([]);  // [{ name, sku, qty, ts }]
   const inputRef = React.useRef(null);
@@ -1790,6 +1795,23 @@ function SellView({ shops, staff, onManageStaff }) {
       name: d.item.name, sku: d.item.sku, qty: d.item.qty,
       moved: d.qtyChanged, mode: scanMode, who: d.staffName || staffName, ts: Date.now(),
     }, ...r].slice(0, 30));
+    // Only actual sales go on a customer's receipt.
+    if (d.mode === 'sell') {
+      setBasket(b => {
+        const i = b.findIndex(x => x.sku === d.item.sku);
+        if (i >= 0) {
+          const next = [...b];
+          next[i] = { ...next[i], qty: next[i].qty + d.qtyChanged };
+          return next;
+        }
+        return [...b, {
+          sku: d.item.sku,
+          name: [d.item.category, d.item.fabric, d.item.color, d.item.size].filter(Boolean).join(' · ') || d.item.name,
+          price: Number(d.item.price) || 0,
+          qty: d.qtyChanged,
+        }];
+      });
+    }
   };
 
   // Transfers move stock between two shops, so they go through the transfer
@@ -1815,6 +1837,14 @@ function SellView({ shops, staff, onManageStaff }) {
     staffId: staffId || undefined,
   });
 
+  // A hardware scanner types the code and hits Enter, then moves straight to
+  // the next garment — it does not wait for the network. So the box MUST be
+  // emptied the instant Enter arrives, not when the request comes back:
+  // clearing it in a `finally` let the next barcode type onto the end of the
+  // previous one and sent nonsense like "AAA111BBB222" to the server.
+  // For the same reason the submit button is never disabled mid-flight; a
+  // disabled default button stops Enter submitting at all, which would throw
+  // the scan away silently.
   const submit = async (e) => {
     e.preventDefault();
     const c = code.trim();
@@ -1823,7 +1853,10 @@ function SellView({ shops, staff, onManageStaff }) {
       setMsg({ type: 'err', text: 'Choose which shop it is going to first' });
       return;
     }
-    setBusy(true); setMsg(null);
+    setCode('');
+    setInFlight(n => n + 1);
+    setMsg(null);
+    focusInput();
     try {
       if (scanMode === 'transfer') {
         await doTransfer({ sku: c, qty: 1 });
@@ -1832,10 +1865,11 @@ function SellView({ shops, staff, onManageStaff }) {
         record(d, d.label);
       }
     } catch (err) {
-      setMsg({ type: 'err', text: err.message || 'Could not record that' });
+      // Name the code that failed — with several scans in flight, "could not
+      // record that" alone leaves you no idea which garment to re-scan.
+      setMsg({ type: 'err', text: `${c}: ${err.message || 'could not record'}` });
     } finally {
-      setCode('');
-      setBusy(false);
+      setInFlight(n => Math.max(0, n - 1));
       focusInput();
     }
   };
@@ -1867,6 +1901,37 @@ function SellView({ shops, staff, onManageStaff }) {
 
   const shopName = shops.find(s => s.id === shopId)?.name || '';
   const currentMode = SCAN_MODES.find(m => m.id === scanMode) || SCAN_MODES[0];
+  const basketCount = basket.reduce((n, b) => n + b.qty, 0);
+  const basketTotal = basket.reduce((n, b) => n + b.price * b.qty, 0);
+
+  // Printing goes through the browser, so it works with whatever printer the
+  // shop has installed — thermal or otherwise — with no driver of our own.
+  // Chrome started with --kiosk-printing skips the dialog entirely, which is
+  // what makes this feel like a till rather than a web page.
+  const printReceipt = () => {
+    setReceipt({
+      lines: basket,
+      total: basketTotal,
+      count: basketCount,
+      shop: shopName,
+      who: staffName,
+      at: new Date(),
+      no: `${Date.now()}`.slice(-8),
+    });
+  };
+
+  // Print once the receipt has actually rendered, then clear the sale.
+  useEffect(() => {
+    if (!receipt) return undefined;
+    const t = setTimeout(() => {
+      window.print();
+      setBasket([]);
+      setReceipt(null);
+      focusInput();
+    }, 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receipt]);
 
   if (shops.length === 0) {
     return (
@@ -1980,8 +2045,9 @@ function SellView({ shops, staff, onManageStaff }) {
                 inputMode="text"
               />
             </div>
-            <button className="btn btn-primary btn-block btn-large" disabled={busy || !code.trim()}>
+            <button className="btn btn-primary btn-block btn-large" disabled={!code.trim()}>
               <ScanLine size={19} /> {currentMode.verb} one
+              {inFlight > 0 && <span className="inflight-dot">{inFlight}</span>}
             </button>
           </form>
         )}
@@ -2080,6 +2146,51 @@ function SellView({ shops, staff, onManageStaff }) {
         )}
       </div>
 
+      {/* This customer's sale. Printing is a browser print of a receipt-shaped
+          slip, which works with a thermal printer installed on the machine
+          exactly as it works with an ordinary one. */}
+      {scanMode === 'sell' && basket.length > 0 && (
+        <>
+          <div className="section-head">
+            <h2 className="section-title">This sale</h2>
+            <span className="section-meta">{basketCount} piece{basketCount === 1 ? '' : 's'}</span>
+          </div>
+          <div className="panel">
+            <div className="panel-body">
+              {basket.map(b => (
+                <div className="rank-row" key={b.sku}>
+                  <div className="rank-main">
+                    <div className="rank-name">{b.name}</div>
+                    <div className="rank-sub">{b.sku}{b.price > 0 ? ` · ${idr(b.price)} each` : ''}</div>
+                  </div>
+                  <div className="rank-stat">
+                    <div className="rank-stat-num">{b.qty}</div>
+                    <div className="rank-stat-label">qty</div>
+                  </div>
+                  <div className="rank-stat" style={{ minWidth: 116 }}>
+                    <div className="rank-stat-num" style={{ fontSize: 14 }}>{idr(b.price * b.qty)}</div>
+                  </div>
+                </div>
+              ))}
+              <div className="basket-total">
+                <span>Total</span>
+                <strong>{idr(basketTotal)}</strong>
+              </div>
+            </div>
+          </div>
+          <div className="basket-actions">
+            <button type="button" className="btn btn-primary btn-large" onClick={printReceipt}>
+              <Printer size={19} /> Print receipt
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setBasket([])}>
+              <X size={16} /> Start a new sale
+            </button>
+          </div>
+        </>
+      )}
+
+      {receipt && <Receipt data={receipt} />}
+
       {recent.length > 0 && (
         <>
           <div className="section-head">
@@ -2116,6 +2227,43 @@ function SellView({ shops, staff, onManageStaff }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── The printed slip ──────────────────────────────────────
+// Sized for a 58mm thermal roll, which is the common till printer here, but
+// it prints perfectly well on A4 too. Everything else on the page is hidden
+// at print time by the @media print rules in App.css.
+function Receipt({ data }) {
+  return (
+    <div className="receipt" aria-hidden="true">
+      <div className="receipt-head">
+        <div className="receipt-brand">MITRA SAMADI</div>
+        <div className="receipt-shop">{data.shop}</div>
+      </div>
+      <div className="receipt-meta">
+        <div>{data.at.toLocaleDateString()} {data.at.toLocaleTimeString()}</div>
+        <div>No. {data.no}</div>
+        {data.who && <div>Served by {data.who}</div>}
+      </div>
+      <div className="receipt-rule" />
+      {data.lines.map(l => (
+        <div className="receipt-line" key={l.sku}>
+          <div className="receipt-line-name">{l.name}</div>
+          <div className="receipt-line-nums">
+            <span>{l.qty} × {Number(l.price).toLocaleString('en-US')}</span>
+            <span>{(l.price * l.qty).toLocaleString('en-US')}</span>
+          </div>
+        </div>
+      ))}
+      <div className="receipt-rule" />
+      <div className="receipt-total">
+        <span>TOTAL (IDR)</span>
+        <span>{Number(data.total).toLocaleString('en-US')}</span>
+      </div>
+      <div className="receipt-count">{data.count} piece{data.count === 1 ? '' : 's'}</div>
+      <div className="receipt-foot">Thank you</div>
     </div>
   );
 }

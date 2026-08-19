@@ -1436,3 +1436,85 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   .rank-row, .activity-row { padding-left: var(--s-4); padding-right: var(--s-4); }
   .modal { padding: var(--s-4); }
 }
+
+/* Count of scans still awaiting the server. Scanning does not wait for the
+   network, so this is the only sign that something is still in flight. */
+.inflight-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--on-primary-veil);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* ── This sale ────────────────────────────────────────────── */
+.basket-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 14px var(--s-5) 4px;
+  border-top: 1px solid var(--line);
+  margin-top: var(--s-2);
+  font-size: 15px;
+  color: var(--text-2);
+}
+.basket-total strong { font-size: 20px; color: var(--text); font-variant-numeric: tabular-nums; }
+.basket-actions {
+  display: flex;
+  gap: var(--s-3);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--s-5);
+}
+
+/* ── The printed receipt ──────────────────────────────────────
+   Hidden on screen; at print time it is the ONLY thing on the page.
+   Sized for a 58mm thermal roll but harmless on A4. Printing is a plain
+   browser print, so any printer the machine already has works — and Chrome
+   launched with --kiosk-printing skips the dialog so it feels like a till. */
+.receipt { display: none; }
+
+@media print {
+  /* Blank everything, then put the slip back. Simpler and far more reliable
+     than trying to hide each piece of app chrome individually. */
+  body * { visibility: hidden !important; }
+  .receipt, .receipt * { visibility: visible !important; }
+  .receipt {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 54mm;
+    padding: 2mm 0;
+    color: #000;
+    background: #fff;
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    line-height: 1.35;
+  }
+  .receipt-head { text-align: center; margin-bottom: 3mm; }
+  .receipt-brand { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; }
+  .receipt-shop { font-size: 11px; }
+  .receipt-meta { font-size: 9.5px; margin-bottom: 2mm; }
+  .receipt-rule { border-top: 1px dashed #000; margin: 2mm 0; }
+  .receipt-line { margin-bottom: 1.6mm; }
+  .receipt-line-name { word-break: break-word; }
+  .receipt-line-nums { display: flex; justify-content: space-between; }
+  .receipt-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 12px;
+    margin-top: 1mm;
+  }
+  .receipt-count { font-size: 9.5px; margin-top: 1mm; }
+  .receipt-foot { text-align: center; margin-top: 4mm; font-size: 10px; }
+
+  @page { margin: 0; }
+}
