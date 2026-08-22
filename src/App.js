@@ -1837,6 +1837,45 @@ function SellView({ shops, staff, onManageStaff }) {
     staffId: staffId || undefined,
   });
 
+  // A scanner is a keyboard that types impossibly fast. Whether it also sends
+  // an Enter afterwards is a per-device setting we cannot rely on — plenty
+  // ship with it off, and then the code just sits in the box and nothing is
+  // ever logged. So rather than trusting the suffix, watch the typing itself:
+  // a machine-fast burst followed by a pause is a scan, and it submits on its
+  // own. If the scanner does send Enter, that path still fires first and this
+  // timer is cancelled.
+  const SCAN_MAX_GAP_MS = 35;   // scanners run 5-20ms per character
+  const SCAN_IDLE_MS = 110;     // quiet spell that means the burst has ended
+  const scanTiming = React.useRef({ last: 0, gaps: [], timer: null });
+
+  const clearScanTimer = () => {
+    const t = scanTiming.current;
+    if (t.timer) clearTimeout(t.timer);
+    t.timer = null; t.gaps = []; t.last = 0;
+  };
+
+  const onScanType = (value) => {
+    setCode(value);
+    const t = scanTiming.current;
+    const now = Date.now();
+    if (t.last) t.gaps.push(now - t.last);
+    t.last = now;
+    if (t.timer) clearTimeout(t.timer);
+    if (!value.trim()) { t.gaps = []; t.last = 0; return; }
+    t.timer = setTimeout(() => {
+      const gaps = t.gaps;
+      // Four or more characters, every one of them machine-fast. A person
+      // typing by hand never clears that bar, and the manual path has its own
+      // tab anyway, so a false positive here is close to impossible.
+      const looksScanned = gaps.length >= 3 && gaps.every(g => g < SCAN_MAX_GAP_MS);
+      clearScanTimer();
+      if (looksScanned) submitCode(value);
+    }, SCAN_IDLE_MS);
+  };
+
+  // Never leave a timer running against an unmounted screen.
+  useEffect(() => clearScanTimer, []);
+
   // A hardware scanner types the code and hits Enter, then moves straight to
   // the next garment — it does not wait for the network. So the box MUST be
   // emptied the instant Enter arrives, not when the request comes back:
@@ -1845,9 +1884,14 @@ function SellView({ shops, staff, onManageStaff }) {
   // For the same reason the submit button is never disabled mid-flight; a
   // disabled default button stops Enter submitting at all, which would throw
   // the scan away silently.
-  const submit = async (e) => {
+  const submit = (e) => {
     e.preventDefault();
-    const c = code.trim();
+    clearScanTimer();
+    submitCode(code);
+  };
+
+  const submitCode = async (raw) => {
+    const c = String(raw || '').trim();
     if (!c || !shopId) return;
     if (scanMode === 'transfer' && !toShopId) {
       setMsg({ type: 'err', text: 'Choose which shop it is going to first' });
@@ -2039,7 +2083,7 @@ function SellView({ shops, staff, onManageStaff }) {
                 className="input scan-input"
                 placeholder="Waiting for scan…"
                 value={code}
-                onChange={e => setCode(e.target.value)}
+                onChange={e => onScanType(e.target.value)}
                 autoFocus
                 autoComplete="off"
                 inputMode="text"
@@ -3053,6 +3097,12 @@ function ReportsView({ shops = [] }) {
     <div>
       {error && <div className="error-banner">{error}</div>}
 
+      <CommissionPanel shops={shops} />
+
+      <div className="section-head">
+        <h2 className="section-title">Stock movements</h2>
+      </div>
+
       {/* A tab per shop — office, then each store. */}
       <div className="segmented segmented-wide" role="group" aria-label="Which shop">
         {shops.map(s => (
@@ -3142,11 +3192,104 @@ function ReportsView({ shops = [] }) {
   );
 }
 
+// ── Who sold what, and what they are owed ─────────────────
+function CommissionPanel({ shops }) {
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [years, setYears] = useState([]);
+  const [month, setMonth] = useState('all');
+  const [data, setData] = useState({ items: [], totals: { units: 0, revenue: 0, commission: 0 } });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api('/api/business/sales-years')
+      .then(d => setYears(Array.isArray(d?.years) ? d.years : []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const p = new URLSearchParams({ year: String(year) });
+    if (month !== 'all') p.set('month', String(month));
+    api(`/api/business/staff-performance?${p.toString()}`)
+      .then(d => { setData(d || { items: [], totals: {} }); setLoading(false); })
+      .catch(() => { setData({ items: [], totals: { units: 0, revenue: 0, commission: 0 } }); setLoading(false); });
+  }, [year, month]);
+
+  const yearOptions = years.length ? years : [year];
+
+  return (
+    <>
+      <div className="section-head">
+        <h2 className="section-title">Staff &amp; commission</h2>
+        <span className="section-meta">{shops.length} shop{shops.length === 1 ? '' : 's'}</span>
+      </div>
+
+      <div className="scope-picker">
+        <span className="scope-picker-label">Period</span>
+        <select className="select select-inline" value={year} onChange={e => setYear(Number(e.target.value))} aria-label="Year">
+          {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select className="select select-inline" value={month} onChange={e => setMonth(e.target.value)} aria-label="Month">
+          <option value="all">Whole year</option>
+          {MONTH_NAMES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+        </select>
+      </div>
+
+      {loading && <div className="loading">Loading…</div>}
+
+      {!loading && data.items.length === 0 && (
+        <div className="empty empty-sm">
+          <TrendingUp size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
+          <h3>No sales recorded yet</h3>
+          <p>Once staff pick their name before scanning, their sales and commission appear here.</p>
+        </div>
+      )}
+
+      {!loading && data.items.length > 0 && (
+        <>
+          <div className="stat-grid">
+            <StatCard value={data.totals.units} label="Pieces sold" />
+            <StatCard value={idr(data.totals.revenue)} label="Sales value" />
+            <StatCard value={idr(data.totals.commission)} label="Commission owed" tone="good" />
+          </div>
+          <div className="panel">
+            <div className="panel-body">
+              {data.items.map(p => (
+                <div className="rank-row" key={p.name}>
+                  <div className="rank-main">
+                    <div className="rank-name">{p.name}</div>
+                    <div className="rank-sub">
+                      {p.rate > 0 ? `${p.rate}% commission` : 'No commission rate set'}
+                    </div>
+                  </div>
+                  <div className="rank-stat">
+                    <div className="rank-stat-num">{p.units}</div>
+                    <div className="rank-stat-label">pieces</div>
+                  </div>
+                  <div className="rank-stat" style={{ minWidth: 128 }}>
+                    <div className="rank-stat-num" style={{ fontSize: 14 }}>{idr(p.revenue)}</div>
+                    <div className="rank-stat-label">sold</div>
+                  </div>
+                  <div className="rank-stat" style={{ minWidth: 128 }}>
+                    <div className="rank-stat-num" style={{ fontSize: 14, color: 'var(--good)' }}>{idr(p.commission)}</div>
+                    <div className="rank-stat-label">commission</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 // ── Staff list management ─────────────────────────────────
 function StaffModal({ staff, shops, onClose, onChanged }) {
   const toast = useToast();
   const [name, setName] = useState('');
   const [shopId, setShopId] = useState('');
+  const [rate, setRate] = useState('');
   const [busy, setBusy] = useState(false);
 
   const add = async () => {
@@ -3154,8 +3297,15 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
     if (!n) return;
     setBusy(true);
     try {
-      await api('/api/staff', { method: 'POST', body: { name: n, shopId: shopId ? Number(shopId) : null } });
-      setName('');
+      await api('/api/staff', {
+        method: 'POST',
+        body: {
+          name: n,
+          shopId: shopId ? Number(shopId) : null,
+          commissionRate: rate === '' ? undefined : Number(rate),
+        },
+      });
+      setName(''); setRate('');
       onChanged();
       toast('Added');
     } catch (e) { toast(e.message); }
@@ -3176,7 +3326,8 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
       <p style={{ color: 'var(--text-2)', marginTop: 0, fontSize: 14 }}>
         Names, not accounts — nobody needs a password. Whoever is picked on the
         Sell screen gets credited for what they scan, so you can see each
-        person's sales and trace where a piece went.
+        person's sales, work out their commission, and trace where a piece
+        went. Re-adding an existing name updates their rate.
       </p>
 
       <div className="group-pick-list">
@@ -3189,11 +3340,11 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
           <div key={s.id} className="group-pick-row">
             <div className="group-pick" style={{ cursor: 'default' }}>
               <span className="group-pick-name">{s.name}</span>
-              {s.shopId != null && (
-                <span className="detail-k" style={{ marginLeft: 'auto' }}>
-                  {shops.find(x => x.id === s.shopId)?.name || ''}
-                </span>
-              )}
+              <span className="detail-k" style={{ marginLeft: 'auto' }}>
+                {[s.shopId != null ? (shops.find(x => x.id === s.shopId)?.name || '') : '',
+                  s.commissionRate > 0 ? `${s.commissionRate}%` : 'no rate']
+                  .filter(Boolean).join(' · ')}
+              </span>
             </div>
             <button
               type="button"
@@ -3218,10 +3369,21 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
             style={{ flex: '1 1 140px' }}
           />
-          <select className="select" value={shopId} onChange={e => setShopId(e.target.value)} style={{ flex: '0 1 150px' }}>
+          <select className="select" value={shopId} onChange={e => setShopId(e.target.value)} style={{ flex: '0 1 130px' }}>
             <option value="">Any shop</option>
             {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+          <input
+            className="input"
+            type="number"
+            min="0"
+            max="100"
+            step="0.5"
+            placeholder="% comm."
+            value={rate}
+            onChange={e => setRate(e.target.value)}
+            style={{ flex: '0 1 96px' }}
+          />
           <button type="button" className="btn btn-primary" disabled={busy || !name.trim()} onClick={add}>
             <Plus size={17} /> Add
           </button>
