@@ -1518,3 +1518,152 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
 
   @page { margin: 0; }
 }
+
+/* ── Access scope badge ───────────────────────────────────
+   Says which shop this device is locked to, so nobody has to guess whether
+   they are looking at one shop or the whole business. */
+.topbar-scope {
+  display: inline-block;
+  margin-left: var(--s-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+/* Count of deliveries waiting to be checked, on the Transfers tab. */
+.nav-badge {
+  margin-left: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--warn);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.segmented-sm button { font-size: 12.5px; padding: 6px 10px; }
+
+.code-switch { display: flex; gap: var(--s-2); align-items: stretch; }
+.code-switch .input { flex: 1; min-width: 0; }
+
+.notice {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+/* ── Transfers ────────────────────────────────────────────
+   One row per shipment. The quantity sits apart from the name because the
+   number is what someone is checking against the bag in their hands. */
+.transfer-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.transfer-main { flex: 1 1 220px; min-width: 0; }
+.transfer-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.transfer-sku { font-size: 12px; color: var(--text-3); font-weight: 500; }
+.transfer-sub { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+.transfer-note {
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin-top: 4px;
+  font-style: italic;
+}
+.transfer-qty { text-align: center; min-width: 54px; }
+.transfer-qty-num { font-size: 20px; font-weight: 700; color: var(--text); }
+.transfer-qty-label { font-size: 11px; color: var(--text-3); }
+.transfer-state {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+/* ── History log ──────────────────────────────────────────
+   Dense on purpose: this is scanned, not read. Columns collapse on narrow
+   screens rather than forcing the page to scroll sideways. */
+.hist-row {
+  display: grid;
+  grid-template-columns: 84px 1fr 110px 92px 108px;
+  gap: var(--s-3);
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.hist-row:last-child { border-bottom: none; }
+.hist-when { font-size: 12px; color: var(--text-3); }
+.hist-main { min-width: 0; }
+.hist-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hist-sub {
+  font-size: 11.5px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hist-who { font-size: 12.5px; color: var(--text-2); }
+.hist-qty { font-size: 14px; font-weight: 700; text-align: right; }
+.hist-qty.is-in  { color: var(--good); }
+.hist-qty.is-out { color: var(--text); }
+.hist-type {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+.hist-value { font-size: 12.5px; color: var(--text-2); text-align: right; }
+
+@media (max-width: 720px) {
+  .hist-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "main qty"
+      "sub  val";
+    row-gap: 2px;
+  }
+  .hist-when { grid-area: sub; }
+  .hist-main { grid-area: main; }
+  .hist-who  { grid-area: sub; text-align: right; }
+  .hist-qty  { grid-area: qty; }
+  .hist-value { grid-area: val; }
+}
+
+/* A field whose value cannot be changed in this session — shown as text
+   rather than a select with one option, which reads as broken. */
+.locked-value {
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 14.5px;
+}

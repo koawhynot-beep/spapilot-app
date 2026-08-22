@@ -6,6 +6,7 @@ import {
   MoreHorizontal, Sun, Moon, Printer,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
+import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import './App.css';
 
 // ── Config ────────────────────────────────────────────────
@@ -401,8 +402,12 @@ function StatCard({ value, label, tone, active, onClick }) {
 // ═══════════════════════════════════════════════════════════
 // MAIN APP (post-auth)
 // ═══════════════════════════════════════════════════════════
-function MainApp({ user, business }) {
-  const [tab, setTab] = useState('stock');
+function MainApp({ user, business, scope, onSwitchAccess }) {
+  const t = useT();
+  // A shop key does the day's work and nothing else, so it opens on Sell.
+  // The master code opens on Stock, which is where the owner starts.
+  const isAdmin = user.accessRole !== 'shop';
+  const [tab, setTab] = useState(isAdmin ? 'stock' : 'sell');
   const [showSettings, setShowSettings] = useState(false);
   // Set when Overview's "Restock" jumps to the Stock tab pre-filtered to one SKU.
   const [stockJump, setStockJump] = useState(null);
@@ -412,37 +417,70 @@ function MainApp({ user, business }) {
   const [showStaff, setShowStaff] = useState(false);
   const [selectedShopId, setSelectedShopId] = useState(null);
 
+  // A shop key only ever works in its own shop, so there is nothing to pick.
+  const visibleShops = useMemo(
+    () => (isAdmin ? shops.data : shops.data.filter(s => s.id === scope?.shopId)),
+    [shops.data, isAdmin, scope]
+  );
+
+  // Waiting deliveries drive a count on the Transfers tab, so staff can see
+  // there is something to check without going looking for it.
+  const [pendingIn, setPendingIn] = useState(0);
+  const refreshPending = useCallback(() => {
+    api('/api/transfers?direction=in&status=pending')
+      .then(d => setPendingIn(Array.isArray(d) ? d.length : 0))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshPending();
+    const id = setInterval(refreshPending, 60000);
+    return () => clearInterval(id);
+  }, [refreshPending]);
+
   // Auto-select first shop or only shop
   useEffect(() => {
-    if (!selectedShopId && shops.data.length > 0) {
-      setSelectedShopId(shops.data[0].id);
+    if (!selectedShopId && visibleShops.length > 0) {
+      setSelectedShopId(visibleShops[0].id);
     }
-    if (selectedShopId && selectedShopId !== 'all' && !shops.data.find(s => s.id === selectedShopId)) {
-      setSelectedShopId(shops.data[0]?.id || null);
+    if (selectedShopId && selectedShopId !== 'all' && !visibleShops.find(s => s.id === selectedShopId)) {
+      setSelectedShopId(visibleShops[0]?.id || null);
     }
-  }, [shops.data, selectedShopId]);
+  }, [visibleShops, selectedShopId]);
 
   const isOwner = user.role === 'owner';
 
-  const tabs = [
-    { id: 'sell', label: 'Sell', icon: ScanLine },
-    { id: 'stock', label: 'Stock', icon: Package },
-    { id: 'overview', label: 'Overview', icon: Package },
-    { id: 'sales', label: 'Sales', icon: TrendingUp },
-    { id: 'reports', label: 'Reports', icon: History },
-    { id: 'shops', label: 'Shops', icon: Store },
+  // Order follows the day: what you do at the till, then what you check, then
+  // what you set up. A shop key gets only the first two.
+  const allTabs = [
+    { id: 'sell',      label: t('tab.sell'),      icon: ScanLine,  shop: true },
+    { id: 'transfers', label: t('tab.transfers'), icon: Store,     shop: true, badge: pendingIn },
+    { id: 'stock',     label: t('tab.stock'),     icon: Package },
+    { id: 'overview',  label: t('tab.overview'),  icon: Package },
+    { id: 'sales',     label: t('tab.sales'),     icon: TrendingUp },
+    { id: 'history',   label: t('tab.history'),   icon: History },
+    { id: 'shops',     label: t('tab.shops'),     icon: Settings },
   ];
+  const tabs = isAdmin ? allTabs : allTabs.filter(x => x.shop);
+
+  // If a session is downgraded to a shop key while sitting on an admin tab,
+  // fall back rather than rendering a view whose data it cannot load.
+  useEffect(() => {
+    if (!tabs.find(x => x.id === tab)) setTab(tabs[0].id);
+  }, [tabs, tab]);
 
   return (
     <div className="app">
       <div className="topbar">
         <div>
           <h1>Mitra Samadi</h1>
-          <div className="topbar-sub">{business?.name || 'Your business'}</div>
+          <div className="topbar-sub">
+            {isAdmin ? (business?.name || 'Mitra Samadi') : (scope?.shopName || '')}
+            {!isAdmin && <span className="topbar-scope">{t('scope.shopOnly')}</span>}
+          </div>
         </div>
         <div className="topbar-actions">
           <ThemeToggle />
-          <button className="topbar-btn" onClick={() => setShowSettings(true)} aria-label="settings">
+          <button className="topbar-btn" onClick={() => setShowSettings(true)} aria-label={t('settings.title')}>
             <Settings size={19} />
           </button>
         </div>
@@ -450,24 +488,37 @@ function MainApp({ user, business }) {
 
       <div className="container">
         <nav className="nav">
-          {tabs.map(t => (
-            <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
-              <t.icon size={18} />
-              <span>{t.label}</span>
+          {tabs.map(x => (
+            <button key={x.id} className={tab === x.id ? 'active' : ''} onClick={() => setTab(x.id)}>
+              <x.icon size={18} />
+              <span>{x.label}</span>
+              {x.badge > 0 && <span className="nav-badge">{x.badge}</span>}
             </button>
           ))}
         </nav>
 
         {tab === 'sell' && (
           <SellView
-            shops={shops.data}
+            shops={visibleShops}
+            allShops={shops.data}
             staff={staff.data}
+            isAdmin={isAdmin}
             onManageStaff={() => setShowStaff(true)}
+            onTransferSent={refreshPending}
           />
         )}
-        {tab === 'stock' && (
-          <StockView
+        {tab === 'transfers' && (
+          <TransfersView
             shops={shops.data}
+            staff={staff.data}
+            scope={scope}
+            isAdmin={isAdmin}
+            onChanged={refreshPending}
+          />
+        )}
+        {tab === 'stock' && isAdmin && (
+          <StockView
+            shops={visibleShops}
             selectedShopId={selectedShopId}
             onSelectShop={setSelectedShopId}
             user={user}
@@ -476,31 +527,34 @@ function MainApp({ user, business }) {
             onJumpHandled={() => setStockJump(null)}
           />
         )}
-        {tab === 'overview' && (
-          <OverviewView shops={shops.data} />
+        {tab === 'overview' && isAdmin && (
+          <OverviewView shops={visibleShops} />
         )}
-        {tab === 'sales' && (
+        {tab === 'sales' && isAdmin && (
           <SalesView
-            shops={shops.data}
+            shops={visibleShops}
             onFindStock={(sku) => { setStockJump({ sku, at: Date.now() }); setTab('stock'); }}
           />
         )}
-        {tab === 'reports' && (
-          <ReportsView shops={shops.data} />
+        {tab === 'history' && isAdmin && (
+          <ReportsView shops={visibleShops} staff={staff.data} />
         )}
-        {tab === 'shops' && (
+        {tab === 'shops' && isAdmin && (
           <ShopsView shops={shops} isOwner={isOwner} />
         )}
       </div>
 
       {showSettings && (
         <SettingsModal
+          isAdmin={isAdmin}
+          scope={scope}
           onClose={() => setShowSettings(false)}
           onManageStaff={() => { setShowSettings(false); setShowStaff(true); }}
+          onSwitchAccess={onSwitchAccess}
         />
       )}
 
-      {showStaff && (
+      {showStaff && isAdmin && (
         <StaffModal
           staff={staff.data}
           shops={shops.data}
@@ -1729,7 +1783,8 @@ const SCAN_MODES = [
 // one on a phone, mid-task.
 const OUT_REASONS = ['Reject', 'Damaged', 'Returned to factory', 'Lost', 'Sample', 'Other'];
 
-function SellView({ shops, staff, onManageStaff }) {
+function SellView({ shops, allShops = [], staff, isAdmin = true, onManageStaff, onTransferSent }) {
+  const t = useT();
   const [shopId, setShopId] = useState(shops[0]?.id || null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1821,12 +1876,16 @@ function SellView({ shops, staff, onManageStaff }) {
       method: 'POST',
       body: { sku, fromShopId: shopId, toShopId, qty, staffId: staffId || undefined },
     });
-    const toName = shops.find(s => s.id === toShopId)?.name || 'the other shop';
-    setMsg({ type: 'ok', text: `Moved ${qty} × ${sku} to ${toName}` });
+    const toName = (allShops.length ? allShops : shops).find(s => s.id === toShopId)?.name || 'the other shop';
+    // Deliberately not "Moved": the pieces have left this shop but have not
+    // landed anywhere yet. Saying they arrived would be a lie until the
+    // receiving shop counts them in.
+    setMsg({ type: 'ok', text: `Sent ${qty} × ${sku} to ${toName} — waiting for them to check it in` });
     setRecent(r => [{
-      name: d?.item?.name || sku, sku, qty: d?.from?.qty ?? '', moved: qty,
+      name: d?.item?.name || sku, sku, qty: d?.from?.newQty ?? '', moved: qty,
       mode: 'transfer', who: staffName, ts: Date.now(),
     }, ...r].slice(0, 30));
+    onTransferSent?.();
   };
 
   const scanBody = (identifier, qty) => ({
@@ -2033,22 +2092,29 @@ function SellView({ shops, staff, onManageStaff }) {
         </div>
 
         <div className="field">
-          <label>{scanMode === 'transfer' ? 'Moving from' : scanMode === 'in' ? 'Stocking into' : 'At shop'}</label>
-          <select className="select" value={shopId || ''} onChange={e => setShopId(Number(e.target.value))}>
-            {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <label>{scanMode === 'transfer' ? t('sell.movingFrom') : scanMode === 'in' ? t('sell.stockingInto') : t('sell.atShop')}</label>
+          {shops.length > 1 ? (
+            <select className="select" value={shopId || ''} onChange={e => setShopId(Number(e.target.value))}>
+              {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          ) : (
+            <div className="locked-value">{shops[0]?.name || ''}</div>
+          )}
         </div>
 
         {scanMode === 'transfer' && (
           <div className="field">
-            <label>Moving to</label>
+            <label>{t('sell.movingTo')}</label>
+            {/* Destinations come from every shop, not just the ones this key
+                can open — a shop must be able to send stock back to the
+                office even though it cannot see inside it. */}
             <select
               className="select"
               value={toShopId || ''}
               onChange={e => setToShopId(e.target.value ? Number(e.target.value) : null)}
             >
               <option value="">Choose a shop…</option>
-              {shops.filter(s => s.id !== shopId).map(s => (
+              {(allShops.length ? allShops : shops).filter(s => s.id !== shopId).map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
@@ -3034,7 +3100,8 @@ const LEDGER_FILTERS = [
   { id: 'out',     label: 'Went out' },
 ];
 
-function ReportsView({ shops = [] }) {
+function ReportsView({ shops = [], staff = [] }) {
+  const t = useT();
   const [shopId, setShopId] = useState(shops[0]?.id || null);
   const [direction, setDirection] = useState('');
   const [year, setYear] = useState('all');
@@ -3099,8 +3166,10 @@ function ReportsView({ shops = [] }) {
 
       <CommissionPanel shops={shops} />
 
+      <HistoryLog shops={shops} staff={staff} />
+
       <div className="section-head">
-        <h2 className="section-title">Stock movements</h2>
+        <h2 className="section-title">{t('history.movements')}</h2>
       </div>
 
       {/* A tab per shop — office, then each store. */}
@@ -3281,6 +3350,350 @@ function CommissionPanel({ shops }) {
         </>
       )}
     </>
+  );
+}
+
+// ── The full log ──────────────────────────────────────────
+// Every movement in the business for the last three years, newest first, with
+// the name of whoever did it. Paged from the server rather than loaded whole:
+// three years of a busy shop is more rows than a browser wants at once.
+const HISTORY_TYPE_KEYS = {
+  'sale': 'history.type.sale',
+  'in': 'history.type.in',
+  'out': 'history.type.out',
+  'adjust': 'history.type.adjust',
+  'transfer-in': 'history.type.transferIn',
+  'transfer-out': 'history.type.transferOut',
+};
+const HISTORY_PAGE = 100;
+
+function HistoryLog({ shops, staff }) {
+  const t = useT();
+  const [type, setType] = useState('');
+  const [staffId, setStaffId] = useState('');
+  const [shopIds, setShopIds] = useState('all');
+  const [search, setSearch] = useState('');
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Any filter change starts the list over, otherwise "show more" would
+  // append the second page of a query nobody is looking at any more.
+  useEffect(() => { setOffset(0); }, [type, staffId, shopIds, search]);
+
+  useEffect(() => {
+    setLoading(true);
+    const p = new URLSearchParams({ limit: String(HISTORY_PAGE), offset: String(offset) });
+    if (type) p.set('type', type);
+    if (staffId) p.set('staffId', staffId);
+    if (shopIds !== 'all') p.set('shops', shopIds);
+    if (search.trim()) p.set('q', search.trim());
+
+    let cancelled = false;
+    api(`/api/business/history?${p.toString()}`)
+      .then(d => {
+        if (cancelled) return;
+        const items = Array.isArray(d?.items) ? d.items : [];
+        setRows(prev => (offset === 0 ? items : [...prev, ...items]));
+        setTotal(d?.total || 0);
+        setLoading(false);
+      })
+      .catch(() => { if (!cancelled) { setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [type, staffId, shopIds, search, offset]);
+
+  return (
+    <>
+      <div className="section-head" style={{ marginTop: 28 }}>
+        <h2 className="section-title">{t('history.everything')}</h2>
+        <span className="section-meta">{t('history.lastThreeYears')}</span>
+      </div>
+
+      <div className="scope-picker">
+        <span className="scope-picker-label">{t('common.showing')}</span>
+        <select className="select select-inline" value={shopIds} onChange={e => setShopIds(e.target.value)}>
+          <option value="all">{t('common.allShops')}</option>
+          {shops.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+        </select>
+        <select className="select select-inline" value={type} onChange={e => setType(e.target.value)}>
+          <option value="">{t('history.filterType')}</option>
+          {Object.entries(HISTORY_TYPE_KEYS).map(([id, key]) => (
+            <option key={id} value={id}>{t(key)}</option>
+          ))}
+        </select>
+        <select className="select select-inline" value={staffId} onChange={e => setStaffId(e.target.value)}>
+          <option value="">{t('history.filterStaff')}</option>
+          {staff.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+        </select>
+      </div>
+
+      <SearchField value={search} onChange={setSearch} placeholder={t('common.search')} />
+
+      {loading && rows.length === 0 && <div className="loading">{t('common.loading')}</div>}
+
+      {!loading && rows.length === 0 && (
+        <div className="empty empty-sm">
+          <History size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
+          <h3>{t('history.nothing')}</h3>
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <div className="panel" style={{ marginTop: 12 }}>
+          <div className="panel-body">
+            {rows.map(r => (
+              <div className="hist-row" key={r.id}>
+                <div className="hist-when">
+                  {new Date(r.occurredAt).toLocaleDateString()}
+                </div>
+                <div className="hist-main">
+                  <div className="hist-title">{r.itemName}</div>
+                  <div className="hist-sub">
+                    {r.sku}
+                    {r.color ? ` · ${r.color}` : ''}
+                    {r.size ? ` · ${r.size}` : ''}
+                    {` · ${r.shopName}`}
+                  </div>
+                </div>
+                <div className="hist-who">{r.staffName}</div>
+                <div className={`hist-qty ${r.qtyChange < 0 ? 'is-out' : 'is-in'}`}>
+                  {r.qtyChange > 0 ? '+' : ''}{r.qtyChange}
+                  <span className="hist-type">{t(HISTORY_TYPE_KEYS[r.type] || r.type)}</span>
+                </div>
+                <div className="hist-value">{r.value > 0 ? idr(r.value) : ''}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rows.length < total && (
+        <button
+          className="btn btn-secondary btn-block"
+          style={{ marginTop: 12 }}
+          disabled={loading}
+          onClick={() => setOffset(o => o + HISTORY_PAGE)}
+        >
+          {loading ? t('common.loading') : `${t('history.showMore')} (${rows.length} / ${total})`}
+        </button>
+      )}
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TRANSFERS — stock in transit, and the count that lands it
+// ═══════════════════════════════════════════════════════════
+// Sending stock takes it off the sender's shelf immediately, but it does not
+// appear on the receiver's shelf until someone there counts what is in the
+// bag. That gap is the whole point: it is where a short delivery gets caught,
+// instead of quietly becoming the receiving shop's shrinkage.
+function TransfersView({ shops, staff, scope, isAdmin, onChanged }) {
+  const t = useT();
+  const toast = useToast();
+  const [direction, setDirection] = useState('in');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [deciding, setDeciding] = useState(null);   // the transfer being checked
+
+  const shopName = (id) => shops.find(s => s.id === id)?.name || '';
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const p = new URLSearchParams();
+    if (direction !== 'all') p.set('direction', direction);
+    if (isAdmin && scope?.shopId) p.set('shopId', String(scope.shopId));
+    api(`/api/transfers?${p.toString()}`)
+      .then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(() => { setRows([]); setLoading(false); });
+  }, [direction, isAdmin, scope]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const afterDecision = () => { setDeciding(null); load(); onChanged?.(); };
+
+  const pending = rows.filter(r => r.status === 'pending');
+  const settled = rows.filter(r => r.status !== 'pending');
+
+  return (
+    <>
+      <div className="section-head">
+        <h2 className="section-title">{t('transfers.title')}</h2>
+        {pending.length > 0 && (
+          <span className="section-meta">{pending.length} {t('transfers.pending').toLowerCase()}</span>
+        )}
+      </div>
+
+      <div className="segmented" style={{ marginBottom: 16 }}>
+        {[
+          { id: 'in',  label: t('transfers.incoming') },
+          { id: 'out', label: t('transfers.outgoing') },
+          { id: 'all', label: t('transfers.allTransfers') },
+        ].map(o => (
+          <button
+            key={o.id}
+            className={direction === o.id ? 'is-active' : ''}
+            onClick={() => setDirection(o.id)}
+          >{o.label}</button>
+        ))}
+      </div>
+
+      {loading && <div className="loading">{t('common.loading')}</div>}
+
+      {!loading && direction === 'in' && pending.length > 0 && (
+        <div className="notice" style={{ marginBottom: 14 }}>{t('transfers.checkFirst')}</div>
+      )}
+
+      {!loading && rows.length === 0 && (
+        <div className="empty empty-sm">
+          <Store size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
+          <h3>{direction === 'out' ? t('transfers.noneOutgoing') : t('transfers.noneIncoming')}</h3>
+        </div>
+      )}
+
+      {!loading && [...pending, ...settled].map(r => {
+        const canDecide = r.status === 'pending' && (isAdmin || r.toShopId === scope?.shopId);
+        return (
+          <div className="panel" key={r.id} style={{ marginBottom: 10 }}>
+            <div className="panel-body transfer-row">
+              <div className="transfer-main">
+                <div className="transfer-title">
+                  {r.itemName || r.sku}
+                  <span className="transfer-sku">{r.sku}</span>
+                </div>
+                <div className="transfer-sub">
+                  {r.fromShopName || shopName(r.fromShopId)} → {r.toShopName || shopName(r.toShopId)}
+                  {r.sentBy ? ` · ${t('transfers.sentBy')} ${r.sentBy}` : ''}
+                </div>
+                <div className="transfer-sub">
+                  {new Date(r.occurredAt).toLocaleDateString()}
+                  {r.status !== 'pending' && r.decidedBy ? ` · ${t('transfers.decidedBy')} ${r.decidedBy}` : ''}
+                </div>
+                {r.note && <div className="transfer-note">{r.note}</div>}
+              </div>
+
+              <div className="transfer-qty">
+                <div className="transfer-qty-num">{r.qty}</div>
+                <div className="transfer-qty-label">{t('transfers.sent')}</div>
+              </div>
+
+              <div className="transfer-state">
+                {r.status === 'pending' && (
+                  <span className="pill pill-warn">{t('transfers.inTransit')}</span>
+                )}
+                {r.status === 'approved' && (
+                  <span className="pill pill-good">
+                    {r.receivedQty} {t('transfers.received')}
+                    {r.receivedQty !== r.qty ? ` (${t('transfers.of')} ${r.qty})` : ''}
+                  </span>
+                )}
+                {r.status === 'rejected' && (
+                  <span className="pill pill-bad">{t('transfers.rejected')}</span>
+                )}
+                {canDecide && (
+                  <button className="btn btn-primary btn-sm" onClick={() => setDeciding(r)}>
+                    {t('transfers.approve')}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {deciding && (
+        <TransferDecisionModal
+          transfer={deciding}
+          staff={staff}
+          onClose={() => setDeciding(null)}
+          onDone={afterDecision}
+          onError={(m) => toast(m)}
+        />
+      )}
+    </>
+  );
+}
+
+// Counting a delivery in. The quantity defaults to what was sent, because
+// that is usually right — but it is editable, because the times it is wrong
+// are the times this screen exists for.
+function TransferDecisionModal({ transfer, staff, onClose, onDone, onError }) {
+  const t = useT();
+  const [received, setReceived] = useState(String(transfer.qty));
+  const [staffId, setStaffId] = useState(() => localStorage.getItem('mitrasamadi_staff') || '');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const decide = async (action) => {
+    setBusy(true);
+    try {
+      const body = { staffId: staffId ? Number(staffId) : undefined, note };
+      if (action === 'approve') body.receivedQty = Number(received);
+      await api(`/api/transfers/${transfer.id}/${action}`, { method: 'POST', body });
+      onDone();
+    } catch (e) {
+      onError(e.message || 'Could not save that');
+      setBusy(false);
+    }
+  };
+
+  const n = Number(received);
+  const valid = Number.isInteger(n) && n >= 0 && n <= transfer.qty;
+
+  return (
+    <Modal title={transfer.itemName || transfer.sku} onClose={onClose}>
+      <div className="details-body" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
+        <div>
+          <div className="detail-k">{t('common.item')}</div>
+          <div className="detail-v">{transfer.sku}</div>
+        </div>
+        <div>
+          <div className="detail-k">{t('transfers.sentBy')}</div>
+          <div className="detail-v">{transfer.sentBy || '—'}</div>
+        </div>
+        <div>
+          <div className="detail-k">{t('transfers.sent')}</div>
+          <div className="detail-v">{transfer.qty}</div>
+        </div>
+      </div>
+
+      <div className="field" style={{ marginTop: 18 }}>
+        <label>{t('transfers.howManyArrived')}</label>
+        <input
+          className="input"
+          type="number"
+          min="0"
+          max={transfer.qty}
+          value={received}
+          onChange={e => setReceived(e.target.value)}
+          autoFocus
+        />
+        {!valid && <div className="field-hint" style={{ color: 'var(--bad)' }}>0 – {transfer.qty}</div>}
+      </div>
+
+      <div className="field">
+        <label>{t('transfers.whoIsChecking')}</label>
+        <select className="select" value={staffId} onChange={e => setStaffId(e.target.value)}>
+          <option value="">{t('sell.pickName')}</option>
+          {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+
+      <div className="field">
+        <label>{t('common.note')}</label>
+        <input className="input" value={note} onChange={e => setNote(e.target.value)} />
+      </div>
+
+      <div className="modal-actions" style={{ marginTop: 20 }}>
+        <button className="btn btn-ghost" onClick={() => decide('reject')} disabled={busy}>
+          {t('transfers.reject')}
+        </button>
+        <button className="btn btn-primary" onClick={() => decide('approve')} disabled={busy || !valid}>
+          {t('transfers.approve')}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -3505,9 +3918,38 @@ function ShopModal({ shop, onClose, onSaved }) {
 // ═══════════════════════════════════════════════════════════
 // SETTINGS MODAL
 // ═══════════════════════════════════════════════════════════
-function SettingsModal({ onClose, onManageStaff }) {
+function SettingsModal({ onClose, onManageStaff, isAdmin, scope, onSwitchAccess }) {
+  const t = useT();
+  const { lang, setLang } = useLang();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState('');
+  const [switching, setSwitching] = useState(false);
+  const [codeErr, setCodeErr] = useState(null);
+
+  // Typing a different code here swaps which shop (or the whole business)
+  // this device is working in. The code itself is never shown back, never
+  // stored, and never rendered anywhere on the page.
+  const switchAccess = async (e) => {
+    e.preventDefault();
+    setSwitching(true); setCodeErr(null);
+    try {
+      const d = await api('/api/auth/access-login', { method: 'POST', body: { code } });
+      setToken(d.token);
+      setCode('');
+      toast(t('settings.switched'));
+      onSwitchAccess(d.user, d.business, d.scope || null);
+      onClose();
+    } catch (err) {
+      setCodeErr(err.message === 'Invalid access code' ? t('gate.wrong') : (err.message || t('gate.failed')));
+      setSwitching(false);
+    }
+  };
+
+  const signOut = () => {
+    setToken(null);
+    window.dispatchEvent(new Event('app:unauth'));
+  };
 
   const exportData = async () => {
     setBusy(true);
@@ -3527,15 +3969,56 @@ function SettingsModal({ onClose, onManageStaff }) {
   };
 
   return (
-    <Modal title="Settings" onClose={onClose}>
+    <Modal title={t('settings.title')} onClose={onClose}>
       <p style={{ color: 'var(--text-2)', marginTop: 0, marginBottom: 18, fontSize: 14 }}>
-        This is a shared workspace. Everyone with the access code sees and edits the same stock.
+        {isAdmin ? t('settings.masterNote') : `${scope?.shopName || ''} — ${t('settings.shopKeyNote')}`}
       </p>
-      <button className="btn btn-secondary btn-block" onClick={onManageStaff} style={{ marginBottom: 10 }}>
-        Who works here
-      </button>
-      <button className="btn btn-ghost btn-block" onClick={exportData} disabled={busy}>
-        Export a backup of all data
+
+      <div className="field">
+        <label>{t('settings.language')}</label>
+      </div>
+      <div className="segmented" style={{ marginBottom: 18, marginTop: -10 }}>
+        {LANGUAGES.map(l => (
+          <button
+            key={l.id}
+            className={lang === l.id ? 'is-active' : ''}
+            onClick={() => setLang(l.id)}
+          >{l.label}</button>
+        ))}
+      </div>
+
+      <div className="field">
+        <label>{t('settings.accessCode')}</label>
+      </div>
+      <form onSubmit={switchAccess} className="code-switch" style={{ marginTop: -10, marginBottom: 18 }}>
+        <input
+          className="input"
+          type="password"
+          placeholder={t('settings.enterCode')}
+          value={code}
+          onChange={e => setCode(e.target.value)}
+          autoComplete="off"
+          style={{ flex: 1 }}
+        />
+        <button className="btn btn-secondary" disabled={switching || !code}>
+          {t('settings.switch')}
+        </button>
+      </form>
+      {codeErr && <div className="error-banner" style={{ marginBottom: 14 }}>{codeErr}</div>}
+
+      {isAdmin && (
+        <>
+          <button className="btn btn-secondary btn-block" onClick={onManageStaff} style={{ marginBottom: 10 }}>
+            {t('sell.manageStaff')}
+          </button>
+          <button className="btn btn-ghost btn-block" onClick={exportData} disabled={busy} style={{ marginBottom: 10 }}>
+            {t('settings.exportBackup')}
+          </button>
+        </>
+      )}
+
+      <button className="btn btn-ghost btn-block" onClick={signOut}>
+        {t('settings.signOut')}
       </button>
     </Modal>
   );
@@ -3547,6 +4030,8 @@ function SettingsModal({ onClose, onManageStaff }) {
 // The only sign-in: enter the shared code → logged into the single master
 // account. No email, no signup, no separate users.
 function AccessGate({ onAuthed }) {
+  const t = useT();
+  const { lang, setLang } = useLang();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -3557,9 +4042,9 @@ function AccessGate({ onAuthed }) {
     try {
       const d = await api('/api/auth/access-login', { method: 'POST', body: { code } });
       setToken(d.token);
-      onAuthed(d.user, d.business);
+      onAuthed(d.user, d.business, d.scope || null);
     } catch (e) {
-      setErr(e.message === 'Invalid access code' ? 'That code is not right.' : (e.message || 'Could not sign in.'));
+      setErr(e.message === 'Invalid access code' ? t('gate.wrong') : (e.message || t('gate.failed')));
       setBusy(false);
     }
   };
@@ -3569,13 +4054,13 @@ function AccessGate({ onAuthed }) {
       <div className="auth-card">
         <div className="brand">
           <h1>Mitra Samadi</h1>
-          <p>Enter the access code to continue.</p>
+          <p>{t('gate.prompt')}</p>
         </div>
         <form onSubmit={submit}>
           <input
             className="input"
             type="password"
-            placeholder="Access code"
+            placeholder={t('gate.placeholder')}
             value={code}
             onChange={e => setCode(e.target.value)}
             autoFocus
@@ -3584,9 +4069,21 @@ function AccessGate({ onAuthed }) {
           />
           {err && <div className="error-banner" style={{ marginBottom: 14 }}>{err}</div>}
           <button className="btn btn-primary btn-block btn-large" disabled={busy || !code}>
-            {busy ? 'Entering…' : 'Enter'}
+            {busy ? t('gate.entering') : t('gate.enter')}
           </button>
         </form>
+        {/* Language is picked before signing in, because whoever is standing
+            at the till may not read the English prompt above. */}
+        <div className="segmented segmented-sm" style={{ marginTop: 18 }}>
+          {LANGUAGES.map(l => (
+            <button
+              key={l.id}
+              type="button"
+              className={lang === l.id ? 'is-active' : ''}
+              onClick={() => setLang(l.id)}
+            >{l.label}</button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -3595,18 +4092,19 @@ function AccessGate({ onAuthed }) {
 function AppInner() {
   const [user, setUser] = useState(null);
   const [business, setBusiness] = useState(null);
+  const [scope, setScope] = useState(null);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const token = getToken();
     if (!token) { setChecking(false); return; }
     api('/api/auth/me')
-      .then(d => { setUser(d.user); setBusiness(d.business); setChecking(false); })
+      .then(d => { setUser(d.user); setBusiness(d.business); setScope(d.scope || null); setChecking(false); })
       .catch(() => { setToken(null); setChecking(false); });
   }, []);
 
   useEffect(() => {
-    const handler = () => { setUser(null); setBusiness(null); };
+    const handler = () => { setUser(null); setBusiness(null); setScope(null); };
     window.addEventListener('app:unauth', handler);
     return () => window.removeEventListener('app:unauth', handler);
   }, []);
@@ -3621,20 +4119,32 @@ function AppInner() {
     );
   }
 
-  // The only way in: enter the shared access code. No accounts, no email.
+  // The only way in: enter an access code. Which code decides what you reach.
   if (!user) {
-    return <AccessGate onAuthed={(u, b) => { setUser(u); setBusiness(b); }} />;
+    return <AccessGate onAuthed={(u, b, s) => { setUser(u); setBusiness(b); setScope(s); }} />;
   }
 
-  return <MainApp user={user} business={business} />;
+  return (
+    <MainApp
+      // Remounts on an access change, so no view keeps data the new code is
+      // not allowed to see.
+      key={`${user.accessRole}:${scope?.shopId || 'all'}`}
+      user={user}
+      business={business}
+      scope={scope}
+      onSwitchAccess={(u, b, s) => { setUser(u); setBusiness(b); setScope(s); }}
+    />
+  );
 }
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <AppInner />
-      </ToastProvider>
+      <LanguageProvider>
+        <ToastProvider>
+          <AppInner />
+        </ToastProvider>
+      </LanguageProvider>
     </ErrorBoundary>
   );
 }
