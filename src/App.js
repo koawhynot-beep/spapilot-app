@@ -325,22 +325,11 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
   const shopList = shops.data;
   const shopId = shopList[0]?.id || shop?.id || null;
 
-  // Anything at or below its threshold, surfaced as a count on the Stock tab
-  // so a gap on the rail is noticed before a customer finds it.
-  const [lowStock, setLowStock] = useState(0);
-  const refreshLowStock = useCallback(() => {
-    if (!isAdmin) return;
-    api('/api/analytics/summary')
-      .then(d => setLowStock(Array.isArray(d?.lowStock) ? d.lowStock.length : 0))
-      .catch(() => {});
-  }, [isAdmin]);
-  useEffect(() => { refreshLowStock(); }, [refreshLowStock]);
-
   // Order follows the day: ring it up, keep the rail right, check the till,
   // then read the business. Staff get the first three.
   const allTabs = [
     { id: 'sell',     label: t('tab.sell'),     icon: ScanLine,   staff: true },
-    { id: 'stock',    label: t('tab.stock'),    icon: Package,    staff: true, badge: lowStock },
+    { id: 'stock',    label: t('tab.stock'),    icon: Package,    staff: true },
     { id: 'today',    label: t('tab.today'),    icon: Calendar,   staff: true },
     { id: 'overview', label: t('tab.overview'), icon: SlidersHorizontal },
     { id: 'history',  label: t('tab.history'),  icon: History },
@@ -388,7 +377,6 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
             staff={staff.data}
             isAdmin={isAdmin}
             onManageStaff={() => setShowStaff(true)}
-            onChanged={refreshLowStock}
           />
         )}
         {tab === 'stock' && (
@@ -401,7 +389,6 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
             onReloadShops={shops.reload}
             jump={stockJump}
             onJumpHandled={() => setStockJump(null)}
-            onChanged={refreshLowStock}
           />
         )}
         {tab === 'today' && (
@@ -411,7 +398,7 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
           <OverviewView shops={shopList} />
         )}
         {tab === 'history' && isAdmin && (
-          <HistoryView shops={shopList} staff={staff.data} />
+          <HistoryView staff={staff.data} />
         )}
       </div>
 

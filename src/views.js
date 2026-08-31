@@ -6,10 +6,7 @@
 // order it happened, so the drawer can be balanced at close. History is the
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  Calendar, History, TrendingUp, TrendingDown, Download,
-  Package, AlertTriangle, RefreshCw,
-} from 'lucide-react';
+import { Calendar, History, TrendingUp, Download, RefreshCw } from 'lucide-react';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
 
@@ -18,6 +15,29 @@ const clock = (iso) =>
   new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 const day = (iso) => new Date(iso).toLocaleDateString();
+
+// One fetch, and — crucially — the error it failed with. Panes used to
+// swallow errors and fall through to their empty state, so a request that
+// died on the server was indistinguishable from a day with no sales. That is
+// the worst possible failure for a screen someone balances a till against.
+function useLoad(path, deps) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const reload = useCallback(() => {
+    setLoading(true);
+    let cancelled = false;
+    api(path)
+      .then(d => { if (!cancelled) { setData(d); setError(null); setLoading(false); } })
+      .catch(e => { if (!cancelled) { setError(e.message || 'Could not load that'); setLoading(false); } })
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  useEffect(() => reload(), [reload]);
+  return { data, error, loading, reload };
+}
 
 // A sale and a return are the same row shape with opposite signs, so one
 // renderer covers both and the sign carries the meaning.
@@ -37,7 +57,7 @@ const SaleRow = ({ r, showDate }) => (
     </div>
     <div className="sale-who">{r.staffName}</div>
     <div className="sale-qty">
-      {r.units > 0 ? r.units : `${r.units}`}
+      {r.units}
       <span className="sale-qty-label">{r.units < 0 ? 'returned' : 'sold'}</span>
     </div>
     <div className="sale-value">{idr(r.value)}</div>
@@ -52,75 +72,74 @@ const Empty = ({ icon: Icon, title, hint }) => (
   </div>
 );
 
+// Reuses the app's own stat-card typography rather than a private class, so
+// these read the same as every other figure in the app. Money is set a size
+// down: "IDR 4,200,000" at the full 30px crowds the card edge to edge.
+function StatTile({ value, label, tone, money }) {
+  return (
+    <div className={`stat-card ${tone ? 'tone-' + tone : ''}`}>
+      <div className={`stat-num ${money ? 'is-money' : ''}`}>
+        {typeof value === 'number' ? value.toLocaleString() : value}
+      </div>
+      <div className="stat-label">
+        {tone && <span className="stat-dot" aria-hidden="true" />}
+        {label}
+      </div>
+    </div>
+  );
+}
+
 // ── Today ─────────────────────────────────────────────────
 // Staff can open this. They need it to balance the drawer at close, and they
 // watched every one of these prices go by as they rang them up — there is
 // nothing here they have not already seen.
 export function TodayView({ isAdmin }) {
   const t = useT();
-  const [data, setData] = useState({ items: [], totals: {} });
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    api('/api/sales/today')
-      .then(d => { setData(d || { items: [], totals: {} }); setLoading(false); setErr(null); })
-      .catch(e => { setErr(e.message); setLoading(false); });
-  }, []);
+  const { data, error, loading, reload } = useLoad('/api/sales/today', []);
 
   useEffect(() => {
-    load();
     // The till is in use while this is open, so it refreshes itself rather
     // than showing a total that quietly went stale ten sales ago.
-    const id = setInterval(load, 60000);
+    const id = setInterval(reload, 60000);
     return () => clearInterval(id);
-  }, [load]);
+  }, [reload]);
 
-  const totals = data.totals || {};
+  const items = data?.items || [];
+  const totals = data?.totals || {};
 
   return (
     <>
       <div className="section-head">
         <h2 className="section-title">{t('today.title')}</h2>
-        <button className="btn btn-ghost btn-sm" onClick={load} disabled={loading}>
+        <button className="btn btn-ghost btn-sm" onClick={reload} disabled={loading}>
           <RefreshCw size={15} /> {t('common.refresh')}
         </button>
       </div>
 
-      {err && <div className="error-banner">{err}</div>}
+      {error && <div className="error-banner">{error}</div>}
 
       <div className="stat-grid">
         <StatTile value={totals.units ?? 0} label={t('today.piecesSold')} />
-        <StatTile value={idr(totals.revenue)} label={t('today.revenue')} tone="good" />
+        <StatTile value={idr(totals.revenue)} label={t('today.revenue')} tone="good" money />
         <StatTile value={totals.transactions ?? 0} label={t('today.transactions')} />
         {/* Margin is the owner's number, not the till's. */}
-        {isAdmin && <StatTile value={idr(totals.margin)} label={t('today.margin')} />}
+        {isAdmin && <StatTile value={idr(totals.margin)} label={t('today.margin')} money />}
       </div>
 
-      {loading && data.items.length === 0 && <div className="loading">{t('common.loading')}</div>}
+      {loading && items.length === 0 && <div className="loading">{t('common.loading')}</div>}
 
-      {!loading && data.items.length === 0 && (
+      {!loading && !error && items.length === 0 && (
         <Empty icon={Calendar} title={t('today.nothingYet')} hint={t('today.nothingYetHint')} />
       )}
 
-      {data.items.length > 0 && (
+      {items.length > 0 && (
         <div className="panel">
           <div className="panel-body">
-            {data.items.map(r => <SaleRow key={r.id} r={r} />)}
+            {items.map(r => <SaleRow key={r.id} r={r} />)}
           </div>
         </div>
       )}
     </>
-  );
-}
-
-function StatTile({ value, label, tone }) {
-  return (
-    <div className={`stat-card ${tone ? 'tone-' + tone : ''}`}>
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
   );
 }
 
@@ -130,8 +149,8 @@ const PAGE = 100;
 // Named ranges beat two date pickers for the questions actually asked:
 // "how did last month go", "what have we done this year".
 const RANGES = [
-  { id: '30d', months: 0, days: 30 },
-  { id: '90d', months: 0, days: 90 },
+  { id: '30d', days: 30 },
+  { id: '90d', days: 90 },
   { id: 'ytd', ytd: true },
   { id: '12m', months: 12 },
   { id: 'all', all: true },
@@ -149,21 +168,19 @@ function rangeToQuery(id) {
   return { from: iso(from) };
 }
 
-export function HistoryView({ shops, staff }) {
+export function HistoryView({ staff }) {
   const t = useT();
   const [range, setRange] = useState('30d');
   const [staffId, setStaffId] = useState('');
   const [search, setSearch] = useState('');
   const [pane, setPane] = useState('log');
 
-  const query = useMemo(() => {
+  const qs = useMemo(() => {
     const q = { ...rangeToQuery(range) };
     if (staffId) q.staffId = staffId;
     if (search.trim()) q.q = search.trim();
-    return q;
+    return new URLSearchParams(q).toString();
   }, [range, staffId, search]);
-
-  const qs = useMemo(() => new URLSearchParams(query).toString(), [query]);
 
   return (
     <>
@@ -192,7 +209,7 @@ export function HistoryView({ shops, staff }) {
       />
 
       <div className="segmented segmented-wide" style={{ marginBottom: 18 }}>
-        {['log', 'sellers', 'commission', 'stock'].map(p => (
+        {['log', 'sellers', 'commission'].map(p => (
           <button key={p} className={pane === p ? 'is-active' : ''} onClick={() => setPane(p)}>
             {t('history.pane.' + p)}
           </button>
@@ -202,7 +219,6 @@ export function HistoryView({ shops, staff }) {
       {pane === 'log' && <SalesLog qs={qs} />}
       {pane === 'sellers' && <SellersPane qs={qs} />}
       {pane === 'commission' && <CommissionPane qs={qs} />}
-      {pane === 'stock' && <StockHealthPane qs={qs} />}
     </>
   );
 }
@@ -211,39 +227,38 @@ export function HistoryView({ shops, staff }) {
 function SalesLog({ qs }) {
   const t = useT();
   const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState({ total: 0, totals: {} });
   const [offset, setOffset] = useState(0);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { setOffset(0); }, [qs]);
+  useEffect(() => { setOffset(0); setRows([]); }, [qs]);
+
+  const { data, error, loading } = useLoad(
+    `/api/sales/history?${qs}&limit=${PAGE}&offset=${offset}`,
+    [qs, offset]
+  );
 
   useEffect(() => {
-    setLoading(true);
-    let cancelled = false;
-    api(`/api/sales/history?${qs}&limit=${PAGE}&offset=${offset}`)
-      .then(d => {
-        if (cancelled) return;
-        const items = Array.isArray(d?.items) ? d.items : [];
-        setRows(prev => (offset === 0 ? items : [...prev, ...items]));
-        setMeta({ total: d?.total || 0, totals: d?.totals || {} });
-        setLoading(false);
-      })
-      .catch(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [qs, offset]);
+    if (!data) return;
+    const items = Array.isArray(data.items) ? data.items : [];
+    setRows(prev => (offset === 0 ? items : [...prev, ...items]));
+  }, [data, offset]);
+
+  const total = data?.total || 0;
+  const totals = data?.totals || {};
 
   return (
     <>
       <div className="stat-grid">
-        <StatTile value={meta.totals.units ?? 0} label={t('history.netPieces')} />
-        <StatTile value={idr(meta.totals.revenue)} label={t('history.netRevenue')} tone="good" />
-        <StatTile value={meta.total} label={t('history.transactions')} />
+        <StatTile value={totals.units ?? 0} label={t('history.netPieces')} />
+        <StatTile value={idr(totals.revenue)} label={t('history.netRevenue')} tone="good" money />
+        <StatTile value={total} label={t('history.transactions')} />
       </div>
+
+      {error && <div className="error-banner">{error}</div>}
 
       <ExportButton href={`/api/sales/history.csv?${qs}`} label={t('history.exportSales')} />
 
       {loading && rows.length === 0 && <div className="loading">{t('common.loading')}</div>}
-      {!loading && rows.length === 0 && (
+      {!loading && !error && rows.length === 0 && (
         <Empty icon={History} title={t('history.nothing')} />
       )}
 
@@ -255,20 +270,22 @@ function SalesLog({ qs }) {
         </div>
       )}
 
-      {rows.length < meta.total && (
+      {rows.length > 0 && rows.length < total && (
         <button
           className="btn btn-secondary btn-block"
           style={{ marginTop: 12 }}
           disabled={loading}
           onClick={() => setOffset(o => o + PAGE)}
         >
-          {loading ? t('common.loading') : `${t('history.showMore')} (${rows.length} / ${meta.total})`}
+          {loading ? t('common.loading') : `${t('history.showMore')} (${rows.length} / ${total})`}
         </button>
       )}
     </>
   );
 }
 
+// A CSV download has to carry the auth header, so it cannot be a plain link.
+// Fetched as a blob and handed to the browser under the server's filename.
 function ExportButton({ href, label }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -291,20 +308,14 @@ function ExportButton({ href, label }) {
 // ── Best and worst ────────────────────────────────────────
 function SellersPane({ qs }) {
   const t = useT();
-  const [d, setD] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    api(`/api/analytics/summary?${qs}`)
-      .then(x => { setD(x); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [qs]);
+  const { data: d, error, loading } = useLoad(`/api/analytics/summary?${qs}`, [qs]);
 
   if (loading) return <div className="loading">{t('common.loading')}</div>;
+  if (error) return <div className="error-banner">{error}</div>;
   if (!d) return <Empty icon={TrendingUp} title={t('history.nothing')} />;
 
-  const peak = Math.max(1, ...d.trend.map(m => m.revenue));
+  const trend = d.trend || [];
+  const peak = Math.max(1, ...trend.map(m => m.revenue));
 
   return (
     <>
@@ -315,19 +326,16 @@ function SellersPane({ qs }) {
       <div className="section-head" style={{ marginTop: 26 }}>
         <h2 className="section-title">{t('history.trend')}</h2>
       </div>
-      {d.trend.length === 0 ? (
+      {trend.length === 0 ? (
         <Empty icon={TrendingUp} title={t('history.nothing')} />
       ) : (
         <div className="panel">
           <div className="panel-body">
-            {d.trend.map(m => (
+            {trend.map(m => (
               <div className="trend-row" key={m.month}>
                 <div className="trend-month">{m.month}</div>
                 <div className="trend-bar-track">
-                  <div
-                    className="trend-bar"
-                    style={{ width: `${Math.max(2, (m.revenue / peak) * 100)}%` }}
-                  />
+                  <div className="trend-bar" style={{ width: `${Math.max(2, (m.revenue / peak) * 100)}%` }} />
                 </div>
                 <div className="trend-units">{m.units}</div>
                 <div className="trend-value">{idr(m.revenue)}</div>
@@ -376,26 +384,22 @@ function Rank({ title, rows, metric }) {
 // ── Commission ────────────────────────────────────────────
 function CommissionPane({ qs }) {
   const t = useT();
-  const [d, setD] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    api(`/api/commission?${qs}`)
-      .then(x => { setD(x); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [qs]);
+  const { data: d, error, loading } = useLoad(`/api/commission?${qs}`, [qs]);
 
   if (loading) return <div className="loading">{t('common.loading')}</div>;
-  if (!d || d.items.length === 0) return <Empty icon={TrendingUp} title={t('history.nothing')} />;
+  if (error) return <div className="error-banner">{error}</div>;
+  if (!d || !d.items || d.items.length === 0) {
+    return <Empty icon={TrendingUp} title={t('history.nothing')} />;
+  }
 
   return (
     <>
       <div className="stat-grid">
-        <StatTile value={idr(d.totals.gross)} label={t('commission.gross')} />
-        <StatTile value={idr(d.totals.returned)} label={t('commission.returned')} tone={d.totals.returned > 0 ? 'bad' : undefined} />
-        <StatTile value={idr(d.totals.net)} label={t('commission.net')} />
-        <StatTile value={idr(d.totals.commission)} label={t('commission.owed')} tone="good" />
+        <StatTile value={idr(d.totals.gross)} label={t('commission.gross')} money />
+        <StatTile value={idr(d.totals.returned)} label={t('commission.returned')}
+                  tone={d.totals.returned > 0 ? 'bad' : undefined} money />
+        <StatTile value={idr(d.totals.net)} label={t('commission.net')} money />
+        <StatTile value={idr(d.totals.commission)} label={t('commission.owed')} tone="good" money />
       </div>
 
       <div className="notice" style={{ marginBottom: 14 }}>{t('commission.rule')}</div>
@@ -418,132 +422,13 @@ function CommissionPane({ qs }) {
               </div>
               <div className="comm-figures">
                 <div className="comm-net">{idr(p.net)}</div>
-                {p.returned > 0 && (
-                  <div className="comm-deduction">− {idr(p.returned)}</div>
-                )}
+                {p.returned > 0 && <div className="comm-deduction">− {idr(p.returned)}</div>}
               </div>
               <div className="comm-owed">{idr(p.commission)}</div>
             </div>
           ))}
         </div>
       </div>
-    </>
-  );
-}
-
-// ── Stock health ──────────────────────────────────────────
-// Turnover, dead stock and low stock read together: what is flying off the
-// rail, what has not moved in months, and what is about to run out.
-function StockHealthPane({ qs }) {
-  const t = useT();
-  const [d, setD] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    api(`/api/analytics/summary?${qs}`)
-      .then(x => { setD(x); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [qs]);
-
-  if (loading) return <div className="loading">{t('common.loading')}</div>;
-  if (!d) return <Empty icon={Package} title={t('history.nothing')} />;
-
-  return (
-    <>
-      <div className="stat-grid">
-        <StatTile value={d.lowStock.length} label={t('stockHealth.lowStock')} tone={d.lowStock.length ? 'warn' : undefined} />
-        <StatTile value={d.deadStockCount} label={t('stockHealth.deadCount')} tone={d.deadStockCount ? 'bad' : undefined} />
-        <StatTile value={idr(d.deadStockValue)} label={t('stockHealth.deadValue')} />
-      </div>
-
-      <ExportButton href="/api/stock.csv" label={t('stockHealth.exportStock')} />
-
-      {d.lowStock.length > 0 && (
-        <>
-          <div className="section-head" style={{ marginTop: 22 }}>
-            <h2 className="section-title">{t('stockHealth.runningOut')}</h2>
-            <span className="section-meta">{t('stockHealth.runningOutHint')}</span>
-          </div>
-          <div className="panel">
-            <div className="panel-body">
-              {d.lowStock.map(x => (
-                <div className="rank-row" key={x.id}>
-                  <AlertTriangle size={16} color="var(--warn)" />
-                  <div className="rank-main">
-                    <div className="rank-name">{x.name}</div>
-                    <div className="rank-sub">{x.sku}{x.color ? ` · ${x.color}` : ''}{x.size ? ` · ${x.size}` : ''}</div>
-                  </div>
-                  <div className="rank-stat">
-                    <div className="rank-stat-num" style={{ color: x.qty === 0 ? 'var(--bad)' : 'var(--warn)' }}>{x.qty}</div>
-                    <div className="rank-stat-label">{t('stockHealth.leftOf')} {x.threshold}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      <div className="section-head" style={{ marginTop: 26 }}>
-        <h2 className="section-title">{t('stockHealth.fastMoving')}</h2>
-        <span className="section-meta">{t('stockHealth.perMonth')}</span>
-      </div>
-      <div className="panel">
-        <div className="panel-body">
-          {d.fastMoving.filter(x => x.velocity > 0).map(x => (
-            <div className="rank-row" key={x.id}>
-              <TrendingUp size={16} color="var(--good)" />
-              <div className="rank-main">
-                <div className="rank-name">{x.name}</div>
-                <div className="rank-sub">{x.sku}{x.color ? ` · ${x.color}` : ''}</div>
-              </div>
-              <div className="rank-stat">
-                <div className="rank-stat-num">{x.velocity}</div>
-                <div className="rank-stat-label">{t('stockHealth.perMonthShort')}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="section-head" style={{ marginTop: 26 }}>
-        <h2 className="section-title">{t('stockHealth.notMoving')}</h2>
-        <span className="section-meta">{d.deadAfterDays}+ {t('stockHealth.days')}</span>
-      </div>
-      {d.deadStock.length === 0 ? (
-        <Empty icon={Package} title={t('stockHealth.allMoving')} />
-      ) : (
-        <div className="panel">
-          <div className="panel-body">
-            {d.deadStock.map(x => (
-              <div className="rank-row" key={x.id}>
-                <TrendingDown size={16} color="var(--text-3)" />
-                <div className="rank-main">
-                  <div className="rank-name">{x.name}</div>
-                  <div className="rank-sub">{x.sku}{x.color ? ` · ${x.color}` : ''}{x.size ? ` · ${x.size}` : ''}</div>
-                </div>
-                <div className="rank-stat">
-                  <div className="rank-stat-num">{x.qty}</div>
-                  <div className="rank-stat-label">{t('common.pieces')}</div>
-                </div>
-                <div className="rank-stat" style={{ minWidth: 96 }}>
-                  <div className="rank-stat-num" style={{ fontSize: 13 }}>
-                    {x.daysSinceSold === null ? t('stockHealth.neverSold') : `${x.daysSinceSold}d`}
-                  </div>
-                  <div className="rank-stat-label">
-                    {x.daysSinceSold === null ? '' : t('stockHealth.sinceSold')}
-                  </div>
-                </div>
-                <div className="rank-stat" style={{ minWidth: 110 }}>
-                  <div className="rank-stat-num" style={{ fontSize: 13 }}>{idr(x.qty * x.price)}</div>
-                  <div className="rank-stat-label">{t('stockHealth.tiedUp')}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </>
   );
 }

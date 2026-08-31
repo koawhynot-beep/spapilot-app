@@ -410,7 +410,7 @@ h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
 /* ── Stat cards ───────────────────────────────────────────── */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
   gap: var(--s-3);
   margin-bottom: var(--s-5);
 }
@@ -1574,7 +1574,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   grid-template-columns: 92px 1fr 110px 78px 116px;
   gap: var(--s-3);
   align-items: center;
-  padding: 10px 0;
+  padding: 11px var(--s-5);
   border-bottom: 1px solid var(--line-soft);
 }
 .sale-row:last-child { border-bottom: none; }
@@ -1607,6 +1607,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
 
 @media (max-width: 720px) {
   .sale-row {
+    padding: 11px var(--s-4);
     grid-template-columns: 1fr auto;
     grid-template-areas: "main qty" "sub val";
     row-gap: 2px;
@@ -1626,7 +1627,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   grid-template-columns: 64px 1fr 52px 116px;
   gap: var(--s-3);
   align-items: center;
-  padding: 7px 0;
+  padding: 8px var(--s-5);
 }
 .trend-month { font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .trend-bar-track {
@@ -1644,7 +1645,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
    a person can see exactly what was taken back and why. */
 .comm-row {
   display: flex; align-items: center; gap: var(--s-4);
-  padding: 12px 0; border-bottom: 1px solid var(--line-soft);
+  padding: 12px var(--s-5); border-bottom: 1px solid var(--line-soft);
   flex-wrap: wrap;
 }
 .comm-row:last-child { border-bottom: none; }
@@ -1661,7 +1662,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
 /* ── Audit rows ───────────────────────────────────────────*/
 .audit-row {
   display: flex; align-items: flex-start; gap: var(--s-3);
-  padding: 10px 0; border-bottom: 1px solid var(--line-soft);
+  padding: 11px var(--s-5); border-bottom: 1px solid var(--line-soft);
 }
 .audit-row:last-child { border-bottom: none; }
 .audit-main { min-width: 0; }
@@ -1674,6 +1675,14 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   font-variant-numeric: tabular-nums;
 }
 
-.stat-card.tone-warn .stat-value { color: var(--warn); }
-.stat-card.tone-bad  .stat-value { color: var(--bad); }
-.stat-card.tone-good .stat-value { color: var(--good); }
+/* Money set a size down: "IDR 4,200,000" at the full 30px runs edge to edge
+   in a quarter-width card and reads as though it is falling out of it. */
+.stat-num.is-money {
+  font-size: 21px;
+  letter-spacing: -0.02em;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .stat-num.is-money { font-size: 19px; }
+}
