@@ -3,24 +3,15 @@ import {
   Package, Store, Plus, Trash2, Edit2,
   RefreshCw, Check, X, AlertTriangle, Copy, Settings,
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
-  MoreHorizontal, Sun, Moon, Printer,
+  MoreHorizontal, Sun, Moon, Printer, Undo2,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
+import { api, getToken, setToken, download, idr } from './api';
+import { TodayView, HistoryView } from './views';
 import './App.css';
 
 // ── Config ────────────────────────────────────────────────
-const API = process.env.REACT_APP_API_URL || 'http://localhost:3000';
-const TOKEN_KEY = 'mitrasamadi_token';
-
-const getToken = () => localStorage.getItem(TOKEN_KEY);
-const setToken = (t) => {
-  if (t) localStorage.setItem(TOKEN_KEY, t);
-  else localStorage.removeItem(TOKEN_KEY);
-};
-
-// Money is Indonesian Rupiah everywhere in this app.
-const idr = (n) => 'IDR ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 // ── Fabric blocks ─────────────────────────────────────────
 // The owner reads her stock fabric by fabric — all the cotton geisha, then
@@ -83,34 +74,6 @@ class ErrorBoundary extends Component {
 }
 
 // ── API client ────────────────────────────────────────────
-async function api(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res;
-  try {
-    res = await fetch(`${API}${path}`, {
-      ...opts,
-      headers,
-      body: opts.body ? JSON.stringify(opts.body) : undefined,
-    });
-  } catch (e) {
-    if (!navigator.onLine) throw new Error("You're offline. Check your internet.");
-    throw new Error("Can't reach the server. It may be starting up — try again in a moment.");
-  }
-  if (res.status === 401) {
-    setToken(null);
-    window.dispatchEvent(new Event('app:unauth'));
-  }
-  if (!res.ok) {
-    let msg = `${res.status}`;
-    try { const d = await res.json(); msg = d.error || msg; } catch {}
-    if (res.status >= 500) msg = `Server error (${res.status}). Try again.`;
-    throw new Error(msg);
-  }
-  if (res.status === 204) return null;
-  return res.json();
-}
 
 // ── Helpers ───────────────────────────────────────────────
 function useCollection(path, enabled = true, pollMs = 0) {
@@ -303,67 +266,6 @@ function ThemeToggle() {
   );
 }
 
-// ── Shop scope ────────────────────────────────────────────
-// Looking at one shop is the everyday case and must be one tap. Combining a
-// couple of shops is rare, so it hides behind "Compare shops" rather than
-// making her unclick "All shops" before every single look.
-// Value is an array of shop ids; empty means every shop.
-function ShopScope({ shops, value, onChange, label = 'Showing' }) {
-  const [combining, setCombining] = useState(value.length > 1);
-  if (shops.length < 2) return null;
-
-  const toggle = (id) => {
-    onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
-  };
-
-  if (!combining) {
-    const single = value.length === 1 ? String(value[0]) : 'all';
-    return (
-      <div className="scope-picker">
-        <span className="scope-picker-label">{label}</span>
-        <select
-          className="select select-inline"
-          value={single}
-          onChange={e => onChange(e.target.value === 'all' ? [] : [Number(e.target.value)])}
-          aria-label="Which shop"
-        >
-          <option value="all">All shops</option>
-          {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <button
-          type="button"
-          className="scope-link"
-          onClick={() => { setCombining(true); if (value.length < 1) onChange([shops[0].id]); }}
-        >
-          Compare shops
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="scope-picker">
-      <span className="scope-picker-label">Comparing</span>
-      {shops.map(s => (
-        <button
-          key={s.id}
-          type="button"
-          className={`scope-chip ${value.includes(s.id) ? 'is-active' : ''}`}
-          onClick={() => toggle(s.id)}
-        >
-          {s.name}
-        </button>
-      ))}
-      <button
-        type="button"
-        className="scope-link"
-        onClick={() => { setCombining(false); onChange([]); }}
-      >
-        Done
-      </button>
-    </div>
-  );
-}
 
 // ── Who is scanning ───────────────────────────────────────
 // Remembered per device, so the shop tablet keeps whoever is on shift rather
@@ -402,11 +304,12 @@ function StatCard({ value, label, tone, active, onClick }) {
 // ═══════════════════════════════════════════════════════════
 // MAIN APP (post-auth)
 // ═══════════════════════════════════════════════════════════
-function MainApp({ user, business, scope, onSwitchAccess }) {
+function MainApp({ user, business, shop, onSwitchAccess }) {
   const t = useT();
-  // A shop key does the day's work and nothing else, so it opens on Sell.
-  // The master code opens on Stock, which is where the owner starts.
-  const isAdmin = user.accessRole !== 'shop';
+  // Staff work the till; admin runs the business. Staff open on Sell because
+  // that is the whole job; admin opens on Stock, which is where the owner
+  // starts her day.
+  const isAdmin = user.accessRole !== 'staff';
   const [tab, setTab] = useState(isAdmin ? 'stock' : 'sell');
   const [showSettings, setShowSettings] = useState(false);
   // Set when Overview's "Restock" jumps to the Stock tab pre-filtered to one SKU.
@@ -415,55 +318,37 @@ function MainApp({ user, business, scope, onSwitchAccess }) {
   const shops = useCollection('/api/shops', true);
   const staff = useCollection('/api/staff', true);
   const [showStaff, setShowStaff] = useState(false);
-  const [selectedShopId, setSelectedShopId] = useState(null);
 
-  // A shop key only ever works in its own shop, so there is nothing to pick.
-  const visibleShops = useMemo(
-    () => (isAdmin ? shops.data : shops.data.filter(s => s.id === scope?.shopId)),
-    [shops.data, isAdmin, scope]
-  );
+  // One shop. Everything that used to take a list still takes one, because
+  // the views are written against an array — it just never has more than a
+  // single entry now.
+  const shopList = shops.data;
+  const shopId = shopList[0]?.id || shop?.id || null;
 
-  // Waiting deliveries drive a count on the Transfers tab, so staff can see
-  // there is something to check without going looking for it.
-  const [pendingIn, setPendingIn] = useState(0);
-  const refreshPending = useCallback(() => {
-    api('/api/transfers?direction=in&status=pending')
-      .then(d => setPendingIn(Array.isArray(d) ? d.length : 0))
+  // Anything at or below its threshold, surfaced as a count on the Stock tab
+  // so a gap on the rail is noticed before a customer finds it.
+  const [lowStock, setLowStock] = useState(0);
+  const refreshLowStock = useCallback(() => {
+    if (!isAdmin) return;
+    api('/api/analytics/summary')
+      .then(d => setLowStock(Array.isArray(d?.lowStock) ? d.lowStock.length : 0))
       .catch(() => {});
-  }, []);
-  useEffect(() => {
-    refreshPending();
-    const id = setInterval(refreshPending, 60000);
-    return () => clearInterval(id);
-  }, [refreshPending]);
+  }, [isAdmin]);
+  useEffect(() => { refreshLowStock(); }, [refreshLowStock]);
 
-  // Auto-select first shop or only shop
-  useEffect(() => {
-    if (!selectedShopId && visibleShops.length > 0) {
-      setSelectedShopId(visibleShops[0].id);
-    }
-    if (selectedShopId && selectedShopId !== 'all' && !visibleShops.find(s => s.id === selectedShopId)) {
-      setSelectedShopId(visibleShops[0]?.id || null);
-    }
-  }, [visibleShops, selectedShopId]);
-
-  const isOwner = user.role === 'owner';
-
-  // Order follows the day: what you do at the till, then what you check, then
-  // what you set up. A shop key gets only the first two.
+  // Order follows the day: ring it up, keep the rail right, check the till,
+  // then read the business. Staff get the first three.
   const allTabs = [
-    { id: 'sell',      label: t('tab.sell'),      icon: ScanLine,  shop: true },
-    { id: 'transfers', label: t('tab.transfers'), icon: Store,     shop: true, badge: pendingIn },
-    { id: 'stock',     label: t('tab.stock'),     icon: Package },
-    { id: 'overview',  label: t('tab.overview'),  icon: Package },
-    { id: 'sales',     label: t('tab.sales'),     icon: TrendingUp },
-    { id: 'history',   label: t('tab.history'),   icon: History },
-    { id: 'shops',     label: t('tab.shops'),     icon: Settings },
+    { id: 'sell',     label: t('tab.sell'),     icon: ScanLine,   staff: true },
+    { id: 'stock',    label: t('tab.stock'),    icon: Package,    staff: true, badge: lowStock },
+    { id: 'today',    label: t('tab.today'),    icon: Calendar,   staff: true },
+    { id: 'overview', label: t('tab.overview'), icon: SlidersHorizontal },
+    { id: 'history',  label: t('tab.history'),  icon: History },
   ];
-  const tabs = isAdmin ? allTabs : allTabs.filter(x => x.shop);
+  const tabs = isAdmin ? allTabs : allTabs.filter(x => x.staff);
 
-  // If a session is downgraded to a shop key while sitting on an admin tab,
-  // fall back rather than rendering a view whose data it cannot load.
+  // If a session is downgraded to the staff code while sitting on an admin
+  // tab, fall back rather than rendering a view whose data it cannot load.
   useEffect(() => {
     if (!tabs.find(x => x.id === tab)) setTab(tabs[0].id);
   }, [tabs, tab]);
@@ -474,8 +359,8 @@ function MainApp({ user, business, scope, onSwitchAccess }) {
         <div>
           <h1>Mitra Samadi</h1>
           <div className="topbar-sub">
-            {isAdmin ? (business?.name || 'Mitra Samadi') : (scope?.shopName || '')}
-            {!isAdmin && <span className="topbar-scope">{t('scope.shopOnly')}</span>}
+            {shop?.name || shopList[0]?.name || business?.name || 'Gold Dust'}
+            {!isAdmin && <span className="topbar-scope">{t('scope.staff')}</span>}
           </div>
         </div>
         <div className="topbar-actions">
@@ -499,55 +384,41 @@ function MainApp({ user, business, scope, onSwitchAccess }) {
 
         {tab === 'sell' && (
           <SellView
-            shops={visibleShops}
-            allShops={shops.data}
+            shops={shopList}
             staff={staff.data}
             isAdmin={isAdmin}
             onManageStaff={() => setShowStaff(true)}
-            onTransferSent={refreshPending}
+            onChanged={refreshLowStock}
           />
         )}
-        {tab === 'transfers' && (
-          <TransfersView
-            shops={shops.data}
-            staff={staff.data}
-            scope={scope}
-            isAdmin={isAdmin}
-            onChanged={refreshPending}
-          />
-        )}
-        {tab === 'stock' && isAdmin && (
+        {tab === 'stock' && (
           <StockView
-            shops={visibleShops}
-            selectedShopId={selectedShopId}
-            onSelectShop={setSelectedShopId}
+            shops={shopList}
+            selectedShopId={shopId}
+            onSelectShop={() => {}}
             user={user}
+            isAdmin={isAdmin}
             onReloadShops={shops.reload}
             jump={stockJump}
             onJumpHandled={() => setStockJump(null)}
+            onChanged={refreshLowStock}
           />
+        )}
+        {tab === 'today' && (
+          <TodayView isAdmin={isAdmin} />
         )}
         {tab === 'overview' && isAdmin && (
-          <OverviewView shops={visibleShops} />
-        )}
-        {tab === 'sales' && isAdmin && (
-          <SalesView
-            shops={visibleShops}
-            onFindStock={(sku) => { setStockJump({ sku, at: Date.now() }); setTab('stock'); }}
-          />
+          <OverviewView shops={shopList} />
         )}
         {tab === 'history' && isAdmin && (
-          <ReportsView shops={visibleShops} staff={staff.data} />
-        )}
-        {tab === 'shops' && isAdmin && (
-          <ShopsView shops={shops} isOwner={isOwner} />
+          <HistoryView shops={shopList} staff={staff.data} />
         )}
       </div>
 
       {showSettings && (
         <SettingsModal
           isAdmin={isAdmin}
-          scope={scope}
+          shopName={shop?.name || shopList[0]?.name || ''}
           onClose={() => setShowSettings(false)}
           onManageStaff={() => { setShowSettings(false); setShowStaff(true); }}
           onSwitchAccess={onSwitchAccess}
@@ -557,7 +428,7 @@ function MainApp({ user, business, scope, onSwitchAccess }) {
       {showStaff && isAdmin && (
         <StaffModal
           staff={staff.data}
-          shops={shops.data}
+          shops={shopList}
           onClose={() => setShowStaff(false)}
           onChanged={staff.reload}
         />
@@ -816,7 +687,6 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
     <div>
       {/* Row 1 — the three things needed most often. */}
       <div className="toolbar">
-        <ShopPicker shops={shops} selectedShopId={selectedShopId} onSelect={onSelectShop} />
         <SearchField
           value={search}
           onChange={setSearch}
@@ -1507,31 +1377,6 @@ function MoveToGroupModal({ item, groups, onClose, onPick, onAddGroup }) {
   );
 }
 
-// Compact shop selector that sits inline in the toolbar.
-function ShopPicker({ shops, selectedShopId, onSelect }) {
-  if (shops.length === 0) return null;
-  if (shops.length === 1) {
-    return (
-      <div className="toolbar-shop" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-2)', fontSize: 15, fontWeight: 550 }}>
-        <Store size={17} />
-        {shops[0].name}
-      </div>
-    );
-  }
-  return (
-    <div className="toolbar-shop">
-      <select
-        className="select"
-        aria-label="Shop"
-        value={selectedShopId == null ? '' : String(selectedShopId)}
-        onChange={e => onSelect(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-      >
-        <option value="all">All shops</option>
-        {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-      </select>
-    </div>
-  );
-}
 
 // ── Stock modal ───────────────────────────────────────────
 function StockModal({ item, shopId, onClose, onSaved }) {
@@ -1540,11 +1385,12 @@ function StockModal({ item, shopId, onClose, onSaved }) {
     qty: String(item.qty ?? ''),
     threshold: String(item.threshold ?? ''),
     price: item.price ? String(item.price) : '',
+    cost: item.cost ? String(item.cost) : '',
     imageUrl: item.imageUrl || '',
   } : {
     name: '', category: '', fabric: '', print: '', size: '', color: '', sku: '', brand: '',
     qty: '0', threshold: '5', supplier: '', notes: '',
-    price: '', imageUrl: '',
+    price: '', cost: '', imageUrl: '',
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -1558,6 +1404,7 @@ function StockModal({ item, shopId, onClose, onSaved }) {
         qty: f.qty === '' ? 0 : Number(f.qty),
         threshold: f.threshold === '' ? 0 : Number(f.threshold),
         price: f.price === '' ? 0 : Number(f.price),
+        cost: f.cost === '' ? 0 : Number(f.cost),
         imageUrl: (f.imageUrl || '').trim(),
       };
       if (item) await api(`/api/stock/${item.id}`, { method: 'PUT', body: payload });
@@ -1639,18 +1486,34 @@ function StockModal({ item, shopId, onClose, onSaved }) {
             <input className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} />
           </div>
         </div>
-        <div className="field">
-          <label>Price per unit (IDR, optional)</label>
-          <input
-            className="input"
-            type="number"
-            min="0"
-            step="0.01"
-            inputMode="decimal"
-            value={f.price}
-            onChange={e => setF({ ...f, price: e.target.value })}
-            placeholder="0"
-          />
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Sells for (IDR)</label>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={f.price}
+              onChange={e => setF({ ...f, price: e.target.value })}
+              placeholder="0"
+            />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Cost (IDR, optional)</label>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={f.cost}
+              onChange={e => setF({ ...f, cost: e.target.value })}
+              placeholder="0"
+            />
+            <div className="field-hint">What you paid — used for margin.</div>
+          </div>
         </div>
         <div className="field">
           <label>Supplier</label>
@@ -1773,17 +1636,17 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
 // sale — a damaged or returned piece leaving the shop must never land in the
 // sales figures.
 const SCAN_MODES = [
-  { id: 'sell',     label: 'Sell',      icon: ScanLine,   verb: 'Sell',       hint: 'Each scan sells one' },
-  { id: 'in',       label: 'Stock In',  icon: TrendingUp, verb: 'Stock in',   hint: 'Each scan adds one to this shop' },
-  { id: 'out',      label: 'Stock Out', icon: TrendingDown, verb: 'Take out',  hint: 'Leaves the shop without being sold' },
-  { id: 'transfer', label: 'Transfer',  icon: Store,      verb: 'Move',       hint: 'Move stock to another shop' },
+  { id: 'sell',   label: 'Sell',      icon: ScanLine,     verb: 'Sell',      hint: 'Each scan sells one' },
+  { id: 'return', label: 'Return',    icon: Undo2,        verb: 'Take back',  hint: 'Customer brought it back — goes back on the rail' },
+  { id: 'in',     label: 'Stock In',  icon: TrendingUp,   verb: 'Stock in',  hint: 'Each scan adds one to the shop' },
+  { id: 'out',    label: 'Stock Out', icon: TrendingDown, verb: 'Take out',  hint: 'Leaves the shop without being sold' },
 ];
 
 // Why a piece left the shop without being sold. Kept short because staff pick
 // one on a phone, mid-task.
 const OUT_REASONS = ['Reject', 'Damaged', 'Returned to factory', 'Lost', 'Sample', 'Other'];
 
-function SellView({ shops, allShops = [], staff, isAdmin = true, onManageStaff, onTransferSent }) {
+function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   const t = useT();
   const [shopId, setShopId] = useState(shops[0]?.id || null);
   const [code, setCode] = useState('');
@@ -1800,7 +1663,6 @@ function SellView({ shops, allShops = [], staff, isAdmin = true, onManageStaff, 
   // What this scan does. Sell is the everyday case and stays the default.
   const [scanMode, setScanMode] = useState('sell');
   const [outReason, setOutReason] = useState(OUT_REASONS[0]);
-  const [toShopId, setToShopId] = useState(null);
 
   // Who is scanning. Remembered on this device across shifts.
   const [staffId, setStaffId] = useState(readStaffId);
@@ -1869,25 +1731,6 @@ function SellView({ shops, allShops = [], staff, isAdmin = true, onManageStaff, 
     }
   };
 
-  // Transfers move stock between two shops, so they go through the transfer
-  // endpoint rather than the single-shop scan one.
-  const doTransfer = async ({ sku, qty }) => {
-    const d = await api('/api/transfers', {
-      method: 'POST',
-      body: { sku, fromShopId: shopId, toShopId, qty, staffId: staffId || undefined },
-    });
-    const toName = (allShops.length ? allShops : shops).find(s => s.id === toShopId)?.name || 'the other shop';
-    // Deliberately not "Moved": the pieces have left this shop but have not
-    // landed anywhere yet. Saying they arrived would be a lie until the
-    // receiving shop counts them in.
-    setMsg({ type: 'ok', text: `Sent ${qty} × ${sku} to ${toName} — waiting for them to check it in` });
-    setRecent(r => [{
-      name: d?.item?.name || sku, sku, qty: d?.from?.newQty ?? '', moved: qty,
-      mode: 'transfer', who: staffName, ts: Date.now(),
-    }, ...r].slice(0, 30));
-    onTransferSent?.();
-  };
-
   const scanBody = (identifier, qty) => ({
     ...identifier,
     qty,
@@ -1952,21 +1795,14 @@ function SellView({ shops, allShops = [], staff, isAdmin = true, onManageStaff, 
   const submitCode = async (raw) => {
     const c = String(raw || '').trim();
     if (!c || !shopId) return;
-    if (scanMode === 'transfer' && !toShopId) {
-      setMsg({ type: 'err', text: 'Choose which shop it is going to first' });
-      return;
-    }
     setCode('');
     setInFlight(n => n + 1);
     setMsg(null);
     focusInput();
     try {
-      if (scanMode === 'transfer') {
-        await doTransfer({ sku: c, qty: 1 });
-      } else {
-        const d = await api(`/api/shops/${shopId}/scan`, { method: 'POST', body: scanBody({ code: c }, 1) });
-        record(d, d.label);
-      }
+      const d = await api(`/api/shops/${shopId}/scan`, { method: 'POST', body: scanBody({ code: c }, 1) });
+      record(d, d.label);
+      onChanged?.();
     } catch (err) {
       // Name the code that failed — with several scans in flight, "could not
       // record that" alone leaves you no idea which garment to re-scan.
@@ -1979,21 +1815,14 @@ function SellView({ shops, allShops = [], staff, isAdmin = true, onManageStaff, 
 
   const submitPicked = async () => {
     if (!picked || !shopId) return;
-    if (scanMode === 'transfer' && !toShopId) {
-      setMsg({ type: 'err', text: 'Choose which shop it is going to first' });
-      return;
-    }
     setBusy(true); setMsg(null);
     try {
-      if (scanMode === 'transfer') {
-        await doTransfer({ sku: picked.sku, qty: sellQty });
-      } else {
-        const d = await api(`/api/shops/${shopId}/scan`, {
-          method: 'POST',
-          body: scanBody({ itemId: picked.id }, sellQty),
-        });
-        record(d, d.label);
-      }
+      const d = await api(`/api/shops/${shopId}/scan`, {
+        method: 'POST',
+        body: scanBody({ itemId: picked.id }, sellQty),
+      });
+      record(d, d.label);
+      onChanged?.();
       setPicked(null); setLookup(''); setResults([]); setSellQty(1);
     } catch (err) {
       setMsg({ type: 'err', text: err.message || 'Could not record that' });
@@ -2092,7 +1921,7 @@ function SellView({ shops, allShops = [], staff, isAdmin = true, onManageStaff, 
         </div>
 
         <div className="field">
-          <label>{scanMode === 'transfer' ? t('sell.movingFrom') : scanMode === 'in' ? t('sell.stockingInto') : t('sell.atShop')}</label>
+          <label>{scanMode === 'in' ? t('sell.stockingInto') : t('sell.atShop')}</label>
           {shops.length > 1 ? (
             <select className="select" value={shopId || ''} onChange={e => setShopId(Number(e.target.value))}>
               {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -2101,25 +1930,6 @@ function SellView({ shops, allShops = [], staff, isAdmin = true, onManageStaff, 
             <div className="locked-value">{shops[0]?.name || ''}</div>
           )}
         </div>
-
-        {scanMode === 'transfer' && (
-          <div className="field">
-            <label>{t('sell.movingTo')}</label>
-            {/* Destinations come from every shop, not just the ones this key
-                can open — a shop must be able to send stock back to the
-                office even though it cannot see inside it. */}
-            <select
-              className="select"
-              value={toShopId || ''}
-              onChange={e => setToShopId(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">Choose a shop…</option>
-              {(allShops.length ? allShops : shops).filter(s => s.id !== shopId).map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
 
         {scanMode === 'out' && (
           <div className="field">
@@ -2408,9 +2218,8 @@ function OverviewView({ shops = [] }) {
     try { localStorage.setItem('ms-overview-layout', v); } catch (e) { /* ignore */ }
   };
 
-  // Which shops this overview covers. Empty = all of them.
-  const [shopSel, setShopSel] = useState([]);
-  const shopsParam = shopSel.length ? shopSel.join(',') : '';
+  // One shop, so every figure on this page covers all of it.
+  const shopsParam = '';
 
   // Sold figures are read one calendar year at a time.
   const [year, setYear] = useState(() => new Date().getFullYear());
@@ -2508,9 +2317,7 @@ function OverviewView({ shops = [] }) {
   // Product · Fabric · Colour · Size + one per shop + Total.
   const colCount = 4 + data.shops.length + 1;
 
-  const scopeText = shopSel.length === 0
-    ? 'Counted across all shops combined.'
-    : `Counted across ${data.shops.join(' + ')} only.`;
+  const scopeText = 'Every piece on the rail, counted once.';
 
   return (
     <div>
@@ -2537,8 +2344,6 @@ function OverviewView({ shops = [] }) {
         </div>
       </div>
 
-      {/* Which shops this page covers. */}
-      <ShopScope shops={shops} value={shopSel} onChange={setShopSel} />
 
       {showSold && (
         <div className="scope-picker">
@@ -2895,809 +2700,8 @@ function ItemHistoryModal({ item, shopsParam, onClose }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// SALES VIEW — what sold, sliced whichever way she wants
+// STAFF
 // ═══════════════════════════════════════════════════════════
-// The same sales, ranked by product, fabric, colour, style or shop. She asked
-// to see "which fabric sells the best, which colour sells the best, and in
-// which store" — that is one query with a different GROUP BY, so it is one
-// screen with a row of buttons rather than five separate reports.
-const SALES_GROUPS = [
-  { id: 'sku',    label: 'Product' },
-  { id: 'fabric', label: 'Fabric' },
-  { id: 'color',  label: 'Colour' },
-  { id: 'style',  label: 'Style' },
-  { id: 'shop',   label: 'Shop' },
-  { id: 'staff',  label: 'Person' },
-];
-
-function SalesView({ shops = [], onFindStock }) {
-  const [groupBy, setGroupBy] = useState('sku');
-  const [year, setYear] = useState(() => new Date().getFullYear());
-  const [years, setYears] = useState([]);
-  const [shopSel, setShopSel] = useState([]);          // empty = all shops
-  const [best, setBest] = useState({ items: [] });
-  const [recent, setRecent] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const shopsParam = shopSel.length ? shopSel.join(',') : '';
-
-  useEffect(() => {
-    api('/api/business/sales-years')
-      .then(d => setYears(Array.isArray(d?.years) ? d.years : []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    setLoading(true); setError(null);
-    const p = new URLSearchParams({ groupBy, year: String(year), limit: '25' });
-    if (shopsParam) p.set('shops', shopsParam);
-    api(`/api/business/best-sellers?${p.toString()}`)
-      .then(d => { setBest(d || { items: [] }); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
-  }, [groupBy, year, shopsParam]);
-
-  useEffect(() => {
-    const p = new URLSearchParams({ year: String(year), limit: '100' });
-    if (shopsParam) p.set('shops', shopsParam);
-    api(`/api/business/recent-sales?${p.toString()}`)
-      .then(d => setRecent(Array.isArray(d) ? d : []))
-      .catch(() => setRecent([]));
-  }, [year, shopsParam]);
-
-  const totalSold = best.items.reduce((n, it) => n + it.units, 0);
-  const totalRevenue = best.items.reduce((n, it) => n + it.revenue, 0);
-  const groupLabel = (SALES_GROUPS.find(g => g.id === groupBy) || {}).label || '';
-
-  return (
-    <div>
-      {error && <div className="error-banner">{error}</div>}
-
-      <div className="scope-picker">
-        <span className="scope-picker-label">Year</span>
-        <select
-          className="select select-inline"
-          value={year}
-          onChange={e => setYear(Number(e.target.value))}
-          aria-label="Year"
-        >
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-      </div>
-
-      <ShopScope shops={shops} value={shopSel} onChange={setShopSel} />
-
-      <div className="section-head">
-        <h2 className="section-title">Best sellers</h2>
-        <span className="section-meta">{year}</span>
-      </div>
-
-      {/* One row of buttons, five reports. */}
-      <div className="segmented segmented-wide" role="group" aria-label="Rank by">
-        {SALES_GROUPS.map(g => (
-          <button
-            key={g.id}
-            type="button"
-            className={groupBy === g.id ? 'is-active' : ''}
-            onClick={() => setGroupBy(g.id)}
-          >
-            {g.label}
-          </button>
-        ))}
-      </div>
-
-      {loading && <div className="loading">Loading…</div>}
-
-      {!loading && best.items.length === 0 && (
-        <div className="empty empty-sm">
-          <TrendingUp size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>No sales recorded in {year}</h3>
-          <p>Sales appear here as soon as items are sold on the Sell tab.</p>
-        </div>
-      )}
-
-      {!loading && best.items.length > 0 && (
-        <>
-          <div className="stat-grid">
-            <StatCard value={totalSold} label={`Pieces sold (top ${best.items.length})`} />
-            <StatCard value={idr(totalRevenue)} label="Value sold" />
-            <StatCard value={best.items.length} label={`${groupLabel}s ranked`} />
-          </div>
-
-          <div className="panel">
-            <div className="panel-body">
-              {best.items.map((it, i) => {
-                const share = totalSold > 0 ? (it.units / totalSold) * 100 : 0;
-                const clickable = groupBy === 'sku' && it.sku && onFindStock;
-                return (
-                  <div
-                    key={it.key || i}
-                    className={`rank-row ${clickable ? 'rank-row-click' : ''}`}
-                    onClick={clickable ? () => onFindStock(it.sku) : undefined}
-                    role={clickable ? 'button' : undefined}
-                    tabIndex={clickable ? 0 : undefined}
-                    onKeyDown={clickable ? (e) => { if (e.key === 'Enter') onFindStock(it.sku); } : undefined}
-                    title={clickable ? 'See what is left in stock' : undefined}
-                  >
-                    <div className="rank-num">{i + 1}</div>
-                    <div className="rank-main">
-                      <div className="rank-name">{it.label}</div>
-                      <div className="rank-sub">
-                        {groupBy === 'sku'
-                          ? [it.sku, it.fabric, it.color, it.size].filter(Boolean).join(' · ')
-                          : `${share.toFixed(1)}% of the top ${best.items.length}`}
-                      </div>
-                      <div className="rank-bar">
-                        <span style={{ width: `${Math.max(2, share)}%` }} />
-                      </div>
-                    </div>
-                    <div className="rank-stat">
-                      <div className="rank-stat-num">{it.units.toLocaleString()}</div>
-                      <div className="rank-stat-label">sold</div>
-                    </div>
-                    <div className="rank-stat" style={{ minWidth: 68 }}>
-                      <div className="rank-stat-num" style={{ fontSize: 14 }}>
-                        {it.trend == null ? 'new' : `${it.trend > 0 ? '+' : ''}${Math.round(it.trend * 100)}%`}
-                      </div>
-                      <div className="rank-stat-label">vs {year - 1}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* "Where do I see what sold, and when?" — right here. */}
-      <div className="section-head">
-        <h2 className="section-title">Latest sales</h2>
-        <span className="section-meta">{recent.length} shown</span>
-      </div>
-      {recent.length === 0 ? (
-        <div className="empty empty-sm">
-          <History size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>Nothing sold yet in {year}</h3>
-          <p>Every sale is listed here with its date and shop.</p>
-        </div>
-      ) : (
-        <div className="panel">
-          <div className="panel-body">
-            {recent.map(r => (
-              <div className="rank-row" key={r.id}>
-                <div className="rank-main">
-                  <div className="rank-name">{r.name}</div>
-                  <div className="rank-sub">
-                    {[r.sku, r.fabric, r.color, r.size].filter(Boolean).join(' · ')}
-                  </div>
-                </div>
-                <div className="rank-stat" style={{ minWidth: 92 }}>
-                  <div className="rank-stat-num" style={{ fontSize: 14 }}>{r.shopName}</div>
-                  <div className="rank-stat-label">{new Date(r.occurredAt).toLocaleDateString()}</div>
-                </div>
-                <div className="rank-stat">
-                  <div className="rank-stat-num">{r.units}</div>
-                  <div className="rank-stat-label">sold</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// REPORTS — the back-office ledger, one shop at a time
-// ═══════════════════════════════════════════════════════════
-// Kept apart from the scanning screens on purpose: this is the manager's
-// view for tracing where a garment went, not something shop floor staff
-// need in front of them all day.
-const LEDGER_FILTERS = [
-  { id: '',        label: 'Everything' },
-  { id: 'in',      label: 'Came in' },
-  { id: 'out',     label: 'Went out' },
-];
-
-function ReportsView({ shops = [], staff = [] }) {
-  const t = useT();
-  const [shopId, setShopId] = useState(shops[0]?.id || null);
-  const [direction, setDirection] = useState('');
-  const [year, setYear] = useState('all');
-  const [years, setYears] = useState([]);
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [search, setSearch] = useState('');
-
-  useEffect(() => { if (!shopId && shops[0]) setShopId(shops[0].id); }, [shops, shopId]);
-
-  useEffect(() => {
-    api('/api/business/sales-years')
-      .then(d => setYears(Array.isArray(d?.years) ? d.years : []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!shopId) return;
-    setLoading(true); setError(null);
-    const p = new URLSearchParams({ limit: '500' });
-    if (year !== 'all') p.set('year', String(year));
-    if (direction) p.set('direction', direction);
-    api(`/api/shops/${shopId}/ledger?${p.toString()}`)
-      .then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
-  }, [shopId, year, direction]);
-
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      [r.itemName, r.sku, r.fabric, r.color, r.size, r.staffName, r.reason]
-        .filter(Boolean).join(' ').toLowerCase().includes(q)
-    );
-  }, [rows, search]);
-
-  const totals = useMemo(() => {
-    let inQty = 0, outQty = 0;
-    for (const r of visible) {
-      if (r.qtyChange > 0) inQty += r.qtyChange;
-      else outQty += Math.abs(r.qtyChange);
-    }
-    return { inQty, outQty };
-  }, [visible]);
-
-  if (shops.length === 0) {
-    return (
-      <div className="card">
-        <div className="empty">
-          <Store size={32} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>No shops yet</h3>
-          <p>Add a shop to start keeping a stock record.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {error && <div className="error-banner">{error}</div>}
-
-      <CommissionPanel shops={shops} />
-
-      <HistoryLog shops={shops} staff={staff} />
-
-      <div className="section-head">
-        <h2 className="section-title">{t('history.movements')}</h2>
-      </div>
-
-      {/* A tab per shop — office, then each store. */}
-      <div className="segmented segmented-wide" role="group" aria-label="Which shop">
-        {shops.map(s => (
-          <button
-            key={s.id}
-            type="button"
-            className={shopId === s.id ? 'is-active' : ''}
-            onClick={() => setShopId(s.id)}
-          >
-            {s.name}
-          </button>
-        ))}
-      </div>
-
-      <div className="scope-picker">
-        <span className="scope-picker-label">Show</span>
-        {LEDGER_FILTERS.map(f => (
-          <button
-            key={f.id || 'all'}
-            type="button"
-            className={`scope-chip ${direction === f.id ? 'is-active' : ''}`}
-            onClick={() => setDirection(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
-        <select
-          className="select select-inline"
-          value={year}
-          onChange={e => setYear(e.target.value)}
-          aria-label="Year"
-        >
-          <option value="all">All time</option>
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-      </div>
-
-      <div className="toolbar" style={{ marginTop: 4 }}>
-        <SearchField value={search} onChange={setSearch} placeholder="Find a product, code or person…" />
-      </div>
-
-      <div className="stat-grid">
-        <StatCard value={totals.inQty} label="Pieces in" tone="good" />
-        <StatCard value={totals.outQty} label="Pieces out" tone="bad" />
-        <StatCard value={visible.length} label="Movements" />
-      </div>
-
-      {loading && <div className="loading">Loading…</div>}
-
-      {!loading && visible.length === 0 && (
-        <div className="empty empty-sm">
-          <History size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>Nothing recorded</h3>
-          <p>Every scan at this shop will appear here with its date and who did it.</p>
-        </div>
-      )}
-
-      {!loading && visible.length > 0 && (
-        <div className="panel">
-          <div className="panel-body">
-            {visible.map(r => {
-              const look = MOVEMENT_LOOK[r.type] || { label: r.type, sign: '', tone: '' };
-              return (
-                <div className="ledger-row" key={r.id}>
-                  <div className="ledger-date">
-                    {new Date(r.occurredAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' })}
-                  </div>
-                  <div className="ledger-main">
-                    <div className="rank-name">{r.itemName}</div>
-                    <div className="ledger-sub">
-                      <span className={`ledger-kind tone-${look.tone}`}>{look.label}</span>
-                      {[r.sku, r.color, r.size].filter(Boolean).join(' · ')}
-                      {r.staffName && <span className="ledger-who">by {r.staffName}</span>}
-                      {r.reason && <span className="ledger-reason">{r.reason}</span>}
-                    </div>
-                  </div>
-                  <div className={`ledger-qty tone-${look.tone}`}>
-                    {look.sign}{Math.abs(r.qtyChange)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Who sold what, and what they are owed ─────────────────
-function CommissionPanel({ shops }) {
-  const [year, setYear] = useState(() => new Date().getFullYear());
-  const [years, setYears] = useState([]);
-  const [month, setMonth] = useState('all');
-  const [data, setData] = useState({ items: [], totals: { units: 0, revenue: 0, commission: 0 } });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api('/api/business/sales-years')
-      .then(d => setYears(Array.isArray(d?.years) ? d.years : []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    const p = new URLSearchParams({ year: String(year) });
-    if (month !== 'all') p.set('month', String(month));
-    api(`/api/business/staff-performance?${p.toString()}`)
-      .then(d => { setData(d || { items: [], totals: {} }); setLoading(false); })
-      .catch(() => { setData({ items: [], totals: { units: 0, revenue: 0, commission: 0 } }); setLoading(false); });
-  }, [year, month]);
-
-  const yearOptions = years.length ? years : [year];
-
-  return (
-    <>
-      <div className="section-head">
-        <h2 className="section-title">Staff &amp; commission</h2>
-        <span className="section-meta">{shops.length} shop{shops.length === 1 ? '' : 's'}</span>
-      </div>
-
-      <div className="scope-picker">
-        <span className="scope-picker-label">Period</span>
-        <select className="select select-inline" value={year} onChange={e => setYear(Number(e.target.value))} aria-label="Year">
-          {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-        <select className="select select-inline" value={month} onChange={e => setMonth(e.target.value)} aria-label="Month">
-          <option value="all">Whole year</option>
-          {MONTH_NAMES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-        </select>
-      </div>
-
-      {loading && <div className="loading">Loading…</div>}
-
-      {!loading && data.items.length === 0 && (
-        <div className="empty empty-sm">
-          <TrendingUp size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>No sales recorded yet</h3>
-          <p>Once staff pick their name before scanning, their sales and commission appear here.</p>
-        </div>
-      )}
-
-      {!loading && data.items.length > 0 && (
-        <>
-          <div className="stat-grid">
-            <StatCard value={data.totals.units} label="Pieces sold" />
-            <StatCard value={idr(data.totals.revenue)} label="Sales value" />
-            <StatCard value={idr(data.totals.commission)} label="Commission owed" tone="good" />
-          </div>
-          <div className="panel">
-            <div className="panel-body">
-              {data.items.map(p => (
-                <div className="rank-row" key={p.name}>
-                  <div className="rank-main">
-                    <div className="rank-name">{p.name}</div>
-                    <div className="rank-sub">
-                      {p.rate > 0 ? `${p.rate}% commission` : 'No commission rate set'}
-                    </div>
-                  </div>
-                  <div className="rank-stat">
-                    <div className="rank-stat-num">{p.units}</div>
-                    <div className="rank-stat-label">pieces</div>
-                  </div>
-                  <div className="rank-stat" style={{ minWidth: 128 }}>
-                    <div className="rank-stat-num" style={{ fontSize: 14 }}>{idr(p.revenue)}</div>
-                    <div className="rank-stat-label">sold</div>
-                  </div>
-                  <div className="rank-stat" style={{ minWidth: 128 }}>
-                    <div className="rank-stat-num" style={{ fontSize: 14, color: 'var(--good)' }}>{idr(p.commission)}</div>
-                    <div className="rank-stat-label">commission</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-    </>
-  );
-}
-
-// ── The full log ──────────────────────────────────────────
-// Every movement in the business for the last three years, newest first, with
-// the name of whoever did it. Paged from the server rather than loaded whole:
-// three years of a busy shop is more rows than a browser wants at once.
-const HISTORY_TYPE_KEYS = {
-  'sale': 'history.type.sale',
-  'in': 'history.type.in',
-  'out': 'history.type.out',
-  'adjust': 'history.type.adjust',
-  'transfer-in': 'history.type.transferIn',
-  'transfer-out': 'history.type.transferOut',
-};
-const HISTORY_PAGE = 100;
-
-function HistoryLog({ shops, staff }) {
-  const t = useT();
-  const [type, setType] = useState('');
-  const [staffId, setStaffId] = useState('');
-  const [shopIds, setShopIds] = useState('all');
-  const [search, setSearch] = useState('');
-  const [rows, setRows] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [offset, setOffset] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  // Any filter change starts the list over, otherwise "show more" would
-  // append the second page of a query nobody is looking at any more.
-  useEffect(() => { setOffset(0); }, [type, staffId, shopIds, search]);
-
-  useEffect(() => {
-    setLoading(true);
-    const p = new URLSearchParams({ limit: String(HISTORY_PAGE), offset: String(offset) });
-    if (type) p.set('type', type);
-    if (staffId) p.set('staffId', staffId);
-    if (shopIds !== 'all') p.set('shops', shopIds);
-    if (search.trim()) p.set('q', search.trim());
-
-    let cancelled = false;
-    api(`/api/business/history?${p.toString()}`)
-      .then(d => {
-        if (cancelled) return;
-        const items = Array.isArray(d?.items) ? d.items : [];
-        setRows(prev => (offset === 0 ? items : [...prev, ...items]));
-        setTotal(d?.total || 0);
-        setLoading(false);
-      })
-      .catch(() => { if (!cancelled) { setLoading(false); } });
-    return () => { cancelled = true; };
-  }, [type, staffId, shopIds, search, offset]);
-
-  return (
-    <>
-      <div className="section-head" style={{ marginTop: 28 }}>
-        <h2 className="section-title">{t('history.everything')}</h2>
-        <span className="section-meta">{t('history.lastThreeYears')}</span>
-      </div>
-
-      <div className="scope-picker">
-        <span className="scope-picker-label">{t('common.showing')}</span>
-        <select className="select select-inline" value={shopIds} onChange={e => setShopIds(e.target.value)}>
-          <option value="all">{t('common.allShops')}</option>
-          {shops.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
-        </select>
-        <select className="select select-inline" value={type} onChange={e => setType(e.target.value)}>
-          <option value="">{t('history.filterType')}</option>
-          {Object.entries(HISTORY_TYPE_KEYS).map(([id, key]) => (
-            <option key={id} value={id}>{t(key)}</option>
-          ))}
-        </select>
-        <select className="select select-inline" value={staffId} onChange={e => setStaffId(e.target.value)}>
-          <option value="">{t('history.filterStaff')}</option>
-          {staff.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
-        </select>
-      </div>
-
-      <SearchField value={search} onChange={setSearch} placeholder={t('common.search')} />
-
-      {loading && rows.length === 0 && <div className="loading">{t('common.loading')}</div>}
-
-      {!loading && rows.length === 0 && (
-        <div className="empty empty-sm">
-          <History size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>{t('history.nothing')}</h3>
-        </div>
-      )}
-
-      {rows.length > 0 && (
-        <div className="panel" style={{ marginTop: 12 }}>
-          <div className="panel-body">
-            {rows.map(r => (
-              <div className="hist-row" key={r.id}>
-                <div className="hist-when">
-                  {new Date(r.occurredAt).toLocaleDateString()}
-                </div>
-                <div className="hist-main">
-                  <div className="hist-title">{r.itemName}</div>
-                  <div className="hist-sub">
-                    {r.sku}
-                    {r.color ? ` · ${r.color}` : ''}
-                    {r.size ? ` · ${r.size}` : ''}
-                    {` · ${r.shopName}`}
-                  </div>
-                </div>
-                <div className="hist-who">{r.staffName}</div>
-                <div className={`hist-qty ${r.qtyChange < 0 ? 'is-out' : 'is-in'}`}>
-                  {r.qtyChange > 0 ? '+' : ''}{r.qtyChange}
-                  <span className="hist-type">{t(HISTORY_TYPE_KEYS[r.type] || r.type)}</span>
-                </div>
-                <div className="hist-value">{r.value > 0 ? idr(r.value) : ''}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {rows.length < total && (
-        <button
-          className="btn btn-secondary btn-block"
-          style={{ marginTop: 12 }}
-          disabled={loading}
-          onClick={() => setOffset(o => o + HISTORY_PAGE)}
-        >
-          {loading ? t('common.loading') : `${t('history.showMore')} (${rows.length} / ${total})`}
-        </button>
-      )}
-    </>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// TRANSFERS — stock in transit, and the count that lands it
-// ═══════════════════════════════════════════════════════════
-// Sending stock takes it off the sender's shelf immediately, but it does not
-// appear on the receiver's shelf until someone there counts what is in the
-// bag. That gap is the whole point: it is where a short delivery gets caught,
-// instead of quietly becoming the receiving shop's shrinkage.
-function TransfersView({ shops, staff, scope, isAdmin, onChanged }) {
-  const t = useT();
-  const toast = useToast();
-  const [direction, setDirection] = useState('in');
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [deciding, setDeciding] = useState(null);   // the transfer being checked
-
-  const shopName = (id) => shops.find(s => s.id === id)?.name || '';
-
-  const load = useCallback(() => {
-    setLoading(true);
-    const p = new URLSearchParams();
-    if (direction !== 'all') p.set('direction', direction);
-    if (isAdmin && scope?.shopId) p.set('shopId', String(scope.shopId));
-    api(`/api/transfers?${p.toString()}`)
-      .then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); })
-      .catch(() => { setRows([]); setLoading(false); });
-  }, [direction, isAdmin, scope]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const afterDecision = () => { setDeciding(null); load(); onChanged?.(); };
-
-  const pending = rows.filter(r => r.status === 'pending');
-  const settled = rows.filter(r => r.status !== 'pending');
-
-  return (
-    <>
-      <div className="section-head">
-        <h2 className="section-title">{t('transfers.title')}</h2>
-        {pending.length > 0 && (
-          <span className="section-meta">{pending.length} {t('transfers.pending').toLowerCase()}</span>
-        )}
-      </div>
-
-      <div className="segmented" style={{ marginBottom: 16 }}>
-        {[
-          { id: 'in',  label: t('transfers.incoming') },
-          { id: 'out', label: t('transfers.outgoing') },
-          { id: 'all', label: t('transfers.allTransfers') },
-        ].map(o => (
-          <button
-            key={o.id}
-            className={direction === o.id ? 'is-active' : ''}
-            onClick={() => setDirection(o.id)}
-          >{o.label}</button>
-        ))}
-      </div>
-
-      {loading && <div className="loading">{t('common.loading')}</div>}
-
-      {!loading && direction === 'in' && pending.length > 0 && (
-        <div className="notice" style={{ marginBottom: 14 }}>{t('transfers.checkFirst')}</div>
-      )}
-
-      {!loading && rows.length === 0 && (
-        <div className="empty empty-sm">
-          <Store size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>{direction === 'out' ? t('transfers.noneOutgoing') : t('transfers.noneIncoming')}</h3>
-        </div>
-      )}
-
-      {!loading && [...pending, ...settled].map(r => {
-        const canDecide = r.status === 'pending' && (isAdmin || r.toShopId === scope?.shopId);
-        return (
-          <div className="panel" key={r.id} style={{ marginBottom: 10 }}>
-            <div className="panel-body transfer-row">
-              <div className="transfer-main">
-                <div className="transfer-title">
-                  {r.itemName || r.sku}
-                  <span className="transfer-sku">{r.sku}</span>
-                </div>
-                <div className="transfer-sub">
-                  {r.fromShopName || shopName(r.fromShopId)} → {r.toShopName || shopName(r.toShopId)}
-                  {r.sentBy ? ` · ${t('transfers.sentBy')} ${r.sentBy}` : ''}
-                </div>
-                <div className="transfer-sub">
-                  {new Date(r.occurredAt).toLocaleDateString()}
-                  {r.status !== 'pending' && r.decidedBy ? ` · ${t('transfers.decidedBy')} ${r.decidedBy}` : ''}
-                </div>
-                {r.note && <div className="transfer-note">{r.note}</div>}
-              </div>
-
-              <div className="transfer-qty">
-                <div className="transfer-qty-num">{r.qty}</div>
-                <div className="transfer-qty-label">{t('transfers.sent')}</div>
-              </div>
-
-              <div className="transfer-state">
-                {r.status === 'pending' && (
-                  <span className="pill pill-warn">{t('transfers.inTransit')}</span>
-                )}
-                {r.status === 'approved' && (
-                  <span className="pill pill-good">
-                    {r.receivedQty} {t('transfers.received')}
-                    {r.receivedQty !== r.qty ? ` (${t('transfers.of')} ${r.qty})` : ''}
-                  </span>
-                )}
-                {r.status === 'rejected' && (
-                  <span className="pill pill-bad">{t('transfers.rejected')}</span>
-                )}
-                {canDecide && (
-                  <button className="btn btn-primary btn-sm" onClick={() => setDeciding(r)}>
-                    {t('transfers.approve')}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-
-      {deciding && (
-        <TransferDecisionModal
-          transfer={deciding}
-          staff={staff}
-          onClose={() => setDeciding(null)}
-          onDone={afterDecision}
-          onError={(m) => toast(m)}
-        />
-      )}
-    </>
-  );
-}
-
-// Counting a delivery in. The quantity defaults to what was sent, because
-// that is usually right — but it is editable, because the times it is wrong
-// are the times this screen exists for.
-function TransferDecisionModal({ transfer, staff, onClose, onDone, onError }) {
-  const t = useT();
-  const [received, setReceived] = useState(String(transfer.qty));
-  const [staffId, setStaffId] = useState(() => localStorage.getItem('mitrasamadi_staff') || '');
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const decide = async (action) => {
-    setBusy(true);
-    try {
-      const body = { staffId: staffId ? Number(staffId) : undefined, note };
-      if (action === 'approve') body.receivedQty = Number(received);
-      await api(`/api/transfers/${transfer.id}/${action}`, { method: 'POST', body });
-      onDone();
-    } catch (e) {
-      onError(e.message || 'Could not save that');
-      setBusy(false);
-    }
-  };
-
-  const n = Number(received);
-  const valid = Number.isInteger(n) && n >= 0 && n <= transfer.qty;
-
-  return (
-    <Modal title={transfer.itemName || transfer.sku} onClose={onClose}>
-      <div className="details-body" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
-        <div>
-          <div className="detail-k">{t('common.item')}</div>
-          <div className="detail-v">{transfer.sku}</div>
-        </div>
-        <div>
-          <div className="detail-k">{t('transfers.sentBy')}</div>
-          <div className="detail-v">{transfer.sentBy || '—'}</div>
-        </div>
-        <div>
-          <div className="detail-k">{t('transfers.sent')}</div>
-          <div className="detail-v">{transfer.qty}</div>
-        </div>
-      </div>
-
-      <div className="field" style={{ marginTop: 18 }}>
-        <label>{t('transfers.howManyArrived')}</label>
-        <input
-          className="input"
-          type="number"
-          min="0"
-          max={transfer.qty}
-          value={received}
-          onChange={e => setReceived(e.target.value)}
-          autoFocus
-        />
-        {!valid && <div className="field-hint" style={{ color: 'var(--bad)' }}>0 – {transfer.qty}</div>}
-      </div>
-
-      <div className="field">
-        <label>{t('transfers.whoIsChecking')}</label>
-        <select className="select" value={staffId} onChange={e => setStaffId(e.target.value)}>
-          <option value="">{t('sell.pickName')}</option>
-          {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
-
-      <div className="field">
-        <label>{t('common.note')}</label>
-        <input className="input" value={note} onChange={e => setNote(e.target.value)} />
-      </div>
-
-      <div className="modal-actions" style={{ marginTop: 20 }}>
-        <button className="btn btn-ghost" onClick={() => decide('reject')} disabled={busy}>
-          {t('transfers.reject')}
-        </button>
-        <button className="btn btn-primary" onClick={() => decide('approve')} disabled={busy || !valid}>
-          {t('transfers.approve')}
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-// ── Staff list management ─────────────────────────────────
 function StaffModal({ staff, shops, onClose, onChanged }) {
   const toast = useToast();
   const [name, setName] = useState('');
@@ -3806,119 +2810,12 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// SHOPS VIEW
-// ═══════════════════════════════════════════════════════════
-function ShopsView({ shops, isOwner }) {
-  const toast = useToast();
-  const [modal, setModal] = useState(null);
 
-  const remove = async (shop) => {
-    if (!window.confirm(`Delete "${shop.name}" and all its stock?`)) return;
-    try {
-      await api(`/api/shops/${shop.id}`, { method: 'DELETE' });
-      toast('Shop deleted');
-      shops.reload();
-    } catch (e) { toast(e.message); }
-  };
-
-  return (
-    <div>
-      <div className="section-head">
-        <h2 className="section-title">Your shops</h2>
-        {isOwner && (
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}>
-            <Plus size={16} /> Add shop
-          </button>
-        )}
-      </div>
-
-      {shops.loading && <div className="loading">Loading…</div>}
-      {shops.error && <div className="error-banner">{shops.error}</div>}
-
-      {!shops.loading && shops.data.length === 0 && (
-        <div className="card">
-          <div className="empty">
-            <Store size={32} color="var(--text-3)" style={{ margin: '0 auto' }} />
-            <h3>No shops yet</h3>
-            <p>{isOwner ? 'Add your first shop to start tracking stock.' : 'Your manager hasn\'t added any shops yet.'}</p>
-            {isOwner && (
-              <button className="btn btn-primary" onClick={() => setModal('new')}>
-                <Plus size={18} /> Add first shop
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {shops.data.map(shop => (
-        <div key={shop.id} className="list-item">
-          <Store size={20} color="var(--text-3)" />
-          <div className="list-item-main">
-            <div className="list-item-title">{shop.name}</div>
-            {shop.address && <div className="list-item-sub">{shop.address}</div>}
-          </div>
-          {isOwner && (
-            <RowMenu label={`Actions for ${shop.name}`}>
-              <MenuItem icon={Edit2} onClick={() => setModal(shop)}>Edit</MenuItem>
-              <div className="menu-sep" />
-              <MenuItem icon={Trash2} danger onClick={() => remove(shop)}>Delete</MenuItem>
-            </RowMenu>
-          )}
-        </div>
-      ))}
-
-      {modal && (
-        <ShopModal
-          shop={modal === 'new' ? null : modal}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); shops.reload(); toast(modal === 'new' ? 'Shop added' : 'Shop updated'); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function ShopModal({ shop, onClose, onSaved }) {
-  const [f, setF] = useState(shop || { name: '', address: '' });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const save = async (e) => {
-    e.preventDefault();
-    setBusy(true); setErr(null);
-    try {
-      if (shop) await api(`/api/shops/${shop.id}`, { method: 'PUT', body: f });
-      else      await api('/api/shops', { method: 'POST', body: f });
-      onSaved();
-    } catch (e) { setErr(e.message); setBusy(false); }
-  };
-
-  return (
-    <Modal title={shop ? 'Edit shop' : 'New shop'} onClose={onClose}>
-      <form onSubmit={save}>
-        {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
-        <div className="field">
-          <label>Shop name</label>
-          <input className="input" required autoFocus value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="e.g. Main Store, Canggu Branch" />
-        </div>
-        <div className="field">
-          <label>Address (optional)</label>
-          <input className="input" value={f.address} onChange={e => setF({ ...f, address: e.target.value })} placeholder="Street, city" />
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════
 // SETTINGS MODAL
 // ═══════════════════════════════════════════════════════════
-function SettingsModal({ onClose, onManageStaff, isAdmin, scope, onSwitchAccess }) {
+function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAccess }) {
   const t = useT();
   const { lang, setLang } = useLang();
   const toast = useToast();
@@ -3926,10 +2823,11 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, scope, onSwitchAccess 
   const [code, setCode] = useState('');
   const [switching, setSwitching] = useState(false);
   const [codeErr, setCodeErr] = useState(null);
+  const [showAudit, setShowAudit] = useState(false);
 
-  // Typing a different code here swaps which shop (or the whole business)
-  // this device is working in. The code itself is never shown back, never
-  // stored, and never rendered anywhere on the page.
+  // Typing a different code here swaps this device between the admin and
+  // staff views. The code itself is never shown back, never stored, and
+  // never rendered anywhere on the page.
   const switchAccess = async (e) => {
     e.preventDefault();
     setSwitching(true); setCodeErr(null);
@@ -3938,7 +2836,7 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, scope, onSwitchAccess 
       setToken(d.token);
       setCode('');
       toast(t('settings.switched'));
-      onSwitchAccess(d.user, d.business, d.scope || null);
+      onSwitchAccess(d.user, d.business, d.shop || null);
       onClose();
     } catch (err) {
       setCodeErr(err.message === 'Invalid access code' ? t('gate.wrong') : (err.message || t('gate.failed')));
@@ -3951,27 +2849,24 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, scope, onSwitchAccess 
     window.dispatchEvent(new Event('app:unauth'));
   };
 
-  const exportData = async () => {
+  const grab = (path, label) => async () => {
     setBusy(true);
     try {
-      const token = getToken();
-      const res = await fetch(`${API}/api/auth/export-data`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `mitra-samadi-data-${Date.now()}.json`;
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      toast('Data exported');
+      const name = await download(path);
+      toast(`${label} — ${name}`);
     } catch (e) { toast(e.message); }
     finally { setBusy(false); }
   };
 
+  if (showAudit) {
+    return <AuditModal onClose={() => setShowAudit(false)} />;
+  }
+
   return (
     <Modal title={t('settings.title')} onClose={onClose}>
       <p style={{ color: 'var(--text-2)', marginTop: 0, marginBottom: 18, fontSize: 14 }}>
-        {isAdmin ? t('settings.masterNote') : `${scope?.shopName || ''} — ${t('settings.shopKeyNote')}`}
+        {shopName ? shopName + ' — ' : ''}
+        {isAdmin ? t('settings.adminNote') : t('settings.staffNote')}
       </p>
 
       <div className="field">
@@ -4011,7 +2906,15 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, scope, onSwitchAccess 
           <button className="btn btn-secondary btn-block" onClick={onManageStaff} style={{ marginBottom: 10 }}>
             {t('sell.manageStaff')}
           </button>
-          <button className="btn btn-ghost btn-block" onClick={exportData} disabled={busy} style={{ marginBottom: 10 }}>
+          <button className="btn btn-secondary btn-block" onClick={() => setShowAudit(true)} style={{ marginBottom: 10 }}>
+            {t('settings.auditLog')}
+          </button>
+          <button className="btn btn-ghost btn-block" disabled={busy}
+                  onClick={grab('/api/stock.csv', t('settings.exportStock'))} style={{ marginBottom: 10 }}>
+            {t('settings.exportStock')}
+          </button>
+          <button className="btn btn-ghost btn-block" disabled={busy}
+                  onClick={grab('/api/auth/export-data', t('settings.exportBackup'))} style={{ marginBottom: 10 }}>
             {t('settings.exportBackup')}
           </button>
         </>
@@ -4023,6 +2926,60 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, scope, onSwitchAccess 
     </Modal>
   );
 }
+
+// ── Audit log ─────────────────────────────────────────────
+// Every edit and deletion, newest first. Deliberately admin-only and
+// deliberately not editable: a log anyone can tidy up is not a log.
+function AuditModal({ onClose }) {
+  const t = useT();
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api(`/api/audit?limit=50&offset=${offset}`)
+      .then(d => {
+        const items = Array.isArray(d?.items) ? d.items : [];
+        setRows(prev => (offset === 0 ? items : [...prev, ...items]));
+        setTotal(d?.total || 0);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [offset]);
+
+  return (
+    <Modal title={t('settings.auditLog')} onClose={onClose}>
+      {loading && rows.length === 0 && <div className="loading">{t('common.loading')}</div>}
+      {!loading && rows.length === 0 && (
+        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>{t('settings.auditEmpty')}</p>
+      )}
+      {rows.map(r => (
+        <div className="audit-row" key={r.id}>
+          <span className={`pill pill-${r.action === 'delete' ? 'bad' : r.action === 'create' ? 'good' : 'muted'}`}>
+            {r.action}
+          </span>
+          <div className="audit-main">
+            <div className="audit-summary">{r.summary}</div>
+            <div className="audit-meta">
+              {new Date(r.createdAt).toLocaleString()}
+              {' · '}{r.actorRole}
+              {r.staffName ? ` · ${r.staffName}` : ''}
+            </div>
+          </div>
+        </div>
+      ))}
+      {rows.length < total && (
+        <button className="btn btn-secondary btn-block" style={{ marginTop: 12 }}
+                disabled={loading} onClick={() => setOffset(o => o + 50)}>
+          {loading ? t('common.loading') : `${t('history.showMore')} (${rows.length} / ${total})`}
+        </button>
+      )}
+    </Modal>
+  );
+}
+
 
 // ═══════════════════════════════════════════════════════════
 // APP ROOT
@@ -4042,7 +2999,7 @@ function AccessGate({ onAuthed }) {
     try {
       const d = await api('/api/auth/access-login', { method: 'POST', body: { code } });
       setToken(d.token);
-      onAuthed(d.user, d.business, d.scope || null);
+      onAuthed(d.user, d.business, d.shop || null);
     } catch (e) {
       setErr(e.message === 'Invalid access code' ? t('gate.wrong') : (e.message || t('gate.failed')));
       setBusy(false);
@@ -4092,19 +3049,19 @@ function AccessGate({ onAuthed }) {
 function AppInner() {
   const [user, setUser] = useState(null);
   const [business, setBusiness] = useState(null);
-  const [scope, setScope] = useState(null);
+  const [shop, setShop] = useState(null);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const token = getToken();
     if (!token) { setChecking(false); return; }
     api('/api/auth/me')
-      .then(d => { setUser(d.user); setBusiness(d.business); setScope(d.scope || null); setChecking(false); })
+      .then(d => { setUser(d.user); setBusiness(d.business); setShop(d.shop || null); setChecking(false); })
       .catch(() => { setToken(null); setChecking(false); });
   }, []);
 
   useEffect(() => {
-    const handler = () => { setUser(null); setBusiness(null); setScope(null); };
+    const handler = () => { setUser(null); setBusiness(null); setShop(null); };
     window.addEventListener('app:unauth', handler);
     return () => window.removeEventListener('app:unauth', handler);
   }, []);
@@ -4121,18 +3078,18 @@ function AppInner() {
 
   // The only way in: enter an access code. Which code decides what you reach.
   if (!user) {
-    return <AccessGate onAuthed={(u, b, s) => { setUser(u); setBusiness(b); setScope(s); }} />;
+    return <AccessGate onAuthed={(u, b, sh) => { setUser(u); setBusiness(b); setShop(sh); }} />;
   }
 
   return (
     <MainApp
-      // Remounts on an access change, so no view keeps data the new code is
-      // not allowed to see.
-      key={`${user.accessRole}:${scope?.shopId || 'all'}`}
+      // Remounts when the access level changes, so no view keeps data the
+      // new code is not allowed to see.
+      key={user.accessRole}
       user={user}
       business={business}
-      scope={scope}
-      onSwitchAccess={(u, b, s) => { setUser(u); setBusiness(b); setScope(s); }}
+      shop={shop}
+      onSwitchAccess={(u, b, sh) => { setUser(u); setBusiness(b); setShop(sh); }}
     />
   );
 }

@@ -1564,106 +1564,116 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   line-height: 1.5;
 }
 
-/* ── Transfers ────────────────────────────────────────────
-   One row per shipment. The quantity sits apart from the name because the
-   number is what someone is checking against the bag in their hands. */
-.transfer-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
-  flex-wrap: wrap;
-}
-.transfer-main { flex: 1 1 220px; min-width: 0; }
-.transfer-title {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--text);
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-}
-.transfer-sku { font-size: 12px; color: var(--text-3); font-weight: 500; }
-.transfer-sub { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
-.transfer-note {
-  font-size: 12.5px;
-  color: var(--text-3);
-  margin-top: 4px;
-  font-style: italic;
-}
-.transfer-qty { text-align: center; min-width: 54px; }
-.transfer-qty-num { font-size: 20px; font-weight: 700; color: var(--text); }
-.transfer-qty-label { font-size: 11px; color: var(--text-3); }
-.transfer-state {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-}
 
-/* ── History log ──────────────────────────────────────────
-   Dense on purpose: this is scanned, not read. Columns collapse on narrow
-   screens rather than forcing the page to scroll sideways. */
-.hist-row {
+/* ── Sales rows (Today, History) ──────────────────────────
+   Dense on purpose: these are scanned down, not read. A return is the same
+   row with the sign flipped, tinted so a refund is never mistaken for a sale
+   at a glance. */
+.sale-row {
   display: grid;
-  grid-template-columns: 84px 1fr 110px 92px 108px;
+  grid-template-columns: 92px 1fr 110px 78px 116px;
   gap: var(--s-3);
   align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid var(--line-soft);
 }
-.hist-row:last-child { border-bottom: none; }
-.hist-when { font-size: 12px; color: var(--text-3); }
-.hist-main { min-width: 0; }
-.hist-title {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.sale-row:last-child { border-bottom: none; }
+.sale-row.is-return { background: var(--bad-soft); }
+.sale-row.is-return .sale-qty,
+.sale-row.is-return .sale-value { color: var(--bad); }
+
+.sale-when { display: flex; flex-direction: column; }
+.sale-date { font-size: 11px; color: var(--text-3); }
+.sale-time { font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.sale-main { min-width: 0; }
+.sale-title {
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.hist-sub {
-  font-size: 11.5px;
-  color: var(--text-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.sale-sub {
+  font-size: 11.5px; color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.hist-who { font-size: 12.5px; color: var(--text-2); }
-.hist-qty { font-size: 14px; font-weight: 700; text-align: right; }
-.hist-qty.is-in  { color: var(--good); }
-.hist-qty.is-out { color: var(--text); }
-.hist-type {
-  display: block;
-  font-size: 10.5px;
-  font-weight: 500;
-  color: var(--text-3);
+.sale-who { font-size: 12.5px; color: var(--text-2); }
+.sale-qty {
+  font-size: 15px; font-weight: 700; text-align: right;
+  font-variant-numeric: tabular-nums;
 }
-.hist-value { font-size: 12.5px; color: var(--text-2); text-align: right; }
+.sale-qty-label { display: block; font-size: 10.5px; font-weight: 500; color: var(--text-3); }
+.sale-value {
+  font-size: 13px; color: var(--text); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 
 @media (max-width: 720px) {
-  .hist-row {
+  .sale-row {
     grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "main qty"
-      "sub  val";
+    grid-template-areas: "main qty" "sub val";
     row-gap: 2px;
   }
-  .hist-when { grid-area: sub; }
-  .hist-main { grid-area: main; }
-  .hist-who  { grid-area: sub; text-align: right; }
-  .hist-qty  { grid-area: qty; }
-  .hist-value { grid-area: val; }
+  .sale-when { grid-area: sub; flex-direction: row; gap: 6px; }
+  .sale-main { grid-area: main; }
+  .sale-who { grid-area: sub; text-align: right; }
+  .sale-qty { grid-area: qty; }
+  .sale-value { grid-area: val; }
 }
 
-/* A field whose value cannot be changed in this session — shown as text
-   rather than a select with one option, which reads as broken. */
-.locked-value {
-  padding: 11px 13px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--surface-2);
-  color: var(--text-2);
-  font-size: 14.5px;
+/* ── Month-by-month trend ─────────────────────────────────
+   A bar per month, scaled to the best month in the range, so the shape of
+   the year is readable without reading a single number. */
+.trend-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 52px 116px;
+  gap: var(--s-3);
+  align-items: center;
+  padding: 7px 0;
 }
+.trend-month { font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.trend-bar-track {
+  height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden;
+}
+.trend-bar { height: 100%; border-radius: 999px; background: var(--primary); }
+.trend-units { font-size: 12px; color: var(--text-3); text-align: right; }
+.trend-value {
+  font-size: 12.5px; color: var(--text); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Commission rows ──────────────────────────────────────
+   The deduction is shown under the net figure rather than folded into it, so
+   a person can see exactly what was taken back and why. */
+.comm-row {
+  display: flex; align-items: center; gap: var(--s-4);
+  padding: 12px 0; border-bottom: 1px solid var(--line-soft);
+  flex-wrap: wrap;
+}
+.comm-row:last-child { border-bottom: none; }
+.comm-main { flex: 1 1 180px; min-width: 0; }
+.comm-returned { color: var(--bad); }
+.comm-figures { text-align: right; min-width: 120px; }
+.comm-net { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
+.comm-deduction { font-size: 11.5px; color: var(--bad); }
+.comm-owed {
+  font-size: 16px; font-weight: 700; color: var(--good);
+  text-align: right; min-width: 128px; font-variant-numeric: tabular-nums;
+}
+
+/* ── Audit rows ───────────────────────────────────────────*/
+.audit-row {
+  display: flex; align-items: flex-start; gap: var(--s-3);
+  padding: 10px 0; border-bottom: 1px solid var(--line-soft);
+}
+.audit-row:last-child { border-bottom: none; }
+.audit-main { min-width: 0; }
+.audit-summary { font-size: 13.5px; color: var(--text); line-height: 1.4; }
+.audit-meta { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+
+.rank-index {
+  width: 22px; text-align: center;
+  font-size: 12px; font-weight: 700; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card.tone-warn .stat-value { color: var(--warn); }
+.stat-card.tone-bad  .stat-value { color: var(--bad); }
+.stat-card.tone-good .stat-value { color: var(--good); }
