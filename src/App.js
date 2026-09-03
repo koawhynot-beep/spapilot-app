@@ -319,11 +319,33 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
   const staff = useCollection('/api/staff', true);
   const [showStaff, setShowStaff] = useState(false);
 
-  // One shop. Everything that used to take a list still takes one, because
-  // the views are written against an array — it just never has more than a
-  // single entry now.
-  const shopList = shops.data;
-  const shopId = shopList[0]?.id || shop?.id || null;
+  // A staff code is pinned to one shop and only ever sees that one. The
+  // manager sees them all and picks; 'all' means every shop together, which
+  // is the view the owner wants when she is reading the business rather than
+  // working a till.
+  const shopList = useMemo(
+    () => (isAdmin ? shops.data : shops.data.filter(x => x.id === shop?.id)),
+    [shops.data, isAdmin, shop]
+  );
+  const [shopSel, setShopSel] = useState('all');
+
+  // Whichever shop the tills act on. 'all' is not a place you can sell from,
+  // so Sell and Stock fall back to the first real shop.
+  const activeShopId = useMemo(() => {
+    if (!isAdmin) return shop?.id || shopList[0]?.id || null;
+    if (shopSel !== 'all') return Number(shopSel);
+    return shopList[0]?.id || null;
+  }, [isAdmin, shop, shopList, shopSel]);
+
+  // Sent to every report so the figures follow the picker. Empty means all.
+  const shopsParam = shopSel === 'all' ? '' : String(shopSel);
+
+  // A shop that disappears out from under the picker must not strand it.
+  useEffect(() => {
+    if (shopSel !== 'all' && !shopList.find(x => String(x.id) === String(shopSel))) {
+      setShopSel('all');
+    }
+  }, [shopList, shopSel]);
 
   // Order follows the day: ring it up, keep the rail right, check the till,
   // then read the business. Staff get the first three.
@@ -342,13 +364,19 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
     if (!tabs.find(x => x.id === tab)) setTab(tabs[0].id);
   }, [tabs, tab]);
 
+  const scopeLabel = isAdmin
+    ? (shopSel === 'all'
+        ? t('shop.allShops')
+        : (shopList.find(x => String(x.id) === String(shopSel))?.name || ''))
+    : (shop?.name || '');
+
   return (
     <div className="app">
       <div className="topbar">
         <div>
           <h1>Mitra Samadi</h1>
           <div className="topbar-sub">
-            {shop?.name || shopList[0]?.name || business?.name || 'Gold Dust'}
+            {isAdmin ? (business?.name || 'Mitra Samadi') : scopeLabel}
             {!isAdmin && <span className="topbar-scope">{t('scope.staff')}</span>}
           </div>
         </div>
@@ -371,9 +399,23 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
           ))}
         </nav>
 
+        {/* One picker, above everything, so the shop in view is never in
+            doubt. Hidden for staff, who have nothing to choose. */}
+        {isAdmin && shopList.length > 1 && (
+          <ShopSwitcher
+            shops={shopList}
+            value={shopSel}
+            onChange={setShopSel}
+            // Sell and Stock act on one shop, so 'all' is not offered there.
+            allowAll={tab !== 'sell' && tab !== 'stock'}
+            activeShopId={activeShopId}
+            onPickActive={(id) => setShopSel(String(id))}
+          />
+        )}
+
         {tab === 'sell' && (
           <SellView
-            shops={shopList}
+            shops={shopList.filter(x => x.id === activeShopId)}
             staff={staff.data}
             isAdmin={isAdmin}
             onManageStaff={() => setShowStaff(true)}
@@ -382,8 +424,8 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
         {tab === 'stock' && (
           <StockView
             shops={shopList}
-            selectedShopId={shopId}
-            onSelectShop={() => {}}
+            selectedShopId={activeShopId}
+            onSelectShop={(id) => setShopSel(String(id))}
             user={user}
             isAdmin={isAdmin}
             onReloadShops={shops.reload}
@@ -392,20 +434,20 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
           />
         )}
         {tab === 'today' && (
-          <TodayView isAdmin={isAdmin} />
+          <TodayView isAdmin={isAdmin} shopsParam={shopsParam} />
         )}
         {tab === 'overview' && isAdmin && (
-          <OverviewView shops={shopList} />
+          <OverviewView shops={shopList} shopsParam={shopsParam} />
         )}
         {tab === 'history' && isAdmin && (
-          <HistoryView staff={staff.data} />
+          <HistoryView staff={staff.data} shops={shopList} shopsParam={shopsParam} />
         )}
       </div>
 
       {showSettings && (
         <SettingsModal
           isAdmin={isAdmin}
-          shopName={shop?.name || shopList[0]?.name || ''}
+          shopName={scopeLabel}
           onClose={() => setShowSettings(false)}
           onManageStaff={() => { setShowSettings(false); setShowStaff(true); }}
           onSwitchAccess={onSwitchAccess}
@@ -420,6 +462,38 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
           onChanged={staff.reload}
         />
       )}
+    </div>
+  );
+}
+
+// ── Shop switcher ─────────────────────────────────────────
+// Two shops now, so every screen needs to say which one it is showing. This
+// sits above the content rather than inside each view, because the answer to
+// "whose numbers am I looking at" should never be somewhere you have to go
+// and find.
+function ShopSwitcher({ shops, value, onChange, allowAll, activeShopId, onPickActive }) {
+  const t = useT();
+  // Sell and Stock act on one shop. Rather than leave the picker showing
+  // "All shops" while the till quietly uses the first one, it shows the shop
+  // actually in use.
+  const shown = allowAll ? value : String(activeShopId);
+  const pick = (v) => (allowAll ? onChange(v) : onPickActive(Number(v)));
+
+  return (
+    <div className="shop-switcher" role="group" aria-label={t('shop.pick')}>
+      {allowAll && (
+        <button
+          className={shown === 'all' ? 'is-active' : ''}
+          onClick={() => pick('all')}
+        >{t('shop.allShops')}</button>
+      )}
+      {shops.map(sh => (
+        <button
+          key={sh.id}
+          className={String(shown) === String(sh.id) ? 'is-active' : ''}
+          onClick={() => pick(sh.id)}
+        >{sh.name}</button>
+      ))}
     </div>
   );
 }
@@ -2178,7 +2252,7 @@ function Receipt({ data }) {
 // ═══════════════════════════════════════════════════════════
 // OVERVIEW VIEW — master aggregation across all shops
 // ═══════════════════════════════════════════════════════════
-function OverviewView({ shops = [] }) {
+function OverviewView({ shops = [], shopsParam = '' }) {
   const [data, setData] = useState({ shops: [], items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -2205,8 +2279,6 @@ function OverviewView({ shops = [] }) {
     try { localStorage.setItem('ms-overview-layout', v); } catch (e) { /* ignore */ }
   };
 
-  // One shop, so every figure on this page covers all of it.
-  const shopsParam = '';
 
   // Sold figures are read one calendar year at a time.
   const [year, setYear] = useState(() => new Date().getFullYear());
@@ -2304,7 +2376,13 @@ function OverviewView({ shops = [] }) {
   // Product · Fabric · Colour · Size + one per shop + Total.
   const colCount = 4 + data.shops.length + 1;
 
-  const scopeText = 'Every piece on the rail, counted once.';
+  // With two shops the count has to say whether it is one rail or both,
+  // otherwise "42 in stock" is an unanswerable number.
+  const scopeText = shopsParam
+    ? `Counted at ${(data.shops || []).join(' + ')} only.`
+    : (shops.length > 1
+        ? 'Counted across every shop combined.'
+        : 'Every piece on the rail, counted once.');
 
   return (
     <div>

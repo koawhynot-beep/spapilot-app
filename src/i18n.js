@@ -19,6 +19,8 @@ const EN = {
   'tab.overview': 'Overview',
   'tab.history': 'History',
   'scope.staff': 'staff',
+  'shop.allShops': 'All shops',
+  'shop.pick': 'Which shop',
 
   // Common
   'common.cancel': 'Cancel',
@@ -135,6 +137,8 @@ const ID = {
   'tab.overview': 'Ringkasan',
   'tab.history': 'Riwayat',
   'scope.staff': 'staf',
+  'shop.allShops': 'Semua toko',
+  'shop.pick': 'Toko mana',
 
   'common.cancel': 'Batal',
   'common.save': 'Simpan',

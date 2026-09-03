@@ -41,7 +41,7 @@ function useLoad(path, deps) {
 
 // A sale and a return are the same row shape with opposite signs, so one
 // renderer covers both and the sign carries the meaning.
-const SaleRow = ({ r, showDate }) => (
+const SaleRow = ({ r, showDate, showShop }) => (
   <div className={`sale-row ${r.units < 0 ? 'is-return' : ''}`}>
     <div className="sale-when">
       {showDate && <span className="sale-date">{day(r.occurredAt)}</span>}
@@ -53,6 +53,7 @@ const SaleRow = ({ r, showDate }) => (
         {r.sku}
         {r.color ? ` · ${r.color}` : ''}
         {r.size ? ` · ${r.size}` : ''}
+        {showShop && r.shopName ? ` · ${r.shopName}` : ''}
       </div>
     </div>
     <div className="sale-who">{r.staffName}</div>
@@ -93,9 +94,12 @@ function StatTile({ value, label, tone, money }) {
 // Staff can open this. They need it to balance the drawer at close, and they
 // watched every one of these prices go by as they rang them up — there is
 // nothing here they have not already seen.
-export function TodayView({ isAdmin }) {
+export function TodayView({ isAdmin, shopsParam = '' }) {
   const t = useT();
-  const { data, error, loading, reload } = useLoad('/api/sales/today', []);
+  const { data, error, loading, reload } = useLoad(
+    `/api/sales/today${shopsParam ? '?shops=' + shopsParam : ''}`,
+    [shopsParam]
+  );
 
   useEffect(() => {
     // The till is in use while this is open, so it refreshes itself rather
@@ -168,7 +172,7 @@ function rangeToQuery(id) {
   return { from: iso(from) };
 }
 
-export function HistoryView({ staff }) {
+export function HistoryView({ staff, shops = [], shopsParam = '' }) {
   const t = useT();
   const [range, setRange] = useState('30d');
   const [staffId, setStaffId] = useState('');
@@ -179,8 +183,12 @@ export function HistoryView({ staff }) {
     const q = { ...rangeToQuery(range) };
     if (staffId) q.staffId = staffId;
     if (search.trim()) q.q = search.trim();
+    if (shopsParam) q.shops = shopsParam;
     return new URLSearchParams(q).toString();
-  }, [range, staffId, search]);
+  }, [range, staffId, search, shopsParam]);
+
+  // Only worth naming the shop on each row when more than one is in view.
+  const showShop = shops.length > 1 && !shopsParam;
 
   return (
     <>
@@ -216,7 +224,7 @@ export function HistoryView({ staff }) {
         ))}
       </div>
 
-      {pane === 'log' && <SalesLog qs={qs} />}
+      {pane === 'log' && <SalesLog qs={qs} showShop={showShop} />}
       {pane === 'sellers' && <SellersPane qs={qs} />}
       {pane === 'commission' && <CommissionPane qs={qs} />}
     </>
@@ -224,7 +232,7 @@ export function HistoryView({ staff }) {
 }
 
 // ── The log ───────────────────────────────────────────────
-function SalesLog({ qs }) {
+function SalesLog({ qs, showShop }) {
   const t = useT();
   const [rows, setRows] = useState([]);
   const [offset, setOffset] = useState(0);
@@ -265,7 +273,7 @@ function SalesLog({ qs }) {
       {rows.length > 0 && (
         <div className="panel" style={{ marginTop: 12 }}>
           <div className="panel-body">
-            {rows.map(r => <SaleRow key={r.id} r={r} showDate />)}
+            {rows.map(r => <SaleRow key={r.id} r={r} showDate showShop={showShop} />)}
           </div>
         </div>
       )}
