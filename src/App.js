@@ -3,12 +3,13 @@ import {
   Package, Store, Plus, Trash2, Edit2,
   RefreshCw, Check, X, AlertTriangle, Copy, Settings,
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
-  MoreHorizontal, Sun, Moon, Printer, Undo2,
+  MoreHorizontal, Sun, Moon, Printer, Undo2, ClipboardCheck,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
 import { TodayView, HistoryView } from './views';
+import { StockCheckView } from './stockcheck';
 import './App.css';
 
 // ── Config ────────────────────────────────────────────────
@@ -352,6 +353,7 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
   const allTabs = [
     { id: 'sell',     label: t('tab.sell'),     icon: ScanLine,   staff: true },
     { id: 'stock',    label: t('tab.stock'),    icon: Package,    staff: true },
+    { id: 'check',    label: t('tab.check'),    icon: ClipboardCheck, staff: true },
     { id: 'today',    label: t('tab.today'),    icon: Calendar,   staff: true },
     { id: 'overview', label: t('tab.overview'), icon: SlidersHorizontal },
     { id: 'history',  label: t('tab.history'),  icon: History },
@@ -432,6 +434,9 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
             jump={stockJump}
             onJumpHandled={() => setStockJump(null)}
           />
+        )}
+        {tab === 'check' && (
+          <StockCheckView staff={staff.data} shopsParam={shopsParam} />
         )}
         {tab === 'today' && (
           <TodayView isAdmin={isAdmin} shopsParam={shopsParam} />
