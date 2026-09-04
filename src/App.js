@@ -761,6 +761,20 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           onChange={setSearch}
           placeholder="Search name, fabric, colour, size, code…"
         />
+        <select
+          className="select select-inline toolbar-sort"
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          aria-label="Sort"
+        >
+          <option value="fabric-color">Fabric → Colour → Style</option>
+          <option value="qty-asc">Fewest in stock first</option>
+          <option value="qty-desc">Most in stock first</option>
+          <option value="color">Colour A–Z</option>
+          <option value="style">Style A–Z</option>
+          <option value="name">Product name A–Z</option>
+          {!isAll && <option value="custom">Custom (drag to reorder)</option>}
+        </select>
         {perms.canAddItems && !isAll && (
           <button className="btn btn-primary" onClick={() => setModal('new')}>
             <Plus size={18} /> Add item
@@ -841,18 +855,6 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
               </button>
             </div>
           )}
-          <div className="field">
-            <label>Sort</label>
-            <select className="select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-              <option value="fabric-color">Fabric → Colour → Style</option>
-              <option value="color">Colour A–Z</option>
-              <option value="style">Style A–Z</option>
-              <option value="name">Product name A–Z</option>
-              <option value="qty-asc">Quantity (low first)</option>
-              <option value="qty-desc">Quantity (high first)</option>
-              {!isAll && <option value="custom">Custom (drag to reorder)</option>}
-            </select>
-          </div>
           {activeFilterCount > 0 && (
             <div className="filter-panel-actions">
               <button

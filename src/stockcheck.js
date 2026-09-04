@@ -20,6 +20,7 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [hideChecked, setHideChecked] = useState(false);
+  const [sortBy, setSortBy] = useState('fabric');
   const [staffId, setStaffId] = useState(READ_STAFF);
   // Items mid-request, so a slow connection cannot be double-tapped into two
   // conflicting writes.
@@ -41,17 +42,23 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter(x => {
+    const out = items.filter(x => {
       if (hideChecked && x.checked) return false;
       if (!q) return true;
       return [x.name, x.sku, x.color, x.size, x.fabric].filter(Boolean)
         .join(' ').toLowerCase().includes(q);
     });
-  }, [items, search, hideChecked]);
+    // Sorting is done here rather than on the server: the whole list is
+    // already loaded, so reordering it is instant and costs no round trip.
+    if (sortBy === 'qty-asc') return [...out].sort((a, b) => a.qty - b.qty || a.name.localeCompare(b.name));
+    if (sortBy === 'qty-desc') return [...out].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
+    return out;
+  }, [items, search, hideChecked, sortBy]);
 
   // Grouped by fabric, the way the rail is actually arranged — walking the
   // shop in the order the list is printed is the whole point.
   const groups = useMemo(() => {
+    if (sortBy !== 'fabric') return [{ key: null, items: visible }];
     const out = [];
     let current = null;
     for (const it of visible) {
@@ -63,7 +70,7 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
       current.items.push(it);
     }
     return out;
-  }, [visible, t]);
+  }, [visible, t, sortBy]);
 
   const toggle = async (item) => {
     if (busy.has(item.id)) return;
@@ -159,6 +166,16 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
           <option value="">{t('sell.pickName')}</option>
           {staff.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
         </select>
+        <select
+          className="select select-inline"
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          aria-label={t('check.sort')}
+        >
+          <option value="fabric">{t('check.sortFabric')}</option>
+          <option value="qty-asc">{t('check.sortFewest')}</option>
+          <option value="qty-desc">{t('check.sortMost')}</option>
+        </select>
         <button
           className={`chip ${hideChecked ? 'is-active' : ''}`}
           onClick={() => setHideChecked(v => !v)}
@@ -191,11 +208,13 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
       )}
 
       {groups.map(g => (
-        <div key={g.key} className="check-group">
-          <div className="check-group-head">
-            <span>{g.key}</span>
-            <span className="check-group-count">{g.items.length}</span>
-          </div>
+        <div key={g.key || 'all'} className="check-group">
+          {g.key && (
+            <div className="check-group-head">
+              <span>{g.key}</span>
+              <span className="check-group-count">{g.items.length}</span>
+            </div>
+          )}
           <div className="panel">
             <div className="panel-body">
               {g.items.map(it => (

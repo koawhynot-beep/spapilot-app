@@ -1911,3 +1911,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   max-height: 140px;
   overflow-y: auto;
 }
+
+/* The sort sits in the toolbar rather than behind Filters: "what am I about
+   to run out of" is a daily question, not an advanced one. */
+.toolbar-sort { flex: 0 0 auto; max-width: 220px; }
