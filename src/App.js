@@ -2891,6 +2891,7 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
   const [codeErr, setCodeErr] = useState(null);
   const [showAudit, setShowAudit] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [showShops, setShowShops] = useState(false);
 
   // Typing a different code here swaps this device between the admin and
   // staff views. The code itself is never shown back, never stored, and
@@ -2930,6 +2931,9 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
   }
   if (showReset) {
     return <ResetStockModal onClose={() => setShowReset(false)} onDone={onReset} />;
+  }
+  if (showShops) {
+    return <ShopsModal onClose={() => setShowShops(false)} onChanged={onReset} />;
   }
 
   return (
@@ -2976,6 +2980,9 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
           <button className="btn btn-secondary btn-block" onClick={onManageStaff} style={{ marginBottom: 10 }}>
             {t('sell.manageStaff')}
           </button>
+          <button className="btn btn-secondary btn-block" onClick={() => setShowShops(true)} style={{ marginBottom: 10 }}>
+            {t('shops.title')}
+          </button>
           <button className="btn btn-secondary btn-block" onClick={() => setShowAudit(true)} style={{ marginBottom: 10 }}>
             {t('settings.auditLog')}
           </button>
@@ -3002,6 +3009,117 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
             {t('reset.title')}
           </button>
         </div>
+      )}
+    </Modal>
+  );
+}
+
+// ── Shops and their keys ──────────────────────────────────
+// Says plainly which environment variable opens which shop, and flags any
+// code that opens nothing. A code configured for a shop key no shop uses is
+// silently ignored — that is how a code meant for one shop ended up opening
+// another, and it took a round trip to work out. Now it is on screen.
+//
+// Secrets are never shown here; only whether one is set.
+function ShopsModal({ onClose, onChanged }) {
+  const t = useT();
+  const toast = useToast();
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+  const [editing, setEditing] = useState(null);   // { id, name, code } or 'new'
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    api('/api/admin/shop-keys').then(d => { setData(d); setErr(null); }).catch(e => setErr(e.message));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const body = { name: editing.name.trim(), code: (editing.code || '').trim().toUpperCase() || null };
+      if (editing.id) await api(`/api/admin/shops/${editing.id}`, { method: 'PUT', body });
+      else await api('/api/admin/shops', { method: 'POST', body });
+      setEditing(null);
+      load();
+      onChanged();
+      toast(t('shops.saved'));
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+
+  if (editing) {
+    return (
+      <Modal title={editing.id ? t('shops.edit') : t('shops.add')} onClose={() => setEditing(null)}>
+        <div className="field">
+          <label>{t('shops.name')}</label>
+          <input className="input" value={editing.name} autoFocus
+                 onChange={e => setEditing({ ...editing, name: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>{t('shops.key')}</label>
+          <input className="input" maxLength={2} value={editing.code || ''}
+                 onChange={e => setEditing({ ...editing, code: e.target.value.toUpperCase() })}
+                 placeholder="RG" style={{ textTransform: 'uppercase', maxWidth: 110 }} />
+          <div className="field-hint">
+            {t('shops.keyHint').replace('{var}',
+              'SHOP_CODE_' + ((editing.code || 'XX').toUpperCase()))}
+          </div>
+        </div>
+        {err && <div className="error-banner" style={{ marginBottom: 12 }}>{err}</div>}
+        <div className="modal-actions">
+          <button className="btn btn-ghost" onClick={() => setEditing(null)} disabled={busy}>
+            {t('common.cancel')}
+          </button>
+          <button className="btn btn-primary" onClick={save} disabled={busy || !editing.name.trim()}>
+            {t('common.save')}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title={t('shops.title')} onClose={onClose}>
+      {err && <div className="error-banner">{err}</div>}
+      {!data && !err && <div className="loading">{t('common.loading')}</div>}
+
+      {data && (
+        <>
+          {data.orphanedCodes.length > 0 && (
+            <div className="danger-note">
+              {t('shops.orphaned')}
+              <div className="shop-orphans">{data.orphanedCodes.join(', ')}</div>
+            </div>
+          )}
+
+          {data.shops.map(sh => (
+            <div className="shop-row" key={sh.id}>
+              <div className="shop-main">
+                <div className="shop-name">{sh.name}</div>
+                <div className="shop-var">
+                  {sh.key
+                    ? sh.envVar
+                    : <span className="shop-nokey">{t('shops.noKey')}</span>}
+                </div>
+              </div>
+              <span className={`pill ${sh.codeConfigured ? 'pill-good' : 'pill-muted'}`}>
+                {sh.codeConfigured ? t('shops.codeSet') : t('shops.codeMissing')}
+              </span>
+              <button className="btn btn-ghost btn-sm"
+                      onClick={() => setEditing({ id: sh.id, name: sh.name, code: sh.key || '' })}>
+                {t('shops.editShort')}
+              </button>
+            </div>
+          ))}
+
+          <div className="field-hint" style={{ marginTop: 14 }}>{t('shops.explain')}</div>
+
+          <button className="btn btn-secondary btn-block" style={{ marginTop: 14 }}
+                  onClick={() => setEditing({ name: '', code: '' })}>
+            {t('shops.add')}
+          </button>
+        </>
       )}
     </Modal>
   );

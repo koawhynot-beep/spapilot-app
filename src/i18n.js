@@ -121,6 +121,21 @@ const EN = {
   'settings.auditLog': 'Who changed what',
   'settings.auditEmpty': 'Nothing has been changed yet.',
 
+  // Shops
+  'shops.title': 'Shops & access keys',
+  'shops.edit': 'Edit shop',
+  'shops.editShort': 'Edit',
+  'shops.add': 'Add a shop',
+  'shops.name': 'Shop name',
+  'shops.key': 'Key (two letters)',
+  'shops.keyHint': 'Its staff code is set on the server as {var}',
+  'shops.codeSet': 'code set',
+  'shops.codeMissing': 'no code',
+  'shops.noKey': 'no key — manager code only',
+  'shops.saved': 'Shop saved',
+  'shops.orphaned': 'These codes are set on the server but open nothing, because no shop uses those letters:',
+  'shops.explain': 'Each shop opens with the code set for its key. Change a key here and the matching variable on the server must change with it.',
+
   // Reset
   'reset.title': 'Clear all stock data',
   'reset.warning': 'This permanently deletes every product and its entire history. It cannot be undone.',
@@ -250,6 +265,20 @@ const ID = {
   'settings.staffNote': 'Kode staf — jual, stok, dan kasir hari ini. Laporan tidak tersedia.',
   'settings.auditLog': 'Siapa mengubah apa',
   'settings.auditEmpty': 'Belum ada perubahan.',
+
+  'shops.title': 'Toko & kunci akses',
+  'shops.edit': 'Ubah toko',
+  'shops.editShort': 'Ubah',
+  'shops.add': 'Tambah toko',
+  'shops.name': 'Nama toko',
+  'shops.key': 'Kunci (dua huruf)',
+  'shops.keyHint': 'Kode stafnya diatur di server sebagai {var}',
+  'shops.codeSet': 'kode terpasang',
+  'shops.codeMissing': 'belum ada kode',
+  'shops.noKey': 'tanpa kunci — hanya kode manajer',
+  'shops.saved': 'Toko disimpan',
+  'shops.orphaned': 'Kode berikut diatur di server tetapi tidak membuka apa pun, karena tidak ada toko dengan huruf tersebut:',
+  'shops.explain': 'Setiap toko dibuka dengan kode yang diatur untuk kuncinya. Jika kunci diubah di sini, variabel di server harus diubah juga.',
 
   'reset.title': 'Hapus semua data stok',
   'reset.warning': 'Ini menghapus permanen semua produk beserta seluruh riwayatnya. Tidak dapat dibatalkan.',
