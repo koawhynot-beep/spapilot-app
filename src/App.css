@@ -1720,3 +1720,35 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   color: var(--text);
   box-shadow: var(--shadow-sm);
 }
+
+/* ── Destructive actions ──────────────────────────────────
+   Set apart from everything else, because a control that erases the
+   catalogue must never sit flush against one that is pressed daily. */
+.danger-zone {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line-soft);
+}
+.btn-danger {
+  background: var(--bad);
+  color: #fff;
+  border: none;
+}
+.btn-danger:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-danger:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--bad);
+  border: 1px solid var(--bad-soft);
+}
+.btn-danger-ghost:hover { background: var(--bad-soft); }
+
+.danger-note {
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 13.5px;
+  line-height: 1.5;
+}

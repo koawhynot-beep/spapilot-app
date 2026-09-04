@@ -451,6 +451,7 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
           onClose={() => setShowSettings(false)}
           onManageStaff={() => { setShowSettings(false); setShowStaff(true); }}
           onSwitchAccess={onSwitchAccess}
+          onReset={() => { shops.reload(); staff.reload(); setStockJump(null); }}
         />
       )}
 
@@ -2880,7 +2881,7 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
 // ═══════════════════════════════════════════════════════════
 // SETTINGS MODAL
 // ═══════════════════════════════════════════════════════════
-function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAccess }) {
+function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAccess, onReset }) {
   const t = useT();
   const { lang, setLang } = useLang();
   const toast = useToast();
@@ -2889,6 +2890,7 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
   const [switching, setSwitching] = useState(false);
   const [codeErr, setCodeErr] = useState(null);
   const [showAudit, setShowAudit] = useState(false);
+  const [showReset, setShowReset] = useState(false);
 
   // Typing a different code here swaps this device between the admin and
   // staff views. The code itself is never shown back, never stored, and
@@ -2925,6 +2927,9 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
 
   if (showAudit) {
     return <AuditModal onClose={() => setShowAudit(false)} />;
+  }
+  if (showReset) {
+    return <ResetStockModal onClose={() => setShowReset(false)} onDone={onReset} />;
   }
 
   return (
@@ -2988,6 +2993,140 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
       <button className="btn btn-ghost btn-block" onClick={signOut}>
         {t('settings.signOut')}
       </button>
+
+      {/* Kept below the sign-out and visually apart: nothing destructive
+          should sit next to something anyone taps every day. */}
+      {isAdmin && (
+        <div className="danger-zone">
+          <button className="btn btn-danger-ghost btn-block" onClick={() => setShowReset(true)}>
+            {t('reset.title')}
+          </button>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// ── Reset stock data ──────────────────────────────────────
+// Deleting the whole catalogue is not undoable, so this asks for three
+// separate acts: download a backup, read what is about to go, then type the
+// phrase. The button stays disabled until the backup has actually been taken
+// — a confirmation dialog nobody can recover from is not a safeguard.
+const RESET_PHRASE = 'DELETE ALL STOCK';
+
+function ResetStockModal({ onClose, onDone }) {
+  const t = useT();
+  const toast = useToast();
+  const [counts, setCounts] = useState(null);
+  const [phrase, setPhrase] = useState('');
+  const [backedUp, setBackedUp] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [done, setDone] = useState(null);
+
+  useEffect(() => {
+    api('/api/admin/data-counts')
+      .then(setCounts)
+      .catch(e => setErr(e.message));
+  }, []);
+
+  const takeBackup = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const name = await download('/api/auth/export-data');
+      setBackedUp(true);
+      toast(`Backup saved — ${name}`);
+    } catch (e) { setErr(e.message || 'Could not download the backup'); }
+    finally { setBusy(false); }
+  };
+
+  const wipe = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const d = await api('/api/admin/reset-stock', { method: 'POST', body: { confirm: phrase } });
+      setDone(d.removed);
+      onDone();
+    } catch (e) { setErr(e.message || 'Could not reset'); }
+    finally { setBusy(false); }
+  };
+
+  if (done) {
+    return (
+      <Modal title={t('reset.doneTitle')} onClose={onClose}>
+        <p style={{ color: 'var(--text-2)', fontSize: 14, marginTop: 0 }}>
+          {t('reset.doneBody')}
+        </p>
+        <div className="details-body" style={{ borderTop: 'none', paddingTop: 0 }}>
+          <div><div className="detail-k">{t('reset.products')}</div><div className="detail-v">{done.items}</div></div>
+          <div><div className="detail-k">{t('reset.movements')}</div><div className="detail-v">{done.movements}</div></div>
+          <div><div className="detail-k">{t('reset.groups')}</div><div className="detail-v">{done.groups}</div></div>
+        </div>
+        <button className="btn btn-primary btn-block" style={{ marginTop: 18 }} onClick={onClose}>
+          {t('common.close')}
+        </button>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title={t('reset.title')} onClose={onClose}>
+      <div className="danger-note">{t('reset.warning')}</div>
+
+      {!counts && !err && <div className="loading">{t('common.loading')}</div>}
+
+      {counts && (
+        <>
+          <div className="field"><label>{t('reset.willDelete')}</label></div>
+          <div className="details-body" style={{ marginTop: -6, borderTop: 'none', paddingTop: 0 }}>
+            <div><div className="detail-k">{t('reset.products')}</div><div className="detail-v">{counts.items.toLocaleString()}</div></div>
+            <div><div className="detail-k">{t('reset.movements')}</div><div className="detail-v">{counts.movements.toLocaleString()}</div></div>
+            <div><div className="detail-k">{t('reset.groups')}</div><div className="detail-v">{counts.groups.toLocaleString()}</div></div>
+          </div>
+
+          <div className="field" style={{ marginTop: 16 }}><label>{t('reset.willKeep')}</label></div>
+          <div className="details-body" style={{ marginTop: -6, borderTop: 'none', paddingTop: 0 }}>
+            <div><div className="detail-k">{t('reset.shops')}</div><div className="detail-v">{counts.shops}</div></div>
+            <div><div className="detail-k">{t('reset.staff')}</div><div className="detail-v">{counts.staff}</div></div>
+          </div>
+        </>
+      )}
+
+      <button
+        className="btn btn-secondary btn-block"
+        style={{ marginTop: 18 }}
+        onClick={takeBackup}
+        disabled={busy || backedUp}
+      >
+        {backedUp ? `✓ ${t('reset.backupTaken')}` : t('reset.takeBackup')}
+      </button>
+
+      <div className="field" style={{ marginTop: 16 }}>
+        <label>{t('reset.typeToConfirm').replace('{phrase}', RESET_PHRASE)}</label>
+        <input
+          className="input"
+          value={phrase}
+          onChange={e => setPhrase(e.target.value)}
+          placeholder={RESET_PHRASE}
+          autoComplete="off"
+          disabled={!backedUp}
+        />
+        {!backedUp && <div className="field-hint">{t('reset.backupFirst')}</div>}
+      </div>
+
+      {err && <div className="error-banner" style={{ marginBottom: 12 }}>{err}</div>}
+
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
+          {t('common.cancel')}
+        </button>
+        <button
+          className="btn btn-danger"
+          onClick={wipe}
+          disabled={busy || !backedUp || phrase !== RESET_PHRASE}
+        >
+          {busy ? '…' : t('reset.confirm')}
+        </button>
+      </div>
     </Modal>
   );
 }
