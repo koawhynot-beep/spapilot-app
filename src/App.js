@@ -10,6 +10,7 @@ import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
 import { TodayView, HistoryView } from './views';
 import { StockCheckView } from './stockcheck';
+import { parseStockSheet } from './sheetparse';
 import './App.css';
 
 // ── Config ────────────────────────────────────────────────
@@ -456,6 +457,7 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
           onClose={() => setShowSettings(false)}
           onManageStaff={() => { setShowSettings(false); setShowStaff(true); }}
           onSwitchAccess={onSwitchAccess}
+          shops={shopList}
           onReset={() => { shops.reload(); staff.reload(); setStockJump(null); }}
         />
       )}
@@ -2886,7 +2888,7 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
 // ═══════════════════════════════════════════════════════════
 // SETTINGS MODAL
 // ═══════════════════════════════════════════════════════════
-function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAccess, onReset }) {
+function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAccess, onReset, shops = [] }) {
   const t = useT();
   const { lang, setLang } = useLang();
   const toast = useToast();
@@ -2897,6 +2899,7 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
   const [showAudit, setShowAudit] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [showShops, setShowShops] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   // Typing a different code here swaps this device between the admin and
   // staff views. The code itself is never shown back, never stored, and
@@ -2939,6 +2942,9 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
   }
   if (showShops) {
     return <ShopsModal onClose={() => setShowShops(false)} onChanged={onReset} />;
+  }
+  if (showImport) {
+    return <ImportStockModal shops={shops} onClose={() => setShowImport(false)} onDone={onReset} />;
   }
 
   return (
@@ -2987,6 +2993,9 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
           </button>
           <button className="btn btn-secondary btn-block" onClick={() => setShowShops(true)} style={{ marginBottom: 10 }}>
             {t('shops.title')}
+          </button>
+          <button className="btn btn-secondary btn-block" onClick={() => setShowImport(true)} style={{ marginBottom: 10 }}>
+            {t('import.title')}
           </button>
           <button className="btn btn-secondary btn-block" onClick={() => setShowAudit(true)} style={{ marginBottom: 10 }}>
             {t('settings.auditLog')}
@@ -3124,6 +3133,192 @@ function ShopsModal({ onClose, onChanged }) {
                   onClick={() => setEditing({ name: '', code: '' })}>
             {t('shops.add')}
           </button>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+// ── Import stock from the spreadsheet ─────────────────────
+// Paste the sheet or pick the file, read what it found, then commit. The
+// preview is not decoration: an import of this size is the kind of thing that
+// should never happen on one click, and the numbers shown are the numbers
+// that will land.
+//
+// Quantity is read from SALDO AKHIR only. Everything the parser could not
+// make sense of is listed rather than quietly dropped.
+function ImportStockModal({ shops, onClose, onDone }) {
+  const t = useT();
+  const toast = useToast();
+  const [shopId, setShopId] = useState(() => {
+    const rg = shops.find(s => s.code === 'RG');
+    return String((rg || shops[0] || {}).id || '');
+  });
+  const [text, setText] = useState('');
+  const [parsed, setParsed] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [result, setResult] = useState(null);
+
+  const readFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { setText(String(reader.result || '')); setParsed(null); };
+    reader.onerror = () => setErr('Could not read that file');
+    reader.readAsText(file);
+  };
+
+  const preview = () => {
+    setErr(null);
+    try {
+      const out = parseStockSheet(text);
+      if (out.rows.length === 0) {
+        setErr(t('import.nothingFound'));
+        setParsed(null);
+        return;
+      }
+      setParsed(out);
+    } catch (e) { setErr(e.message || 'Could not read that'); }
+  };
+
+  const commit = async () => {
+    if (!parsed || !shopId) return;
+    setBusy(true); setErr(null);
+    try {
+      const d = await api('/api/admin/import-stock', {
+        method: 'POST',
+        body: {
+          shopId: Number(shopId),
+          rows: parsed.rows.map(r => ({
+            sku: r.sku, name: r.name, style: r.style,
+            color: r.color, size: r.size, price: r.price, qty: r.qty,
+          })),
+        },
+      });
+      setResult(d);
+      onDone();
+      toast(t('import.done'));
+    } catch (e) { setErr(e.message || 'Could not import'); }
+    finally { setBusy(false); }
+  };
+
+  if (result) {
+    return (
+      <Modal title={t('import.doneTitle')} onClose={onClose}>
+        <p style={{ color: 'var(--text-2)', fontSize: 14, marginTop: 0 }}>
+          {t('import.doneBody').replace('{shop}', result.shop)}
+        </p>
+        <div className="details-body" style={{ borderTop: 'none', paddingTop: 0 }}>
+          <div><div className="detail-k">{t('import.newItems')}</div><div className="detail-v">{result.created.toLocaleString()}</div></div>
+          <div><div className="detail-k">{t('import.updatedItems')}</div><div className="detail-v">{result.updated.toLocaleString()}</div></div>
+          <div><div className="detail-k">{t('import.withStock')}</div><div className="detail-v">{result.inStock.toLocaleString()}</div></div>
+          <div><div className="detail-k">{t('import.pieces')}</div><div className="detail-v">{result.pieces.toLocaleString()}</div></div>
+        </div>
+        <button className="btn btn-primary btn-block" style={{ marginTop: 18 }} onClick={onClose}>
+          {t('common.close')}
+        </button>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title={t('import.title')} onClose={onClose}>
+      <div className="notice" style={{ marginBottom: 14 }}>{t('import.explain')}</div>
+
+      <div className="field">
+        <label>{t('import.intoShop')}</label>
+        <select className="select" value={shopId} onChange={e => setShopId(e.target.value)}>
+          {shops.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+        </select>
+      </div>
+
+      <div className="field">
+        <label>{t('import.theSheet')}</label>
+        <input
+          type="file"
+          accept=".tsv,.txt,.csv,text/plain,text/tab-separated-values"
+          className="input"
+          onChange={e => readFile(e.target.files && e.target.files[0])}
+        />
+        <div className="field-hint">{t('import.fileHint')}</div>
+      </div>
+
+      <div className="field">
+        <label>{t('import.orPaste')}</label>
+        <textarea
+          className="input import-paste"
+          rows={5}
+          value={text}
+          onChange={e => { setText(e.target.value); setParsed(null); }}
+          placeholder={'KODE\tPRODUCT NAME\tSTYLE\t…'}
+        />
+      </div>
+
+      {err && <div className="error-banner" style={{ marginBottom: 12 }}>{err}</div>}
+
+      {!parsed && (
+        <button className="btn btn-secondary btn-block" onClick={preview} disabled={!text.trim()}>
+          {t('import.check')}
+        </button>
+      )}
+
+      {parsed && (
+        <>
+          <div className="field" style={{ marginTop: 6 }}><label>{t('import.found')}</label></div>
+          <div className="details-body" style={{ marginTop: -6, borderTop: 'none', paddingTop: 0 }}>
+            <div><div className="detail-k">{t('import.products')}</div><div className="detail-v">{parsed.stats.parsed.toLocaleString()}</div></div>
+            <div><div className="detail-k">{t('import.withStock')}</div><div className="detail-v">{parsed.stats.withStock.toLocaleString()}</div></div>
+            <div><div className="detail-k">{t('import.pieces')}</div><div className="detail-v">{parsed.stats.pieces.toLocaleString()}</div></div>
+            <div><div className="detail-k">{t('import.value')}</div><div className="detail-v">{idr(parsed.stats.value)}</div></div>
+          </div>
+
+          {parsed.problems.length > 0 && (
+            <div className="danger-note" style={{ marginTop: 14 }}>
+              {t('import.refused').replace('{n}', String(parsed.problems.length))}
+              <div className="import-problems">
+                {parsed.problems.slice(0, 8).map((p, i) => (
+                  <div key={i}>
+                    {t('import.line')} {p.line}
+                    {p.kode ? ` · ${p.kode}` : ''} — {t('import.reason.' + p.reason)}
+                  </div>
+                ))}
+                {parsed.problems.length > 8 && <div>… {parsed.problems.length - 8} {t('import.more')}</div>}
+              </div>
+            </div>
+          )}
+
+          {parsed.duplicates.length > 0 && (
+            <div className="danger-note" style={{ marginTop: 14 }}>
+              {t('import.duplicates').replace('{n}', String(parsed.duplicates.length))}
+              <div className="import-problems">
+                {parsed.duplicates.slice(0, 6).map((d, i) => (
+                  <div key={i}>{d.kode} — {t('import.line')} {d.lines.join(', ')}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {parsed.unbalanced.length > 0 && (
+            <div className="notice" style={{ marginTop: 14 }}>
+              {t('import.unbalanced').replace('{n}', String(parsed.unbalanced.length))}
+              <div className="import-problems">
+                {parsed.unbalanced.slice(0, 6).map((r, i) => (
+                  <div key={i}>
+                    {r.sku} — {r.awal} + {r.masuk} − {r.keluar} ≠ {r.qty}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="modal-actions" style={{ marginTop: 18 }}>
+            <button className="btn btn-ghost" onClick={() => setParsed(null)} disabled={busy}>
+              {t('common.cancel')}
+            </button>
+            <button className="btn btn-primary" onClick={commit} disabled={busy}>
+              {busy ? '…' : t('import.commit').replace('{n}', parsed.stats.parsed.toLocaleString())}
+            </button>
+          </div>
         </>
       )}
     </Modal>

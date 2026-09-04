@@ -12,7 +12,8 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test --passWithNoTests"
+    "test": "react-scripts test --passWithNoTests",
+    "test:parser": "node src/sheetparse.test.mjs"
   },
   "eslintConfig": {
     "extends": [

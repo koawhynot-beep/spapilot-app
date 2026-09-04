@@ -1894,3 +1894,20 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   border-color: var(--primary);
   color: #fff;
 }
+
+/* ── Import ───────────────────────────────────────────────*/
+.import-paste {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow-x: auto;
+}
+.import-problems {
+  margin-top: 8px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  max-height: 140px;
+  overflow-y: auto;
+}
