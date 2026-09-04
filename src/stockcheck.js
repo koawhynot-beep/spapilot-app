@@ -5,9 +5,10 @@
 // stock appears — an item at zero has nothing to go and look at — and each
 // line is ticked once someone has actually seen it.
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ClipboardCheck, Check, RotateCcw, AlertTriangle } from 'lucide-react';
+import { ClipboardCheck, Check, RotateCcw, AlertTriangle, Printer } from 'lucide-react';
 import { useT } from './i18n';
 import { api } from './api';
+import { openChecklist } from './printsheet';
 
 const READ_STAFF = () => {
   try { return localStorage.getItem('mitrasamadi_staff') || ''; } catch { return ''; }
@@ -71,6 +72,62 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
     }
     return out;
   }, [visible, t, sortBy]);
+
+  // The paper list is built from the same rows as the screen — which come
+  // from an endpoint that only returns qty > 0 — so a printed sheet can never
+  // list something that is out of stock. Ticks already made are deliberately
+  // ignored: a sheet you carry round the shop is for a fresh count.
+  const printList = () => {
+    const q = search.trim().toLowerCase();
+    const forPrint = items.filter(x => !q || [x.name, x.sku, x.color, x.size, x.fabric]
+      .filter(Boolean).join(' ').toLowerCase().includes(q));
+    if (!forPrint.length) return;
+
+    const ordered = sortBy === 'qty-asc'
+      ? [...forPrint].sort((a, b) => a.qty - b.qty || a.name.localeCompare(b.name))
+      : sortBy === 'qty-desc'
+        ? [...forPrint].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name))
+        : forPrint;
+
+    let printGroups;
+    if (sortBy === 'fabric') {
+      printGroups = [];
+      let cur = null;
+      for (const it of ordered) {
+        const key = it.fabric || t('check.otherFabric');
+        if (!cur || cur.key !== key) { cur = { key, items: [] }; printGroups.push(cur); }
+        // The heading above already says the fabric, and the names repeat it
+        // ("AGUA SHIRT" / "AGUA SHIRT BALTIC AMBER M/L"), which wraps most
+        // lines onto two and roughly doubles the paper. Only an exact
+        // leading match is removed, so nothing else in the name is touched.
+        const short = it.fabric && it.name.toUpperCase().startsWith(it.fabric.toUpperCase())
+          ? it.name.slice(it.fabric.length).trim()
+          : it.name;
+        cur.items.push({ ...it, name: short || it.name });
+      }
+    } else {
+      printGroups = [{ key: null, items: ordered }];
+    }
+
+    const shopNames = [...new Set(ordered.map(x => x.shopName).filter(Boolean))];
+    const ok = openChecklist({
+      title: t('check.printTitle'),
+      subtitle: [shopNames.join(', '), new Date().toLocaleDateString()]
+        .filter(Boolean).join(' · '),
+      groups: printGroups,
+      labels: {
+        qty: t('check.printQty'),
+        counted: t('check.printCounted'),
+        expected: t('check.printExpected'),
+        checked: t('check.printSeen'),
+        checkedBy: t('check.printCheckedBy'),
+        date: t('check.printDate'),
+        items: t('check.printItems'),
+        pieces: t('check.printPieces'),
+      },
+    });
+    if (!ok) setError(t('check.printBlocked'));
+  };
 
   const toggle = async (item) => {
     if (busy.has(item.id)) return;
@@ -180,6 +237,15 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
           className={`chip ${hideChecked ? 'is-active' : ''}`}
           onClick={() => setHideChecked(v => !v)}
         >{t('check.hideChecked')}</button>
+        <button
+          className="chip"
+          onClick={printList}
+          disabled={total === 0}
+          title={t('check.printHint')}
+        >
+          <Printer size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+          {t('check.print')}
+        </button>
       </div>
 
       <input
