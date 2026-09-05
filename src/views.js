@@ -6,12 +6,35 @@
 // order it happened, so the drawer can be balanced at close. History is the
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, History, TrendingUp, Download, RefreshCw, Pencil, Check } from 'lucide-react';
+import { Calendar, History, TrendingUp, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus } from 'lucide-react';
 import { Modal, SearchField } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
 
 // ── Shared helpers ────────────────────────────────────────
+// How far back a sale's time may be moved. Mirrors EDIT_WINDOW_DAYS on the
+// server, which is what actually enforces it; this only shapes the picker.
+const EDIT_WINDOW_DAYS = 7;
+
+// datetime-local speaks local wall-clock time in "YYYY-MM-DDTHH:mm".
+// toISOString is UTC, so using it here shifts every sale by the timezone
+// offset — seven hours, in Indonesia.
+const localInputValue = (v) => {
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+// Whoever is picked on the Sell screen. A correction should carry a name.
+const readStaffId = () => {
+  try {
+    const v = localStorage.getItem('mitrasamadi_staff');
+    return v ? Number(v) : null;
+  } catch { return null; }
+};
+
 const clock = (iso) =>
   new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -47,15 +70,16 @@ function useLoad(path, deps) {
 // bigger target on a phone than a pencil icon would be.
 const SaleRow = ({ r, showDate, showShop, onEdit }) => {
   const t = useT();
+  // A real button, not a div with a role. Safari on iPad does not reliably
+  // deliver clicks from non-interactive elements to React's delegated
+  // listener at the root, so the tap did nothing on an iPad while working
+  // everywhere else. A button also gets Enter, Space and focus for free.
+  const Row = onEdit ? 'button' : 'div';
   return (
-  <div
+  <Row
+    type={onEdit ? 'button' : undefined}
     className={`sale-row ${r.units < 0 ? 'is-return' : ''} ${onEdit ? 'is-clickable' : ''}`}
     onClick={onEdit ? () => onEdit(r) : undefined}
-    role={onEdit ? 'button' : undefined}
-    tabIndex={onEdit ? 0 : undefined}
-    onKeyDown={onEdit ? (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(r); }
-    } : undefined}
   >
     <div className="sale-when">
       {showDate && <span className="sale-date">{day(r.occurredAt)}</span>}
@@ -79,7 +103,7 @@ const SaleRow = ({ r, showDate, showShop, onEdit }) => {
       {idr(r.value)}
       {onEdit && <Pencil size={13} className="sale-edit-hint" aria-hidden="true" />}
     </div>
-  </div>
+  </Row>
   );
 };
 
@@ -114,6 +138,7 @@ function StatTile({ value, label, tone, money }) {
 // nothing here they have not already seen.
 export function TodayView({ isAdmin, shopsParam = '' }) {
   const t = useT();
+  const [editing, setEditing] = useState(null);
   const { data, error, loading, reload } = useLoad(
     `/api/sales/today${shopsParam ? '?shops=' + shopsParam : ''}`,
     [shopsParam]
@@ -157,9 +182,22 @@ export function TodayView({ isAdmin, shopsParam = '' }) {
       {items.length > 0 && (
         <div className="panel">
           <div className="panel-body">
-            {items.map(r => <SaleRow key={r.id} r={r} />)}
+            {/* Correcting today's sales belongs here as much as in History:
+                this is the screen the counter already has open, and a
+                mistyped sale is noticed within the minute. */}
+            {items.map(r => <SaleRow key={r.id} r={r} onEdit={setEditing} />)}
           </div>
         </div>
+      )}
+
+      {editing && (
+        <SaleEditModal
+          sale={editing}
+          canDelete={isAdmin}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+          onDeleted={reload}
+        />
       )}
     </>
   );
@@ -190,12 +228,20 @@ function rangeToQuery(id) {
   return { from: iso(from) };
 }
 
-export function HistoryView({ staff, shops = [], shopsParam = '' }) {
+export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true }) {
   const t = useT();
   const [range, setRange] = useState('30d');
   const [staffId, setStaffId] = useState('');
   const [search, setSearch] = useState('');
   const [pane, setPane] = useState('log');
+
+  const panes = useMemo(
+    () => (isAdmin ? ['log', 'stock', 'sellers', 'commission'] : ['log', 'stock']),
+    [isAdmin]
+  );
+  // A staff member who had 'commission' selected before losing it would be
+  // left staring at nothing.
+  useEffect(() => { if (!panes.includes(pane)) setPane('log'); }, [panes, pane]);
 
   const qs = useMemo(() => {
     const q = { ...rangeToQuery(range) };
@@ -234,15 +280,19 @@ export function HistoryView({ staff, shops = [], shopsParam = '' }) {
         style={{ marginBottom: 16 }}
       />
 
+      {/* What sold, and separately where the stock went. Staff get both —
+          they are the ones who scanned it — but not the rankings, the
+          commission figures or the exports. */}
       <div className="segmented segmented-wide" style={{ marginBottom: 18 }}>
-        {['log', 'sellers', 'commission'].map(p => (
+        {panes.map(p => (
           <button key={p} className={pane === p ? 'is-active' : ''} onClick={() => setPane(p)}>
             {t('history.pane.' + p)}
           </button>
         ))}
       </div>
 
-      {pane === 'log' && <SalesLog qs={qs} showShop={showShop} />}
+      {pane === 'log' && <SalesLog qs={qs} showShop={showShop} isAdmin={isAdmin} />}
+      {pane === 'stock' && <StockMovesPane qs={qs} showShop={showShop} isAdmin={isAdmin} />}
       {pane === 'sellers' && <SellersPane qs={qs} />}
       {pane === 'commission' && <CommissionPane qs={qs} />}
     </>
@@ -250,7 +300,7 @@ export function HistoryView({ staff, shops = [], shopsParam = '' }) {
 }
 
 // ── The log ───────────────────────────────────────────────
-function SalesLog({ qs, showShop }) {
+function SalesLog({ qs, showShop, isAdmin }) {
   const t = useT();
   const [rows, setRows] = useState([]);
   const [offset, setOffset] = useState(0);
@@ -282,7 +332,7 @@ function SalesLog({ qs, showShop }) {
 
       {error && <div className="error-banner">{error}</div>}
 
-      <ExportButton href={`/api/sales/history.csv?${qs}`} label={t('history.exportSales')} />
+      {isAdmin && <ExportButton href={`/api/sales/history.csv?${qs}`} label={t('history.exportSales')} />}
 
       {loading && rows.length === 0 && <div className="loading">{t('common.loading')}</div>}
       {!loading && !error && rows.length === 0 && (
@@ -302,8 +352,10 @@ function SalesLog({ qs, showShop }) {
       {editing && (
         <SaleEditModal
           sale={editing}
+          canDelete={isAdmin}
           onClose={() => setEditing(null)}
           onSaved={(updated) => setRows(prev => prev.map(r => (r.id === updated.id ? updated : r)))}
+          onDeleted={(id) => setRows(prev => prev.filter(r => r.id !== id))}
         />
       )}
 
@@ -327,7 +379,7 @@ function SalesLog({ qs, showShop }) {
 // the wrong garment. Style, colour and size live on the stock item, not on
 // the sale, so changing them means pointing the sale at a different item;
 // the server moves the stock to match.
-function SaleEditModal({ sale, onClose, onSaved }) {
+function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
   const t = useT();
   const [lookup, setLookup] = useState('');
   const [results, setResults] = useState([]);
@@ -337,8 +389,12 @@ function SaleEditModal({ sale, onClose, onSaved }) {
   // Blank means "whatever it costs on the shelf", which is what every sale
   // recorded before this screen existed still means.
   const [price, setPrice] = useState(sale.unitPrice === null ? '' : String(sale.unitPrice));
+  // datetime-local wants "YYYY-MM-DDTHH:mm" in local time, which is exactly
+  // what toISOString does not give you.
+  const [when, setWhen] = useState(() => localInputValue(sale.occurredAt));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     const q = lookup.trim();
@@ -362,8 +418,23 @@ function SaleEditModal({ sale, onClose, onSaved }) {
       if (picked) body.itemId = picked.id;
       const trimmed = String(price).trim();
       body.unitPrice = trimmed === '' ? null : Number(trimmed);
+      if (when) body.occurredAt = new Date(when).toISOString();
+      const staffId = readStaffId();
+      if (staffId) body.staffId = staffId;
       const updated = await api(`/api/sales/${sale.id}`, { method: 'PATCH', body });
       onSaved(updated);
+      onClose();
+    } catch (e) {
+      setError(e.message || t('edit.failed'));
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true); setError(null);
+    try {
+      await api(`/api/movements/${sale.id}`, { method: 'DELETE' });
+      onDeleted(sale.id);
       onClose();
     } catch (e) {
       setError(e.message || t('edit.failed'));
@@ -465,6 +536,42 @@ function SaleEditModal({ sale, onClose, onSaved }) {
         </div>
       </div>
 
+      <div className="field">
+        <label>{t('edit.when')}</label>
+        <input
+          className="input"
+          type="datetime-local"
+          value={when}
+          max={localInputValue(Date.now())}
+          min={localInputValue(Date.now() - EDIT_WINDOW_DAYS * 86400000)}
+          onChange={e => setWhen(e.target.value)}
+        />
+        <div className="field-hint">{t('edit.whenHint').replace('{n}', String(EDIT_WINDOW_DAYS))}</div>
+      </div>
+
+      {/* Deleting sits apart from the save row and asks twice: it puts the
+          stock back and takes the row out of the takings, and there is no
+          undo on the screen — only the audit log. */}
+      {canDelete && (
+        <div className="danger-zone">
+          {confirmDelete ? (
+            <>
+              <span className="danger-ask">{t('edit.deleteAsk')}</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)} disabled={busy}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn btn-danger btn-sm" onClick={remove} disabled={busy}>
+                {busy ? t('common.saving') : t('edit.deleteYes')}
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-ghost btn-sm danger-link" onClick={() => setConfirmDelete(true)} disabled={busy}>
+              <Trash2 size={14} /> {t('edit.delete')}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="modal-actions">
         <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
           {t('common.cancel')}
@@ -475,6 +582,194 @@ function SaleEditModal({ sale, onClose, onSaved }) {
           disabled={busy || !Number(units) || Number(units) < 1}
         >
           {busy ? t('common.saving') : t('edit.save')}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Stock in and out ──────────────────────────────────────
+// The other half of the movement log. Sales say what was taken; this says
+// where the stock went — deliveries arriving, and pieces written off with the
+// reason they left. Kept apart from the sales log rather than mixed into it,
+// because the two get read for completely different reasons and a delivery of
+// 40 pieces sitting in the middle of a day's takings just gets in the way.
+function StockMovesPane({ qs, showShop, isAdmin }) {
+  const t = useT();
+  const [rows, setRows] = useState([]);
+  const [offset, setOffset] = useState(0);
+  const [dir, setDir] = useState('');
+  const [editing, setEditing] = useState(null);
+
+  useEffect(() => { setOffset(0); setRows([]); }, [qs, dir]);
+
+  const { data, error, loading } = useLoad(
+    `/api/movements?${qs}&dir=${dir}&limit=${PAGE}&offset=${offset}`,
+    [qs, dir, offset]
+  );
+
+  useEffect(() => {
+    if (!data) return;
+    const items = Array.isArray(data.items) ? data.items : [];
+    setRows(prev => (offset === 0 ? items : [...prev, ...items]));
+  }, [data, offset]);
+
+  const total = data?.total || 0;
+  const totals = data?.totals || {};
+
+  return (
+    <>
+      <div className="stat-grid">
+        <StatTile value={totals.in ?? 0} label={t('moves.piecesIn')} tone="good" />
+        <StatTile value={totals.out ?? 0} label={t('moves.piecesOut')} tone="bad" />
+        <StatTile value={total} label={t('moves.entries')} />
+      </div>
+
+      {error && <div className="error-banner">{error}</div>}
+
+      <div className="segmented" style={{ marginBottom: 14 }}>
+        {[['', 'moves.all'], ['in', 'moves.onlyIn'], ['out', 'moves.onlyOut']].map(([id, key]) => (
+          <button key={id || 'all'} className={dir === id ? 'is-active' : ''} onClick={() => setDir(id)}>
+            {t(key)}
+          </button>
+        ))}
+      </div>
+
+      {loading && rows.length === 0 && <div className="loading">{t('common.loading')}</div>}
+      {!loading && !error && rows.length === 0 && (
+        <Empty icon={PackagePlus} title={t('moves.nothing')} hint={t('moves.nothingHint')} />
+      )}
+
+      {rows.length > 0 && (
+        <div className="panel">
+          <div className="panel-body">
+            {rows.map(r => (
+              <MoveRow key={r.id} r={r} showShop={showShop} onEdit={isAdmin ? setEditing : undefined} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <MoveDeleteModal
+          move={editing}
+          onClose={() => setEditing(null)}
+          onDeleted={(id) => setRows(prev => prev.filter(x => x.id !== id))}
+        />
+      )}
+
+      {rows.length > 0 && rows.length < total && (
+        <button
+          className="btn btn-secondary btn-block"
+          style={{ marginTop: 12 }}
+          disabled={loading}
+          onClick={() => setOffset(o => o + PAGE)}
+        >
+          {loading ? t('common.loading') : `${t('history.showMore')} (${rows.length} / ${total})`}
+        </button>
+      )}
+    </>
+  );
+}
+
+const MoveRow = ({ r, showShop, onEdit }) => {
+  const t = useT();
+  const inbound = r.units > 0;
+  const Row = onEdit ? 'button' : 'div';
+  return (
+    <Row
+      type={onEdit ? 'button' : undefined}
+      className={`sale-row ${inbound ? '' : 'is-return'} ${onEdit ? 'is-clickable' : ''}`}
+      onClick={onEdit ? () => onEdit(r) : undefined}
+    >
+      <div className="sale-when">
+        <span className="sale-date">{day(r.occurredAt)}</span>
+        <span className="sale-time">{clock(r.occurredAt)}</span>
+      </div>
+      <div className="sale-main">
+        <div className="sale-title">{r.itemName}</div>
+        <div className="sale-sub">
+          {r.sku}
+          {r.color ? ` · ${r.color}` : ''}
+          {r.size ? ` · ${r.size}` : ''}
+          {showShop && r.shopName ? ` · ${r.shopName}` : ''}
+          {r.reason ? ` · ${t('sell.reason.' + r.reason.replace(/\s+/g, '')) || r.reason}` : ''}
+        </div>
+      </div>
+      <div className="sale-who">{r.staffName}</div>
+      <div className="sale-qty">
+        {inbound ? `+${r.units}` : r.units}
+        <span className="sale-qty-label">{t(inbound ? 'moves.in' : 'moves.out')}</span>
+      </div>
+      <div className="sale-value">
+        {inbound
+          ? <PackagePlus size={15} className="move-dir is-in" aria-hidden="true" />
+          : <PackageMinus size={15} className="move-dir is-out" aria-hidden="true" />}
+        {onEdit && <Pencil size={13} className="sale-edit-hint" aria-hidden="true" />}
+      </div>
+    </Row>
+  );
+};
+
+// Stock movements are not corrected in place the way a sale is — a delivery
+// entered wrongly is re-entered, not edited — so this only offers the one
+// thing that is genuinely needed: taking a mistaken entry back out.
+function MoveDeleteModal({ move, onClose, onDeleted }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const inbound = move.units > 0;
+
+  const remove = async () => {
+    setBusy(true); setError(null);
+    try {
+      await api(`/api/movements/${move.id}`, { method: 'DELETE' });
+      onDeleted(move.id);
+      onClose();
+    } catch (e) {
+      setError(e.message || t('edit.failed'));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title={t(inbound ? 'moves.titleIn' : 'moves.titleOut')} onClose={onClose}>
+      {error && <div className="error-banner">{error}</div>}
+
+      <div className="detail-grid" style={{ marginBottom: 4 }}>
+        <div className="detail-k">{t('edit.recorded')}</div>
+        <div className="detail-v">
+          {new Date(move.occurredAt).toLocaleString()}
+          {move.staffName ? ` · ${move.staffName}` : ''}
+          {move.shopName ? ` · ${move.shopName}` : ''}
+        </div>
+      </div>
+
+      <div className="field">
+        <label>{t('edit.currently')}</label>
+        <div className="swap-current">
+          <span className="swap-name">
+            {inbound ? `+${move.units}` : move.units} × {move.itemName}
+          </span>
+          <span className="swap-sub">
+            {move.sku}
+            {move.reason ? ` · ${move.reason}` : ''}
+            {move.note ? ` · ${move.note}` : ''}
+          </span>
+        </div>
+      </div>
+
+      <p className="field-hint" style={{ marginBottom: 16 }}>
+        {t(inbound ? 'moves.deleteExplainIn' : 'moves.deleteExplainOut')
+          .replace('{n}', String(Math.abs(move.units)))}
+      </p>
+
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
+          {t('common.cancel')}
+        </button>
+        <button className="btn btn-danger" onClick={remove} disabled={busy}>
+          <Trash2 size={15} /> {busy ? t('common.saving') : t('edit.deleteYes')}
         </button>
       </div>
     </Modal>

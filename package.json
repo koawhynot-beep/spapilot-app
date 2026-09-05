@@ -15,7 +15,8 @@
     "test": "react-scripts test --passWithNoTests",
     "test:parser": "node src/sheetparse.test.mjs",
     "test:i18n": "node src/i18n.test.mjs",
-    "check": "node src/sheetparse.test.mjs && node src/i18n.test.mjs"
+    "test:mobile": "node src/mobile.test.mjs",
+    "check": "node src/sheetparse.test.mjs && node src/i18n.test.mjs && node src/mobile.test.mjs"
   },
   "eslintConfig": {
     "extends": [

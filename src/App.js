@@ -312,14 +312,16 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
   }, [shopList, shopSel]);
 
   // Order follows the day: ring it up, keep the rail right, check the till,
-  // then read the business. Staff get the first three.
+  // then read the business. Staff get everything except the Overview: they
+  // need History because that is where a sale gets corrected, and a mistake
+  // is spotted by whoever made it.
   const allTabs = [
     { id: 'sell',     label: t('tab.sell'),     icon: ScanLine,   staff: true },
     { id: 'stock',    label: t('tab.stock'),    icon: Package,    staff: true },
     { id: 'check',    label: t('tab.check'),    icon: ClipboardCheck, staff: true },
     { id: 'today',    label: t('tab.today'),    icon: Calendar,   staff: true },
     { id: 'overview', label: t('tab.overview'), icon: SlidersHorizontal },
-    { id: 'history',  label: t('tab.history'),  icon: History },
+    { id: 'history',  label: t('tab.history'),  icon: History,  staff: true },
   ];
   const tabs = isAdmin ? allTabs : allTabs.filter(x => x.staff);
 
@@ -407,8 +409,8 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
         {tab === 'overview' && isAdmin && (
           <OverviewView shops={shopList} shopsParam={shopsParam} />
         )}
-        {tab === 'history' && isAdmin && (
-          <HistoryView staff={staff.data} shops={shopList} shopsParam={shopsParam} />
+        {tab === 'history' && (
+          <HistoryView staff={staff.data} shops={shopList} shopsParam={shopsParam} isAdmin={isAdmin} />
         )}
       </div>
 
