@@ -5,6 +5,7 @@ import {
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
   MoreHorizontal, Sun, Moon, Printer, Undo2, ClipboardCheck,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
+  Banknote, CreditCard,
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
@@ -774,7 +775,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             <div className="field">
               <label>{t('stock.style')}</label>
               <select className="select" value={styleFilter} onChange={e => setStyleFilter(e.target.value)}>
-                <option value="">All styles ({facets.styles.length})</option>
+                <option value="">{t('stock.allStyles').replace('{n}', String(facets.styles.length))}</option>
                 {facets.styles.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -783,7 +784,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             <div className="field">
               <label>{t('stock.fabric')}</label>
               <select className="select" value={fabricFilter} onChange={e => setFabricFilter(e.target.value)}>
-                <option value="">All fabrics ({facets.fabrics.length})</option>
+                <option value="">{t('stock.allFabrics').replace('{n}', String(facets.fabrics.length))}</option>
                 {facets.fabrics.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
@@ -792,7 +793,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             <div className="field">
               <label>{t('stock.colour')}</label>
               <select className="select" value={colorFilter} onChange={e => setColorFilter(e.target.value)}>
-                <option value="">All colours ({facets.colors.length})</option>
+                <option value="">{t('stock.allColours').replace('{n}', String(facets.colors.length))}</option>
                 {facets.colors.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -801,7 +802,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             <div className="field">
               <label>{t('stock.size')}</label>
               <select className="select" value={sizeFilter} onChange={e => setSizeFilter(e.target.value)}>
-                <option value="">All sizes ({facets.sizes.length})</option>
+                <option value="">{t('stock.allSizes').replace('{n}', String(facets.sizes.length))}</option>
                 {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -1691,6 +1692,13 @@ const SCAN_MODES = [
 // and does have to check there is some.
 const ADDS_STOCK = new Set(['in', 'return']);
 
+// How the customer paid. Ids, not labels, so what gets stored does not change
+// when the language does.
+const PAYMENT_METHODS = [
+  { id: 'cash', icon: Banknote },
+  { id: 'card', icon: CreditCard },
+];
+
 // Why a piece left the shop without being sold. Kept short because staff pick
 // one on a phone, mid-task.
 const OUT_REASONS = ['Reject', 'Damaged', 'ReturnedToFactory', 'Lost', 'Sample', 'Other'];
@@ -1712,6 +1720,11 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   // What this scan does. Sell is the everyday case and stays the default.
   const [scanMode, setScanMode] = useState('sell');
   const [outReason, setOutReason] = useState(OUT_REASONS[0]);
+  // Deliberately unset to begin with: a default would be chosen once, by me,
+  // and then quietly applied to every sale for the rest of the shop's life.
+  // It stays on the last method used within the session, which is visible on
+  // screen, so a run of cash sales is still one tap each.
+  const [payment, setPayment] = useState('');
 
   // Who is scanning. Remembered on this device across shifts.
   const [staffId, setStaffId] = useState(readStaffId);
@@ -1787,8 +1800,13 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     qty,
     mode: scanMode,
     reason: scanMode === 'out' ? outReason : '',
+    payment: scanMode === 'sell' ? payment : '',
     staffId: staffId || undefined,
   });
+
+  // Nothing is sold until it is known how it was paid for. Only selling: a
+  // delivery and a write-off have no customer.
+  const needsPayment = scanMode === 'sell' && !payment;
 
   // A scanner is a keyboard that types impossibly fast. Whether it also sends
   // an Enter afterwards is a per-device setting we cannot rely on — plenty
@@ -1822,7 +1840,9 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       // tab anyway, so a false positive here is close to impossible.
       const looksScanned = gaps.length >= 3 && gaps.every(g => g < SCAN_MAX_GAP_MS);
       clearScanTimer();
-      if (looksScanned) submitCode(value);
+      // The buttons are disabled without a payment method; a scan submits by
+      // itself, so it has to be stopped here or it would walk straight past.
+      if (looksScanned && !needsPayment) submitCode(value);
     }, SCAN_IDLE_MS);
   };
 
@@ -1845,7 +1865,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
 
   const submitCode = async (raw) => {
     const c = String(raw || '').trim();
-    if (!c || !shopId) return;
+    if (!c || !shopId || needsPayment) return;
     setCode('');
     setInFlight(n => n + 1);
     setMsg(null);
@@ -1898,6 +1918,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       count: basketCount,
       shop: shopName,
       who: staffName,
+      payment,
       at: new Date(),
       no: `${Date.now()}`.slice(-8),
     });
@@ -1992,6 +2013,28 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
           </div>
         )}
 
+        {/* Above the item, not below it: the till needs this on every sale,
+            and a control that only appears once something is picked is one
+            that gets skipped on the scan path entirely. */}
+        {scanMode === 'sell' && (
+          <div className="field">
+            <label>{t('sell.paidWith')}</label>
+            <div className="segmented segmented-wide" role="group" aria-label={t('sell.paidWith')}>
+              {PAYMENT_METHODS.map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={payment === m.id ? 'is-active' : ''}
+                  onClick={() => setPayment(m.id)}
+                >
+                  <m.icon size={16} /> {t(`sell.pay.${m.id}`)}
+                </button>
+              ))}
+            </div>
+            {needsPayment && <div className="field-hint">{t('sell.pickPayment')}</div>}
+          </div>
+        )}
+
         <div className="segmented segmented-wide" role="group" aria-label={t('sell.howToFind')} style={{ marginBottom: 20 }}>
           <button type="button" className={mode === 'scan' ? 'is-active' : ''} onClick={() => setMode('scan')}>
             <ScanLine size={16} /> {t('sell.scanBarcode')}
@@ -2016,7 +2059,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                 inputMode="text"
               />
             </div>
-            <button className="btn btn-primary btn-block btn-large" disabled={!code.trim()}>
+            <button className="btn btn-primary btn-block btn-large" disabled={!code.trim() || needsPayment}>
               <ScanLine size={19} /> {t(`sell.verb.${scanMode}`)} {t('sell.one')}
               {inFlight > 0 && <span className="inflight-dot">{inFlight}</span>}
             </button>
@@ -2063,7 +2106,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                 <div className="picked-name">
                   {[picked.category, picked.fabric, picked.print, picked.color, picked.size].filter(Boolean).join(' · ') || picked.name}
                 </div>
-                <div className="picked-sub">{picked.sku} · {picked.qty} in stock</div>
+                <div className="picked-sub">{picked.sku} · {t('sell.nInStock').replace('{n}', String(picked.qty))}</div>
               </div>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPicked(null)}>
                 <X size={15} /> Change
@@ -2100,7 +2143,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
             <button
               type="button"
               className="btn btn-primary btn-block btn-large"
-              disabled={busy || (!adding && picked.qty === 0)}
+              disabled={busy || needsPayment || (!adding && picked.qty === 0)}
               onClick={submitPicked}
             >
               <Check size={19} /> {t(`sell.verb.${scanMode}`)} {sellQty}
@@ -2214,8 +2257,9 @@ function Receipt({ data }) {
       </div>
       <div className="receipt-meta">
         <div>{data.at.toLocaleDateString()} {data.at.toLocaleTimeString()}</div>
-        <div>No. {data.no}</div>
-        {data.who && <div>Served by {data.who}</div>}
+        <div>{t('sell.receiptNo').replace('{n}', data.no)}</div>
+        {data.who && <div>{t('sell.servedBy').replace('{who}', data.who)}</div>}
+        {data.payment && <div>{t('sell.paidWith')}: {t(`sell.pay.${data.payment}`)}</div>}
       </div>
       <div className="receipt-rule" />
       {data.lines.map(l => (
@@ -2474,7 +2518,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
             <div className="field">
               <label>{t('stock.style')}</label>
               <select className="select" value={styleFilter} onChange={e => setStyleFilter(e.target.value)}>
-                <option value="">All styles ({facets.styles.length})</option>
+                <option value="">{t('stock.allStyles').replace('{n}', String(facets.styles.length))}</option>
                 {facets.styles.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -2483,7 +2527,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
             <div className="field">
               <label>{t('stock.fabric')}</label>
               <select className="select" value={fabricFilter} onChange={e => setFabricFilter(e.target.value)}>
-                <option value="">All fabrics ({facets.fabrics.length})</option>
+                <option value="">{t('stock.allFabrics').replace('{n}', String(facets.fabrics.length))}</option>
                 {facets.fabrics.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
@@ -2492,7 +2536,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
             <div className="field">
               <label>{t('stock.colour')}</label>
               <select className="select" value={colorFilter} onChange={e => setColorFilter(e.target.value)}>
-                <option value="">All colours ({facets.colors.length})</option>
+                <option value="">{t('stock.allColours').replace('{n}', String(facets.colors.length))}</option>
                 {facets.colors.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -2501,7 +2545,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
             <div className="field">
               <label>{t('stock.size')}</label>
               <select className="select" value={sizeFilter} onChange={e => setSizeFilter(e.target.value)}>
-                <option value="">All sizes ({facets.sizes.length})</option>
+                <option value="">{t('stock.allSizes').replace('{n}', String(facets.sizes.length))}</option>
                 {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -2593,7 +2637,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
                       {showSold && (
                         <tr className={`sold-row ${compare ? '' : gapCls}`}>
                           <td className="sticky-col">
-                            <span className="sold-tag">sold in {year}</span>
+                            <span className="sold-tag">{t('overview.soldTag').replace('{y}', String(year))}</span>
                           </td>
                           <td colSpan={3} />
                           {data.shops.map(s => (
@@ -2607,7 +2651,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
                       {showSold && compare && (
                         <tr className={`sold-row sold-row-prev ${gapCls}`}>
                           <td className="sticky-col">
-                            <span className="sold-tag">sold in {year - 1}</span>
+                            <span className="sold-tag">{t('overview.soldTag').replace('{y}', String(year - 1))}</span>
                           </td>
                           <td colSpan={3} />
                           {data.shops.map(s => {
@@ -2701,7 +2745,7 @@ function ItemHistoryModal({ item, shopsParam, onClose }) {
       {!loading && data.movements.length === 0 && (
         <div className="empty empty-sm">
           <History size={26} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>Nothing recorded in {year}</h3>
+          <h3>{t('item.nothingInYear').replace('{y}', String(year))}</h3>
           <p>{t('item.willShowOnceScanned')}</p>
         </div>
       )}

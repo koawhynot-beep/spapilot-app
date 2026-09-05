@@ -1576,7 +1576,7 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
    at a glance. */
 .sale-row {
   display: grid;
-  grid-template-columns: 92px 1fr 110px 78px 116px;
+  grid-template-columns: 92px 1fr 76px 110px 78px 116px;
   gap: var(--s-3);
   align-items: center;
   padding: 11px var(--s-5);
@@ -1614,12 +1614,20 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
   .sale-row {
     padding: 11px var(--s-4);
     grid-template-columns: 1fr auto;
-    grid-template-areas: "main qty" "sub val";
+    /* The pill gets its own line rather than a share of the sub cell: the
+       time and the staff name already sit in there, one flushed left and one
+       right, and a third child in the same grid area just prints on top of
+       them. The row collapses when there is no method recorded, because the
+       element is not rendered at all. */
+    grid-template-areas: "main qty" "sub val" "pay pay";
     row-gap: 2px;
   }
   .sale-when { grid-area: sub; flex-direction: row; gap: 6px; }
   .sale-main { grid-area: main; }
+  /* On a phone the row folds to two columns, so the payment pill joins the
+     staff name on the sub line rather than claiming a column of its own. */
   .sale-who { grid-area: sub; text-align: right; }
+  .sale-pay { grid-area: pay; text-align: left; }
   .sale-qty { grid-area: qty; }
   .sale-value { grid-area: val; }
 }
@@ -1997,3 +2005,15 @@ input[type="datetime-local"].input {
   -webkit-appearance: none;
   appearance: none;
 }
+
+/* ── How it was paid ──────────────────────────────────── */
+.sale-pay { min-width: 0; }
+.pay-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  border: 1px solid var(--line);
+  color: var(--text-2);
+}
+.pay-pill.is-cash { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.pay-pill.is-card { background: var(--primary-soft); color: var(--primary); border-color: transparent; }

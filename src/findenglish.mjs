@@ -82,6 +82,11 @@ export function findEnglish(files, dir) {
       //   {sold.total} pieces sold in {year}
       // which has no angle brackets around it at all.
       for (const m of ln.matchAll(/\}([^<>{}]{3,90})\{/g)) hit(m[1]);
+      // Text that opens a tag and runs into an expression -- >Served by {who}
+      // -- which neither of the two above catches.
+      for (const m of ln.matchAll(/>([^<>{}]{3,90})\{/g)) hit(m[1]);
+      // ...and the mirror of it: an expression, then text, then the close.
+      for (const m of ln.matchAll(/\}([^<>{}]{3,90})</g)) hit(m[1]);
 
       // A line that is nothing but JSX text, e.g. a label on its own line.
       const bare = bareLine;

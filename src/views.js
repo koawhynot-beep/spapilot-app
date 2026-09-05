@@ -6,7 +6,7 @@
 // order it happened, so the drawer can be balanced at close. History is the
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, History, TrendingUp, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus } from 'lucide-react';
+import { Calendar, History, TrendingUp, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard } from 'lucide-react';
 import { Modal, SearchField } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
@@ -94,6 +94,17 @@ const SaleRow = ({ r, showDate, showShop, onEdit }) => {
         {showShop && r.shopName ? ` · ${r.shopName}` : ''}
       </div>
     </div>
+    {/* How it was paid for, next to what was sold. Sales taken before this
+        was recorded simply have nothing here — an empty cell is honest,
+        where a dash or a default would read as a fact. */}
+    {r.payment && (
+      <div className="sale-pay">
+        <span className={`pay-pill is-${r.payment}`}>
+          {r.payment === 'cash' ? <Banknote size={12} /> : <CreditCard size={12} />}
+          {t(r.payment === 'cash' ? 'sale.paidCash' : 'sale.paidCard')}
+        </span>
+      </div>
+    )}
     <div className="sale-who">{r.staffName}</div>
     <div className="sale-qty">
       {r.units}
@@ -389,6 +400,7 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
   // Blank means "whatever it costs on the shelf", which is what every sale
   // recorded before this screen existed still means.
   const [price, setPrice] = useState(sale.unitPrice === null ? '' : String(sale.unitPrice));
+  const [pay, setPay] = useState(sale.payment || '');
   // datetime-local wants "YYYY-MM-DDTHH:mm" in local time, which is exactly
   // what toISOString does not give you.
   const [when, setWhen] = useState(() => localInputValue(sale.occurredAt));
@@ -419,6 +431,7 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
       const trimmed = String(price).trim();
       body.unitPrice = trimmed === '' ? null : Number(trimmed);
       if (when) body.occurredAt = new Date(when).toISOString();
+      body.payment = pay;
       const staffId = readStaffId();
       if (staffId) body.staffId = staffId;
       const updated = await api(`/api/sales/${sale.id}`, { method: 'PATCH', body });
@@ -533,6 +546,21 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
               ? t('edit.priceShelf').replace('{p}', idr(shelf))
               : t('edit.priceCustom')}
           </div>
+        </div>
+      </div>
+
+      <div className="field">
+        <label>{t('edit.paidWith')}</label>
+        <div className="segmented segmented-wide" role="group" aria-label={t('edit.paidWith')}>
+          <button type="button" className={pay === '' ? 'is-active' : ''} onClick={() => setPay('')}>
+            {t('edit.payNone')}
+          </button>
+          <button type="button" className={pay === 'cash' ? 'is-active' : ''} onClick={() => setPay('cash')}>
+            <Banknote size={15} /> {t('sell.pay.cash')}
+          </button>
+          <button type="button" className={pay === 'card' ? 'is-active' : ''} onClick={() => setPay('card')}>
+            <CreditCard size={15} /> {t('sell.pay.card')}
+          </button>
         </div>
       </div>
 
