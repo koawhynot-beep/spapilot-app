@@ -9,6 +9,8 @@ import {
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
 import { TodayView, HistoryView } from './views';
+import { Modal, SearchField } from './ui';
+import { tStatic } from './i18n';
 import { StockCheckView } from './stockcheck';
 import { parseStockSheet } from './sheetparse';
 import './App.css';
@@ -35,7 +37,8 @@ const countByFabric = (list) => {
   return counts;
 };
 
-const productCount = (n) => `${(n || 0).toLocaleString()} product${n === 1 ? '' : 's'}`;
+const productCount = (t, n) =>
+  (n === 1 ? t('stock.oneProduct') : t('stock.nProducts').replace('{n}', (n || 0).toLocaleString()));
 
 // Sizes and styles of one colour belong together — no gap between them. The
 // break she wants to see is the colour changing, so that is the only place a
@@ -62,10 +65,10 @@ class ErrorBoundary extends Component {
         <div className="auth-screen">
           <div className="auth-card" style={{ textAlign: 'center' }}>
             <AlertTriangle size={48} color="var(--bad)" style={{ margin: '0 auto 16px' }} />
-            <h2>Something went wrong</h2>
-            <p style={{ color: 'var(--text-2)', marginBottom: 24 }}>Try reloading the app.</p>
+            <h2>{tStatic('common.somethingWrong')}</h2>
+            <p style={{ color: 'var(--text-2)', marginBottom: 24 }}>{tStatic('common.tryReloading')}</p>
             <button className="btn btn-primary btn-block" onClick={() => window.location.reload()}>
-              Reload
+              {tStatic('common.refresh')}
             </button>
           </div>
         </div>
@@ -122,49 +125,7 @@ function ToastProvider({ children }) {
 }
 const useToast = () => React.useContext(ToastCtx);
 
-// ── Modal ─────────────────────────────────────────────────
-function Modal({ title, onClose, children }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{title}</h2>
-          <button className="btn btn-ghost" style={{ minHeight: 'auto', padding: '8px 12px' }} onClick={onClose} aria-label="close">
-            <X size={20} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 // ── Shared UI primitives ──────────────────────────────────
-
-// Search box with a leading icon and an inline clear button.
-function SearchField({ value, onChange, placeholder }) {
-  return (
-    <div className="search-wrap">
-      <Search size={17} className="search-icon" />
-      <input
-        className="input"
-        placeholder={placeholder}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-      />
-      {value && (
-        <button type="button" className="search-clear" onClick={() => onChange('')} aria-label="clear search">
-          <X size={16} />
-        </button>
-      )}
-    </div>
-  );
-}
 
 // "•••" overflow menu. Collapses secondary row actions to one control.
 function RowMenu({ children, label = 'More actions' }) {
@@ -237,6 +198,7 @@ function Disclosure({ title, tail, defaultOpen = false, children }) {
 // Light / dark switch. index.html has already applied the stored (or
 // system) choice before paint; this just reads it back and flips it.
 function ThemeToggle() {
+  const t = useT();
   const [dark, setDark] = useState(
     () => document.documentElement.getAttribute('data-theme') === 'dark'
   );
@@ -259,11 +221,11 @@ function ThemeToggle() {
     <button
       className="topbar-btn topbar-btn-labelled"
       onClick={toggle}
-      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={dark ? t('theme.toLight') : t('theme.toDark')}
+      title={dark ? t('theme.toLight') : t('theme.toDark')}
     >
       {dark ? <Sun size={17} /> : <Moon size={17} />}
-      <span>{dark ? 'Light' : 'Dark'}</span>
+      <span>{dark ? t('theme.light') : t('theme.dark')}</span>
     </button>
   );
 }
@@ -512,6 +474,7 @@ function ShopSwitcher({ shops, value, onChange, allowAll, activeShopId, onPickAc
 // STOCK VIEW
 // ═══════════════════════════════════════════════════════════
 function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, jump, onJumpHandled }) {
+  const t = useT();
   const toast = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -643,7 +606,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
       const updated = await api(`/api/stock/${item.id}/group`, { method: 'PATCH', body: { groupId } });
       setItems(items.map(i => i.id === item.id ? updated : i));
       setGroupModalItem(null);
-      toast(groupId ? 'Moved to group' : 'Removed from group');
+      toast(groupId ? t('stock.movedToGroup') : t('stock.removedFromGroup'));
       // If a filter is active, the item may now be filtered out — reload to sync
       if (selectedGroup !== 'all') loadStock();
     } catch (e) { toast(e.message); }
@@ -724,14 +687,14 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
       <div className="card">
         <div className="empty">
           <Store size={32} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>No shops yet</h3>
-          <p>Go to the Shops tab to add your first shop, then come back here to track stock.</p>
+          <h3>{t('stock.noShops')}</h3>
+          <p>{t('stock.goToShopsTab')}</p>
         </div>
       </div>
     );
   }
 
-  if (!selectedShopId) return <div className="loading">Loading shops…</div>;
+  if (!selectedShopId) return <div className="loading">{t('stock.loadingShops')}</div>;
 
   const updateQty = async (item, delta) => {
     const newQty = Math.max(0, item.qty + delta);
@@ -759,25 +722,25 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
         <SearchField
           value={search}
           onChange={setSearch}
-          placeholder="Search name, fabric, colour, size, code…"
+          placeholder={t('stock.searchPlaceholder')}
         />
         <select
           className="select select-inline toolbar-sort"
           value={sortBy}
           onChange={e => setSortBy(e.target.value)}
-          aria-label="Sort"
+          aria-label={t('common.sort')}
         >
-          <option value="fabric-color">Fabric → Colour → Style</option>
-          <option value="qty-asc">Fewest in stock first</option>
-          <option value="qty-desc">Most in stock first</option>
-          <option value="color">Colour A–Z</option>
-          <option value="style">Style A–Z</option>
-          <option value="name">Product name A–Z</option>
-          {!isAll && <option value="custom">Custom (drag to reorder)</option>}
+          <option value="fabric-color">{t('stock.sortFabricColor')}</option>
+          <option value="qty-asc">{t('stock.sortFewest')}</option>
+          <option value="qty-desc">{t('stock.sortMost')}</option>
+          <option value="color">{t('stock.sortColor')}</option>
+          <option value="style">{t('stock.sortStyle')}</option>
+          <option value="name">{t('stock.sortName')}</option>
+          {!isAll && <option value="custom">{t('stock.sortCustom')}</option>}
         </select>
         {perms.canAddItems && !isAll && (
           <button className="btn btn-primary" onClick={() => setModal('new')}>
-            <Plus size={18} /> Add item
+            <Plus size={18} /> {t('stock.addItem')}
           </button>
         )}
       </div>
@@ -791,13 +754,13 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           aria-expanded={filtersOpen}
         >
           <SlidersHorizontal size={16} />
-          Filters
+          {t('stock.filters')}
           {activeFilterCount > 0 && <span className="filter-count">{activeFilterCount}</span>}
         </button>
         {(summary.lowCount + summary.outCount) > 0 && !isAll && (
           <button type="button" className="filter-toggle" onClick={() => setReorderOpen(true)}>
             <AlertTriangle size={16} />
-            Reorder list
+            {t('stock.reorderList')}
             <span className="filter-count">{summary.lowCount + summary.outCount}</span>
           </button>
         )}
@@ -807,7 +770,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
         <div className="filter-panel">
           {facets.styles.length > 0 && (
             <div className="field">
-              <label>Style</label>
+              <label>{t('stock.style')}</label>
               <select className="select" value={styleFilter} onChange={e => setStyleFilter(e.target.value)}>
                 <option value="">All styles ({facets.styles.length})</option>
                 {facets.styles.map(s => <option key={s} value={s}>{s}</option>)}
@@ -816,7 +779,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           )}
           {facets.fabrics.length > 0 && (
             <div className="field">
-              <label>Fabric</label>
+              <label>{t('stock.fabric')}</label>
               <select className="select" value={fabricFilter} onChange={e => setFabricFilter(e.target.value)}>
                 <option value="">All fabrics ({facets.fabrics.length})</option>
                 {facets.fabrics.map(f => <option key={f} value={f}>{f}</option>)}
@@ -825,7 +788,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           )}
           {facets.colors.length > 0 && (
             <div className="field">
-              <label>Colour</label>
+              <label>{t('stock.colour')}</label>
               <select className="select" value={colorFilter} onChange={e => setColorFilter(e.target.value)}>
                 <option value="">All colours ({facets.colors.length})</option>
                 {facets.colors.map(c => <option key={c} value={c}>{c}</option>)}
@@ -834,7 +797,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           )}
           {facets.sizes.length > 0 && (
             <div className="field">
-              <label>Size</label>
+              <label>{t('stock.size')}</label>
               <select className="select" value={sizeFilter} onChange={e => setSizeFilter(e.target.value)}>
                 <option value="">All sizes ({facets.sizes.length})</option>
                 {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
@@ -843,7 +806,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           )}
           {!isAll && (
             <div className="field">
-              <label>Group</label>
+              <label>{t('stock.group')}</label>
               <button
                 type="button"
                 className="btn btn-secondary btn-block"
@@ -877,27 +840,27 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           all-shops ones, because a product can be empty here but stocked elsewhere. */}
       <p className="scope-note">
         {isAll
-          ? 'Counted across all shops combined.'
-          : `Counted at ${shops.find(s => s.id === selectedShopId)?.name || 'this shop'} only — a product can be out here but still in stock at another shop.`}
+          ? t('stock.countedAllShops')
+          : t('stock.countedAtOnly').replace('{s}', shops.find(s => s.id === selectedShopId)?.name || t('stock.thisShop'))}
       </p>
       <div className="stat-grid">
         <StatCard
           value={summary.inStockCount}
-          label="In stock"
+          label={t('stock.inStock')}
           tone="good"
           active={statusFilter === 'in'}
           onClick={() => setStatusFilter(statusFilter === 'in' ? 'all' : 'in')}
         />
         <StatCard
           value={summary.lowCount}
-          label="Low stock"
+          label={t('stock.lowStock')}
           tone="warn"
           active={statusFilter === 'low'}
           onClick={() => setStatusFilter(statusFilter === 'low' ? 'all' : 'low')}
         />
         <StatCard
           value={summary.outCount}
-          label="Out of stock"
+          label={t('stock.outOfStock')}
           tone="bad"
           active={statusFilter === 'out'}
           onClick={() => setStatusFilter(statusFilter === 'out' ? 'all' : 'out')}
@@ -905,24 +868,24 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
       </div>
 
       <Disclosure
-        title="Totals"
-        tail={`${summary.totalItems.toLocaleString()} products · ${summary.totalUnits.toLocaleString()} pieces`}
+        title={t('stock.totals')}
+        tail={t('stock.productsPieces').replace('{p}', summary.totalItems.toLocaleString()).replace('{u}', summary.totalUnits.toLocaleString())}
       >
         <div className="metric-row">
           <div>
-            <div className="metric-label">Different products</div>
+            <div className="metric-label">{t('stock.differentProducts')}</div>
             <div className="metric-value">{summary.totalItems.toLocaleString()}</div>
-            <div className="detail-k" style={{ marginTop: 4 }}>each colour and size counts once</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>{t('stock.eachColourOnce')}</div>
           </div>
           <div>
-            <div className="metric-label">Total pieces</div>
+            <div className="metric-label">{t('stock.totalPieces')}</div>
             <div className="metric-value">{summary.totalUnits.toLocaleString()}</div>
-            <div className="detail-k" style={{ marginTop: 4 }}>actual garments on the rails</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>{t('stock.actualGarments')}</div>
           </div>
           <div>
-            <div className="metric-label">Need reordering</div>
+            <div className="metric-label">{t('stock.needReordering')}</div>
             <div className="metric-value">{(summary.lowCount + summary.outCount).toLocaleString()}</div>
-            <div className="detail-k" style={{ marginTop: 4 }}>low stock plus out of stock</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>{t('stock.lowPlusOut')}</div>
           </div>
         </div>
       </Disclosure>
@@ -930,24 +893,24 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
       {statusFilter !== 'all' && (
         <div className="filter-bar">
           <button type="button" className="filter-toggle is-open" onClick={() => setStatusFilter('all')}>
-            {statusFilter === 'in' ? 'In stock' : statusFilter === 'low' ? 'Low stock' : 'Out of stock'} only
+            {t('stock.onlyShowing').replace('{s}', statusFilter === 'in' ? t('stock.inStock') : statusFilter === 'low' ? t('stock.lowStock') : t('stock.outOfStock'))}
             <X size={15} />
           </button>
         </div>
       )}
 
-      {loading && <div className="loading">Loading…</div>}
+      {loading && <div className="loading">{t('common.loading')}</div>}
       {error && <div className="error-banner">{error}</div>}
 
       {!loading && displayedItems.length === 0 && (
         <div className="card">
           <div className="empty">
             <Package size={32} color="var(--text-3)" style={{ margin: '0 auto' }} />
-            <h3>{search ? 'No items match' : statusFilter !== 'all' ? `No ${statusFilter === 'low' ? 'low-stock' : 'out-of-stock'} items` : 'No stock yet'}</h3>
-            <p>{search ? 'Try a different search.' : statusFilter !== 'all' ? 'Switch back to All to see everything.' : 'Add your first item to start tracking inventory.'}</p>
+            <h3>{search ? t('stock.noItemsMatch') : statusFilter !== 'all' ? t(statusFilter === 'low' ? 'stock.noLowItems' : 'stock.noOutItems') : t('stock.noStockYet')}</h3>
+            <p>{search ? t('stock.tryDifferentSearch') : statusFilter !== 'all' ? t('stock.switchBackAll') : t('stock.addFirstItem')}</p>
             {perms.canAddItems && !search && statusFilter === 'all' && (
               <button className="btn btn-primary" onClick={() => setModal('new')}>
-                <Plus size={18} /> Add first item
+                <Plus size={18} /> {t('stock.addFirstItemBtn')}
               </button>
             )}
           </div>
@@ -971,7 +934,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             <div className="fabric-head">
               <span className="fabric-head-name">{fabricOf(item)}</span>
               <span className="fabric-head-count">
-                {productCount(fabricCounts[fabricOf(item)])}
+                {productCount(t, fabricCounts[fabricOf(item)])}
               </span>
             </div>
           )}
@@ -991,7 +954,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
                   type="button"
                   className="product-thumb-btn"
                   onClick={(e) => { e.stopPropagation(); setLightboxUrl(item.imageUrl); }}
-                  aria-label="View photo"
+                  aria-label={t('stock.viewPhoto')}
                   draggable={false}
                 >
                   <img
@@ -1010,8 +973,8 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
                   {item.sku && <span className="product-sku">{item.sku}</span>}
                   {item.sku && Number(item.price) > 0 && <span className="dot-sep">·</span>}
                   {Number(item.price) > 0 && <span className="product-price">{idr(item.price)}</span>}
-                  {out && <span className="pill pill-bad">Out of stock</span>}
-                  {low && <span className="pill pill-warn">Low stock</span>}
+                  {out && <span className="pill pill-bad">{t('stock.outOfStock')}</span>}
+                  {low && <span className="pill pill-warn">{t('stock.lowStock')}</span>}
                 </div>
               </div>
 
@@ -1019,27 +982,27 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
                 <div className="qty-value">{item.qty}</div>
               ) : (
                 <div className="qty-group">
-                  <button className="qty-btn" disabled={!perms.canEditStock || item.qty === 0} onClick={() => updateQty(item, -1)} aria-label="decrease">
+                  <button className="qty-btn" disabled={!perms.canEditStock || item.qty === 0} onClick={() => updateQty(item, -1)} aria-label={t('stock.decrease')}>
                     <Minus size={16} />
                   </button>
                   <div className="qty-value">{item.qty}</div>
-                  <button className="qty-btn" disabled={!perms.canEditStock} onClick={() => updateQty(item, 1)} aria-label="increase">
+                  <button className="qty-btn" disabled={!perms.canEditStock} onClick={() => updateQty(item, 1)} aria-label={t('stock.increase')}>
                     <Plus size={16} />
                   </button>
                 </div>
               )}
 
               {!isAll && (perms.canEditStock || perms.canDeleteItems) && (
-                <RowMenu label={`Actions for ${item.name}`}>
-                  {perms.canEditStock && <MenuItem icon={Calendar} onClick={() => setLogModal(item)}>Log entry</MenuItem>}
+                <RowMenu label={t('stock.actionsFor').replace('{name}', item.name)}>
+                  {perms.canEditStock && <MenuItem icon={Calendar} onClick={() => setLogModal(item)}>{t('stock.logEntry')}</MenuItem>}
                   {perms.canEditStock && (
                     <MenuItem icon={FolderOpen} onClick={() => setGroupModalItem(item)}>
-                      {itemGroup ? 'Move group' : 'Add to group'}
+                      {itemGroup ? t('stock.moveGroup') : t('stock.addToGroup')}
                     </MenuItem>
                   )}
-                  {perms.canEditStock && <MenuItem icon={Edit2} onClick={() => setModal(item)}>Edit</MenuItem>}
+                  {perms.canEditStock && <MenuItem icon={Edit2} onClick={() => setModal(item)}>{t('common.edit')}</MenuItem>}
                   {perms.canDeleteItems && <div className="menu-sep" />}
-                  {perms.canDeleteItems && <MenuItem icon={Trash2} danger onClick={() => removeItem(item)}>Delete</MenuItem>}
+                  {perms.canDeleteItems && <MenuItem icon={Trash2} danger onClick={() => removeItem(item)}>{t('common.delete')}</MenuItem>}
                 </RowMenu>
               )}
             </div>
@@ -1050,7 +1013,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
               onClick={() => setExpandedId(expanded ? null : item.id)}
               aria-expanded={expanded}
             >
-              {expanded ? 'Hide details' : 'Details'}
+              {expanded ? t('common.hideDetails') : t('common.details')}
               <ChevronRight
                 size={13}
                 style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.18s ease' }}
@@ -1060,39 +1023,39 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             {expanded && (
               <div className="details-body">
                 {item.name && title !== item.name && (
-                  <div><div className="detail-k">Product</div><div className="detail-v">{item.name}</div></div>
+                  <div><div className="detail-k">{t('item.product')}</div><div className="detail-v">{item.name}</div></div>
                 )}
                 {Number(item.price) > 0 && (
                   <div>
-                    <div className="detail-k">Stock value</div>
+                    <div className="detail-k">{t('item.stockValue')}</div>
                     <div className="detail-v">{idr(item.qty * Number(item.price))}</div>
                   </div>
                 )}
-                <div><div className="detail-k">Low-stock alert</div><div className="detail-v">{item.threshold}</div></div>
+                <div><div className="detail-k">{t('item.lowStockAlert')}</div><div className="detail-v">{item.threshold}</div></div>
                 {item.supplier && (
-                  <div><div className="detail-k">Supplier</div><div className="detail-v">{item.supplier}</div></div>
+                  <div><div className="detail-k">{t('item.supplier')}</div><div className="detail-v">{item.supplier}</div></div>
                 )}
                 {item.createdAt && (
                   <div>
-                    <div className="detail-k">Stocked</div>
+                    <div className="detail-k">{t('item.stocked')}</div>
                     <div className="detail-v">{new Date(item.createdAt).toLocaleDateString()}</div>
                   </div>
                 )}
                 {item.lastSoldAt && (
                   <div>
-                    <div className="detail-k">Last sold</div>
+                    <div className="detail-k">{t('item.lastSold')}</div>
                     <div className="detail-v">{new Date(item.lastSoldAt).toLocaleDateString()}</div>
                   </div>
                 )}
                 {itemGroup && (
                   <div>
-                    <div className="detail-k">Group</div>
+                    <div className="detail-k">{t('stock.group')}</div>
                     <div className="detail-v"><span className="group-tag"><FolderOpen size={11} /> {itemGroup.name}</span></div>
                   </div>
                 )}
                 {isAll && Object.keys(item.byShop || {}).length > 0 && (
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="detail-k">By shop</div>
+                    <div className="detail-k">{t('item.byShop')}</div>
                     <div className="detail-v" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       {Object.entries(item.byShop).map(([shopName, q]) => (
                         <span key={shopName}>{shopName}: <strong>{q}</strong></span>
@@ -1102,7 +1065,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
                 )}
                 {item.notes && (
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="detail-k">Notes</div>
+                    <div className="detail-k">{t('item.notes')}</div>
                     <div className="detail-v">{item.notes}</div>
                   </div>
                 )}
@@ -1118,7 +1081,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           item={modal === 'new' ? null : modal}
           shopId={selectedShopId}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); loadStock(); toast(modal === 'new' ? 'Item added' : 'Item updated'); }}
+          onSaved={() => { setModal(null); loadStock(); toast(modal === 'new' ? t('stock.itemAdded') : t('stock.itemUpdated')); }}
         />
       )}
 
@@ -1190,6 +1153,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
 
 // ── Lightbox: full-image view ─────────────────────────────
 function Lightbox({ url, onClose }) {
+  const t = useT();
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -1201,7 +1165,7 @@ function Lightbox({ url, onClose }) {
         type="button"
         className="lightbox-close"
         onClick={onClose}
-        aria-label="close"
+        aria-label={t('common.close')}
       >
         <X size={28} />
       </button>
@@ -1217,6 +1181,7 @@ function Lightbox({ url, onClose }) {
 
 // ── Reorder report: items needing restock, grouped by supplier ──
 function ReorderReportModal({ items, onClose }) {
+  const t = useT();
   const needsReorder = useMemo(() => {
     return items.filter(i => i.qty === 0 || i.qty <= i.threshold);
   }, [items]);
@@ -1248,12 +1213,12 @@ function ReorderReportModal({ items, onClose }) {
   };
 
   return (
-    <Modal title={`Reorder list — ${needsReorder.length} item${needsReorder.length === 1 ? '' : 's'}`} onClose={onClose}>
+    <Modal title={t('stock.reorderListTitle').replace('{n}', String(needsReorder.length))} onClose={onClose}>
       {needsReorder.length === 0 ? (
         <div className="empty empty-sm">
           <Check size={28} color="var(--good)" style={{ margin: '0 auto' }} />
-          <h3>Nothing to reorder</h3>
-          <p>All stock is above the low-stock alert level.</p>
+          <h3>{t('stock.nothingToReorder')}</h3>
+          <p>{t('stock.allAboveAlert')}</p>
         </div>
       ) : (
         <>
@@ -1301,6 +1266,7 @@ function ReorderReportModal({ items, onClose }) {
 
 // ── Group selector modal (browse / pick / create / delete) ──
 function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, onAdd, onDelete, onClose }) {
+  const t = useT();
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -1317,7 +1283,7 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
   };
 
   return (
-    <Modal title="Groups" onClose={onClose}>
+    <Modal title={t('groups.title')} onClose={onClose}>
       <div className="group-pick-list">
         <button
           type="button"
@@ -1325,13 +1291,13 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
           onClick={() => onPick('all')}
         >
           <FolderOpen size={18} />
-          <span className="group-pick-name">All items</span>
+          <span className="group-pick-name">{t('groups.allItems')}</span>
           {selectedGroup === 'all' && <Check size={20} className="group-pick-check" />}
         </button>
 
         {groups.length === 0 && (
           <div style={{ color: 'var(--text-2)', fontSize: 14, padding: '14px 8px', textAlign: 'center' }}>
-            No groups yet. Create one below.
+            {t('groups.none')}
           </div>
         )}
 
@@ -1354,7 +1320,7 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
                   className="group-pick-delete"
                   onClick={() => onDelete(g)}
                   aria-label={`delete ${g.name}`}
-                  title={`Delete "${g.name}"`}
+                  title={t('stock.deleteNamed').replace('{name}', g.name)}
                 >
                   <Trash2 size={18} />
                 </button>
@@ -1366,11 +1332,11 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
 
       {canAdd && (
         <div className="group-pick-add">
-          <label>New group</label>
+          <label>{t('groups.new')}</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               className="input"
-              placeholder="e.g. Dress, Pant, Summer"
+              placeholder={t('groups.egName')}
               value={newName}
               onChange={e => setNewName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); create(); } }}
@@ -1388,6 +1354,7 @@ function GroupSelectorModal({ groups, selectedGroup, canDelete, canAdd, onPick, 
 
 // ── Move-to-group modal ───────────────────────────────────
 function MoveToGroupModal({ item, groups, onClose, onPick, onAddGroup }) {
+  const t = useT();
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -1403,7 +1370,7 @@ function MoveToGroupModal({ item, groups, onClose, onPick, onAddGroup }) {
   };
 
   return (
-    <Modal title={`Move "${item.name}"`} onClose={onClose}>
+    <Modal title={t('stock.moveNamed').replace('{name}', item.name)} onClose={onClose}>
       <div style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 12 }}>
         <button
           type="button"
@@ -1414,7 +1381,7 @@ function MoveToGroupModal({ item, groups, onClose, onPick, onAddGroup }) {
           <X size={16} /> No group (remove from current)
         </button>
         {groups.length === 0 && (
-          <div style={{ color: 'var(--text-2)', padding: 8, fontSize: 14 }}>No groups yet. Create one below.</div>
+          <div style={{ color: 'var(--text-2)', padding: 8, fontSize: 14 }}>{t('groups.none')}</div>
         )}
         {groups.map(g => (
           <button
@@ -1430,11 +1397,11 @@ function MoveToGroupModal({ item, groups, onClose, onPick, onAddGroup }) {
         ))}
       </div>
       <div style={{ borderTop: '1px solid var(--line-soft)', paddingTop: 14 }}>
-        <label style={{ display: 'block', fontSize: 14, color: 'var(--text-2)', marginBottom: 6 }}>Or create a new group</label>
+        <label style={{ display: 'block', fontSize: 14, color: 'var(--text-2)', marginBottom: 6 }}>{t('groups.orCreate')}</label>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             className="input"
-            placeholder="Group name"
+            placeholder={t('groups.name')}
             value={newName}
             onChange={e => setNewName(e.target.value)}
             style={{ flex: 1 }}
@@ -1451,6 +1418,7 @@ function MoveToGroupModal({ item, groups, onClose, onPick, onAddGroup }) {
 
 // ── Stock modal ───────────────────────────────────────────
 function StockModal({ item, shopId, onClose, onSaved }) {
+  const t = useT();
   const [f, setF] = useState(item ? {
     ...item,
     qty: String(item.qty ?? ''),
@@ -1485,21 +1453,21 @@ function StockModal({ item, shopId, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={item ? 'Edit item' : 'New item'} onClose={onClose}>
+    <Modal title={item ? t('form.editItem') : t('form.newItem')} onClose={onClose}>
       <form onSubmit={save}>
         {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
         <div className="field">
-          <label>Name</label>
-          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="e.g. Cotton T-shirt" />
+          <label>{t('common.name')}</label>
+          <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={t('form.egName')} />
         </div>
         <div className="field">
-          <label>Photo URL (optional)</label>
+          <label>{t('form.photoUrl')}</label>
           <input
             className="input"
             type="url"
             value={f.imageUrl}
             onChange={e => setF({ ...f, imageUrl: e.target.value })}
-            placeholder="https://… (paste a picture link)"
+            placeholder={t('form.photoHint')}
           />
           {f.imageUrl && (
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1509,57 +1477,57 @@ function StockModal({ item, shopId, onClose, onSaved }) {
                 style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--line)' }}
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
-              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Preview</span>
+              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{t('form.preview')}</span>
             </div>
           )}
         </div>
         <div className="field">
-          <label>Category</label>
-          <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} placeholder="e.g. Dress, Top, Pants" />
+          <label>{t('form.category')}</label>
+          <input className="input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })} placeholder={t('form.egCategory')} />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Fabric</label>
-            <input className="input" value={f.fabric} onChange={e => setF({ ...f, fabric: e.target.value })} placeholder="e.g. Cotton, Silk" />
+            <label>{t('stock.fabric')}</label>
+            <input className="input" value={f.fabric} onChange={e => setF({ ...f, fabric: e.target.value })} placeholder={t('form.egFabric')} />
           </div>
           <div className="field" style={{ flex: 1 }}>
-            <label>Print / Pattern</label>
-            <input className="input" value={f.print} onChange={e => setF({ ...f, print: e.target.value })} placeholder="e.g. Floral, Plain" />
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Size</label>
-            <input className="input" value={f.size} onChange={e => setF({ ...f, size: e.target.value })} placeholder="S, M, L, etc." />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Color</label>
-            <input className="input" value={f.color} onChange={e => setF({ ...f, color: e.target.value })} placeholder="Optional" />
+            <label>{t('form.print')}</label>
+            <input className="input" value={f.print} onChange={e => setF({ ...f, print: e.target.value })} placeholder={t('form.egPrint')} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Brand</label>
-            <input className="input" value={f.brand} onChange={e => setF({ ...f, brand: e.target.value })} placeholder="Optional" />
+            <label>{t('stock.size')}</label>
+            <input className="input" value={f.size} onChange={e => setF({ ...f, size: e.target.value })} placeholder={t('form.egSize')} />
           </div>
           <div className="field" style={{ flex: 1 }}>
-            <label>SKU</label>
-            <input className="input" value={f.sku} onChange={e => setF({ ...f, sku: e.target.value })} placeholder="Optional" />
+            <label>{t('form.color')}</label>
+            <input className="input" value={f.color} onChange={e => setF({ ...f, color: e.target.value })} placeholder={t('common.optional')} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Quantity</label>
+            <label>{t('form.brand')}</label>
+            <input className="input" value={f.brand} onChange={e => setF({ ...f, brand: e.target.value })} placeholder={t('common.optional')} />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>{t('form.sku')}</label>
+            <input className="input" value={f.sku} onChange={e => setF({ ...f, sku: e.target.value })} placeholder={t('common.optional')} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>{t('form.quantity')}</label>
             <input className="input" type="number" min="0" inputMode="numeric" value={f.qty} onChange={e => setF({ ...f, qty: e.target.value })} />
           </div>
           <div className="field" style={{ flex: 1 }}>
-            <label>Low-stock alert</label>
+            <label>{t('item.lowStockAlert')}</label>
             <input className="input" type="number" min="0" inputMode="numeric" value={f.threshold} onChange={e => setF({ ...f, threshold: e.target.value })} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Sells for (IDR)</label>
+            <label>{t('form.sellsFor')}</label>
             <input
               className="input"
               type="number"
@@ -1572,7 +1540,7 @@ function StockModal({ item, shopId, onClose, onSaved }) {
             />
           </div>
           <div className="field" style={{ flex: 1 }}>
-            <label>Cost (IDR, optional)</label>
+            <label>{t('form.cost')}</label>
             <input
               className="input"
               type="number"
@@ -1583,20 +1551,20 @@ function StockModal({ item, shopId, onClose, onSaved }) {
               onChange={e => setF({ ...f, cost: e.target.value })}
               placeholder="0"
             />
-            <div className="field-hint">What you paid — used for margin.</div>
+            <div className="field-hint">{t('form.costHint')}</div>
           </div>
         </div>
         <div className="field">
-          <label>Supplier</label>
-          <input className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} placeholder="Optional" />
+          <label>{t('item.supplier')}</label>
+          <input className="input" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} placeholder={t('common.optional')} />
         </div>
         <div className="field">
-          <label>Notes</label>
-          <textarea className="textarea" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} placeholder="Optional" />
+          <label>{t('item.notes')}</label>
+          <textarea className="textarea" value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} placeholder={t('common.optional')} />
         </div>
         <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? t('common.saving') : t('common.save')}</button>
         </div>
       </form>
     </Modal>
@@ -1605,6 +1573,7 @@ function StockModal({ item, shopId, onClose, onSaved }) {
 
 // ── Movement modal: log stock-in / stock-out with date ─────
 function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
+  const t = useT();
   const todayISO = () => {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, '0');
@@ -1641,11 +1610,11 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
   };
 
   return (
-    <Modal title={`Log entry — ${item.name}`} onClose={onClose}>
+    <Modal title={t('stock.logEntryFor').replace('{name}', item.name)} onClose={onClose}>
       <form onSubmit={save}>
         {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
         <div className="field">
-          <label>Type</label>
+          <label>{t('common.type')}</label>
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="button" className={`btn ${type === 'in' ? 'btn-primary' : 'btn-ghost'}`} style={{ flex: 1 }} onClick={() => setType('in')}>
               <TrendingUp size={18} /> Stock added
@@ -1657,21 +1626,21 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>How many?</label>
+            <label>{t('form.howMany')}</label>
             <input className="input" type="number" min="1" inputMode="numeric" value={qty} onChange={e => setQty(e.target.value)} required />
           </div>
           <div className="field" style={{ flex: 1 }}>
-            <label>Date</label>
+            <label>{t('common.date')}</label>
             <input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} required />
           </div>
         </div>
         <div className="field">
-          <label>Note (optional)</label>
-          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. customer name, invoice #" />
+          <label>{t('form.noteOptional')}</label>
+          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder={t('form.egNote')} />
         </div>
         <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save entry'}</button>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
+          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? t('common.saving') : t('form.saveEntry')}</button>
         </div>
       </form>
 
@@ -1679,8 +1648,8 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
         <h3 style={{ fontSize: 16, marginTop: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
           <History size={18} /> Recent history
         </h3>
-        {loadingHistory && <div style={{ color: 'var(--text-2)', fontSize: 14 }}>Loading…</div>}
-        {!loadingHistory && history.length === 0 && <div style={{ color: 'var(--text-2)', fontSize: 14 }}>No movements yet.</div>}
+        {loadingHistory && <div style={{ color: 'var(--text-2)', fontSize: 14 }}>{t('common.loading')}</div>}
+        {!loadingHistory && history.length === 0 && <div style={{ color: 'var(--text-2)', fontSize: 14 }}>{t('form.noMovements')}</div>}
         {!loadingHistory && history.slice(0, 10).map(m => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 14 }}>
             {m.type === 'in' && <TrendingUp size={16} color="var(--good)" />}
@@ -1707,15 +1676,22 @@ function MovementModal({ item, onClose, onSaved, defaultType = 'in' }) {
 // sale — a damaged or returned piece leaving the shop must never land in the
 // sales figures.
 const SCAN_MODES = [
-  { id: 'sell',   label: 'Sell',      icon: ScanLine,     verb: 'Sell',      hint: 'Each scan sells one' },
-  { id: 'return', label: 'Return',    icon: Undo2,        verb: 'Take back',  hint: 'Customer brought it back — goes back on the rail' },
-  { id: 'in',     label: 'Stock In',  icon: TrendingUp,   verb: 'Stock in',  hint: 'Each scan adds one to the shop' },
-  { id: 'out',    label: 'Stock Out', icon: TrendingDown, verb: 'Take out',  hint: 'Leaves the shop without being sold' },
+  { id: 'sell',   icon: ScanLine },
+  { id: 'return', icon: Undo2 },
+  { id: 'in',     icon: TrendingUp },
+  { id: 'out',    icon: TrendingDown },
 ];
+
+// The modes that put stock back on the rail. An empty peg is not a problem
+// for either of them: stocking in is filling it, and a return is a customer
+// bringing back the last one that was sold — which is precisely the case
+// where the shop is already at zero. Anything not in here takes stock away
+// and does have to check there is some.
+const ADDS_STOCK = new Set(['in', 'return']);
 
 // Why a piece left the shop without being sold. Kept short because staff pick
 // one on a phone, mid-task.
-const OUT_REASONS = ['Reject', 'Damaged', 'Returned to factory', 'Lost', 'Sample', 'Other'];
+const OUT_REASONS = ['Reject', 'Damaged', 'ReturnedToFactory', 'Lost', 'Sample', 'Other'];
 
 function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   const t = useT();
@@ -1778,7 +1754,9 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   }, [lookup, shopId, mode]);
 
   const record = (d, verb) => {
-    setMsg({ type: 'ok', text: `${verb} ${d.qtyChanged} × ${d.item.name} — ${d.item.qty} now in stock` });
+    setMsg({ type: 'ok', text: t('sell.nowInStock')
+      .replace('{verb}', verb).replace('{n}', String(d.qtyChanged))
+      .replace('{name}', d.item.name).replace('{qty}', String(d.item.qty)) });
     setRecent(r => [{
       name: d.item.name, sku: d.item.sku, qty: d.item.qty,
       moved: d.qtyChanged, mode: scanMode, who: d.staffName || staffName, ts: Date.now(),
@@ -1903,7 +1881,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   };
 
   const shopName = shops.find(s => s.id === shopId)?.name || '';
-  const currentMode = SCAN_MODES.find(m => m.id === scanMode) || SCAN_MODES[0];
+  const adding = ADDS_STOCK.has(scanMode);
   const basketCount = basket.reduce((n, b) => n + b.qty, 0);
   const basketTotal = basket.reduce((n, b) => n + b.price * b.qty, 0);
 
@@ -1941,8 +1919,8 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       <div className="card">
         <div className="empty">
           <Store size={32} color="var(--text-3)" style={{ margin: '0 auto' }} />
-          <h3>No shops yet</h3>
-          <p>Add a shop before you can sell from it.</p>
+          <h3>{t('stock.noShops')}</h3>
+          <p>{t('sell.addShopFirst')}</p>
         </div>
       </div>
     );
@@ -1951,7 +1929,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   return (
     <div>
       {/* What this scan does. Sell first — it is the everyday one. */}
-      <div className="segmented segmented-wide mode-switch" role="group" aria-label="What are you doing">
+      <div className="segmented segmented-wide mode-switch" role="group" aria-label={t('sell.whatAreYouDoing')}>
         {SCAN_MODES.map(m => (
           <button
             key={m.id}
@@ -1959,7 +1937,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
             className={scanMode === m.id ? 'is-active' : ''}
             onClick={() => { setScanMode(m.id); setPicked(null); setMsg(null); }}
           >
-            <m.icon size={16} /> {m.label}
+            <m.icon size={16} /> {t(`sell.mode.${m.id}`)}
           </button>
         ))}
       </div>
@@ -1968,7 +1946,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
         {/* Every scan is recorded against a name, which is what makes a
             missing garment traceable later. */}
         <div className="field">
-          <label>Who is scanning</label>
+          <label>{t('sell.whoIsScanning')}</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <select
               className="select"
@@ -1976,18 +1954,18 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
               onChange={e => setStaffId(e.target.value ? Number(e.target.value) : null)}
               style={{ flex: 1 }}
             >
-              <option value="">Not recorded</option>
+              <option value="">{t('sell.notRecorded')}</option>
               {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <button type="button" className="btn btn-ghost btn-sm" onClick={onManageStaff}>
-              <Plus size={15} /> Names
+              <Plus size={15} /> {t('sell.names')}
             </button>
           </div>
           {!staffId && staff.length > 0 && (
-            <div className="field-hint">Pick your name so sales are counted for you.</div>
+            <div className="field-hint">{t('sell.pickNameHint')}</div>
           )}
           {staff.length === 0 && (
-            <div className="field-hint">No names yet — tap Names to add the people who work here.</div>
+            <div className="field-hint">{t('sell.noNamesYet')}</div>
           )}
         </div>
 
@@ -2004,31 +1982,31 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
 
         {scanMode === 'out' && (
           <div className="field">
-            <label>Why is it leaving?</label>
+            <label>{t('sell.whyLeaving')}</label>
             <select className="select" value={outReason} onChange={e => setOutReason(e.target.value)}>
-              {OUT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+              {OUT_REASONS.map(r => <option key={r} value={r}>{t(`sell.reason.${r}`)}</option>)}
             </select>
-            <div className="field-hint">This does not count as a sale.</div>
+            <div className="field-hint">{t('sell.notASale')}</div>
           </div>
         )}
 
-        <div className="segmented segmented-wide" role="group" aria-label="How to find the item" style={{ marginBottom: 20 }}>
+        <div className="segmented segmented-wide" role="group" aria-label={t('sell.howToFind')} style={{ marginBottom: 20 }}>
           <button type="button" className={mode === 'scan' ? 'is-active' : ''} onClick={() => setMode('scan')}>
-            <ScanLine size={16} /> Scan barcode
+            <ScanLine size={16} /> {t('sell.scanBarcode')}
           </button>
           <button type="button" className={mode === 'manual' ? 'is-active' : ''} onClick={() => setMode('manual')}>
-            <Search size={16} /> Type it in
+            <Search size={16} /> {t('sell.typeItIn')}
           </button>
         </div>
 
         {mode === 'scan' && (
           <form onSubmit={submit}>
             <div className="field">
-              <label>Scan a barcode — {currentMode.hint.toLowerCase()}</label>
+              <label>{t('sell.scanBarcode')} — {t(`sell.hint.${scanMode}`).toLowerCase()}</label>
               <input
                 ref={inputRef}
                 className="input scan-input"
-                placeholder="Waiting for scan…"
+                placeholder={t('sell.waitingForScan')}
                 value={code}
                 onChange={e => onScanType(e.target.value)}
                 autoFocus
@@ -2037,7 +2015,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
               />
             </div>
             <button className="btn btn-primary btn-block btn-large" disabled={!code.trim()}>
-              <ScanLine size={19} /> {currentMode.verb} one
+              <ScanLine size={19} /> {t(`sell.verb.${scanMode}`)} {t('sell.one')}
               {inFlight > 0 && <span className="inflight-dot">{inFlight}</span>}
             </button>
           </form>
@@ -2046,20 +2024,18 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
         {/* No scanner needed: find the item, say how many, sell. */}
         {mode === 'manual' && !picked && (
           <div className="field">
-            <label>Find the item — name, code, fabric or colour</label>
-            <SearchField value={lookup} onChange={setLookup} placeholder="e.g. maxi top natural" />
+            <label>{t('sell.findTheItem')}</label>
+            <SearchField value={lookup} onChange={setLookup} placeholder={t('sell.egLookup')} />
             {lookup.trim().length >= 2 && (
               <div className="pick-list">
-                {searching && <div className="pick-empty">Searching…</div>}
-                {!searching && results.length === 0 && <div className="pick-empty">Nothing found in this shop.</div>}
+                {searching && <div className="pick-empty">{t('sell.searching')}</div>}
+                {!searching && results.length === 0 && <div className="pick-empty">{t('sell.nothingFound')}</div>}
                 {!searching && results.map(it => (
                   <button
                     type="button"
                     key={it.id}
                     className="pick-row"
-                    // Stocking in is the one mode where an empty peg is fine —
-                    // that is exactly what you are about to fill.
-                    disabled={it.qty === 0 && scanMode !== 'in'}
+                    disabled={it.qty === 0 && !adding}
                     onClick={() => { setPicked(it); setSellQty(1); }}
                   >
                     <span className="pick-main">
@@ -2068,8 +2044,8 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                       </span>
                       <span className="pick-sub">{it.sku}{Number(it.price) > 0 ? ` · ${idr(it.price)}` : ''}</span>
                     </span>
-                    <span className={`pick-qty ${it.qty === 0 && scanMode !== 'in' ? 'is-out' : ''}`}>
-                      {it.qty === 0 ? 'none here' : `${it.qty} here`}
+                    <span className={`pick-qty ${it.qty === 0 && !adding ? 'is-out' : ''}`}>
+                      {it.qty === 0 ? t('sell.noneHere') : t('sell.nHere').replace('{n}', String(it.qty))}
                     </span>
                   </button>
                 ))}
@@ -2093,14 +2069,14 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
             </div>
 
             <div className="field">
-              <label>How many?</label>
+              <label>{t('form.howMany')}</label>
               <div className="qty-group qty-group-large">
                 <button
                   type="button"
                   className="qty-btn"
                   disabled={sellQty <= 1}
                   onClick={() => setSellQty(q => Math.max(1, q - 1))}
-                  aria-label="one fewer"
+                  aria-label={t('sell.oneFewer')}
                 >
                   <Minus size={18} />
                 </button>
@@ -2110,9 +2086,9 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                   className="qty-btn"
                   // Stocking in has no ceiling; taking stock out cannot go
                   // past what is actually on the rail.
-                  disabled={scanMode !== 'in' && sellQty >= picked.qty}
-                  onClick={() => setSellQty(q => (scanMode === 'in' ? q + 1 : Math.min(picked.qty, q + 1)))}
-                  aria-label="one more"
+                  disabled={!adding && sellQty >= picked.qty}
+                  onClick={() => setSellQty(q => (adding ? q + 1 : Math.min(picked.qty, q + 1)))}
+                  aria-label={t('sell.oneMore')}
                 >
                   <Plus size={18} />
                 </button>
@@ -2122,10 +2098,10 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
             <button
               type="button"
               className="btn btn-primary btn-block btn-large"
-              disabled={busy || (scanMode !== 'in' && picked.qty === 0)}
+              disabled={busy || (!adding && picked.qty === 0)}
               onClick={submitPicked}
             >
-              <Check size={19} /> {currentMode.verb} {sellQty}
+              <Check size={19} /> {t(`sell.verb.${scanMode}`)} {sellQty}
             </button>
           </div>
         )}
@@ -2143,7 +2119,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       {scanMode === 'sell' && basket.length > 0 && (
         <>
           <div className="section-head">
-            <h2 className="section-title">This sale</h2>
+            <h2 className="section-title">{t('sell.thisSale')}</h2>
             <span className="section-meta">{basketCount} piece{basketCount === 1 ? '' : 's'}</span>
           </div>
           <div className="panel">
@@ -2164,7 +2140,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                 </div>
               ))}
               <div className="basket-total">
-                <span>Total</span>
+                <span>{t('common.total')}</span>
                 <strong>{idr(basketTotal)}</strong>
               </div>
             </div>
@@ -2185,7 +2161,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       {recent.length > 0 && (
         <>
           <div className="section-head">
-            <h2 className="section-title">Just now</h2>
+            <h2 className="section-title">{t('common.justNow')}</h2>
             <span className="section-meta">{shopName}</span>
           </div>
           <div className="panel">
@@ -2197,12 +2173,12 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                     <div className="rank-main">
                       <div className="rank-name">{r.name}</div>
                       <div className="rank-sub">
-                        {[r.sku, m.label, r.who && `by ${r.who}`].filter(Boolean).join(' · ')}
+                        {[r.sku, t(`sell.mode.${m.id}`), r.who && `${t('check.by')} ${r.who}`].filter(Boolean).join(' · ')}
                       </div>
                     </div>
                     <div className="rank-stat">
                       <div className="rank-stat-num">{r.moved || 1}</div>
-                      <div className="rank-stat-label">{m.label.toLowerCase()}</div>
+                      <div className="rank-stat-label">{t(`sell.mode.${m.id}`).toLowerCase()}</div>
                     </div>
                     <div className="rank-stat">
                       <div className="rank-stat-num">{r.qty}</div>
@@ -2227,6 +2203,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
 // it prints perfectly well on A4 too. Everything else on the page is hidden
 // at print time by the @media print rules in App.css.
 function Receipt({ data }) {
+  const t = useT();
   return (
     <div className="receipt" aria-hidden="true">
       <div className="receipt-head">
@@ -2250,11 +2227,11 @@ function Receipt({ data }) {
       ))}
       <div className="receipt-rule" />
       <div className="receipt-total">
-        <span>TOTAL (IDR)</span>
+        <span>{t('sell.receiptTotal')}</span>
         <span>{Number(data.total).toLocaleString('en-US')}</span>
       </div>
       <div className="receipt-count">{data.count} piece{data.count === 1 ? '' : 's'}</div>
-      <div className="receipt-foot">Thank you</div>
+      <div className="receipt-foot">{t('sell.receiptThanks')}</div>
     </div>
   );
 }
@@ -2263,6 +2240,7 @@ function Receipt({ data }) {
 // OVERVIEW VIEW — master aggregation across all shops
 // ═══════════════════════════════════════════════════════════
 function OverviewView({ shops = [], shopsParam = '' }) {
+  const t = useT();
   const [data, setData] = useState({ shops: [], items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -2389,9 +2367,9 @@ function OverviewView({ shops = [], shopsParam = '' }) {
   // With two shops the count has to say whether it is one rail or both,
   // otherwise "42 in stock" is an unanswerable number.
   const scopeText = shopsParam
-    ? `Counted at ${(data.shops || []).join(' + ')} only.`
+    ? t('overview.countedAtOnly').replace('{s}', (data.shops || []).join(' + '))
     : (shops.length > 1
-        ? 'Counted across every shop combined.'
+        ? t('overview.countedEvery')
         : 'Every piece on the rail, counted once.');
 
   return (
@@ -2401,20 +2379,20 @@ function OverviewView({ shops = [], shopsParam = '' }) {
       {/* Two ways to read the same page. Nothing is lost by switching — it is
           the same stock, with or without the sold line underneath. */}
       <div className="view-switch-bar">
-        <div className="segmented" role="group" aria-label="Overview layout">
+        <div className="segmented" role="group" aria-label={t('overview.layout')}>
           <button
             type="button"
             className={layout === 'stock' ? 'is-active' : ''}
             onClick={() => chooseLayout('stock')}
           >
-            Stock only
+            {t('overview.stockOnly')}
           </button>
           <button
             type="button"
             className={layout === 'sold' ? 'is-active' : ''}
             onClick={() => chooseLayout('sold')}
           >
-            Stock + sold
+            {t('overview.stockPlusSold')}
           </button>
         </div>
       </div>
@@ -2422,12 +2400,12 @@ function OverviewView({ shops = [], shopsParam = '' }) {
 
       {showSold && (
         <div className="scope-picker">
-          <span className="scope-picker-label">Sold in</span>
+          <span className="scope-picker-label">{t('overview.soldIn')}</span>
           <select
             className="select select-inline"
             value={year}
             onChange={e => setYear(Number(e.target.value))}
-            aria-label="Year for sold figures"
+            aria-label={t('overview.yearAria')}
           >
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -2435,13 +2413,15 @@ function OverviewView({ shops = [], shopsParam = '' }) {
             type="button"
             className={`scope-chip ${compare ? 'is-active' : ''}`}
             onClick={() => setCompare(c => !c)}
-            title={`Show ${year - 1} underneath for comparison`}
+            title={t('overview.showPrevYear').replace('{y}', String(year - 1))}
           >
             vs {year - 1}
           </button>
           <span className="scope-picker-note">
-            {sold.total.toLocaleString()} pieces sold in {year}
-            {compare && prevSold.total > 0 && ` · ${prevSold.total.toLocaleString()} in ${year - 1}`}
+            {t('overview.piecesSoldIn')
+              .replace('{n}', sold.total.toLocaleString()).replace('{y}', String(year))}
+            {compare && prevSold.total > 0 && ' · ' + t('overview.prevYearSold')
+              .replace('{n}', prevSold.total.toLocaleString()).replace('{y}', String(year - 1))}
           </span>
         </div>
       )}
@@ -2449,31 +2429,31 @@ function OverviewView({ shops = [], shopsParam = '' }) {
       {/* Same three numbers as the Stock tab, so the two views read alike. */}
       <p className="scope-note">{scopeText}</p>
       <div className="stat-grid">
-        <StatCard value={inStockCount} label="In stock" tone="good" />
-        <StatCard value={summary.low} label="Low stock" tone="warn" />
-        <StatCard value={summary.out} label="Out of stock" tone="bad" />
+        <StatCard value={inStockCount} label={t('stock.inStock')} tone="good" />
+        <StatCard value={summary.low} label={t('stock.lowStock')} tone="warn" />
+        <StatCard value={summary.out} label={t('stock.outOfStock')} tone="bad" />
       </div>
 
       <Disclosure
-        title="Totals"
-        tail={`${summary.skuCount.toLocaleString()} products · ${summary.grand.toLocaleString()} pieces`}
+        title={t('stock.totals')}
+        tail={t('stock.productsPieces').replace('{p}', summary.skuCount.toLocaleString()).replace('{u}', summary.grand.toLocaleString())}
       >
         <div className="metric-row">
           <div>
-            <div className="metric-label">Different products</div>
+            <div className="metric-label">{t('stock.differentProducts')}</div>
             <div className="metric-value">{summary.skuCount.toLocaleString()}</div>
-            <div className="detail-k" style={{ marginTop: 4 }}>each colour and size counts once</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>{t('stock.eachColourOnce')}</div>
           </div>
           <div>
-            <div className="metric-label">Total pieces</div>
+            <div className="metric-label">{t('stock.totalPieces')}</div>
             <div className="metric-value">{summary.grand.toLocaleString()}</div>
-            <div className="detail-k" style={{ marginTop: 4 }}>across every shop and the office</div>
+            <div className="detail-k" style={{ marginTop: 4 }}>{t('overview.acrossEvery')}</div>
           </div>
           {data.shops.map(s => (
             <div key={s}>
               <div className="metric-label">{s}</div>
               <div className="metric-value">{(summary.perShop[s] || 0).toLocaleString()}</div>
-              <div className="detail-k" style={{ marginTop: 4 }}>pieces at this location</div>
+              <div className="detail-k" style={{ marginTop: 4 }}>{t('overview.piecesHere')}</div>
             </div>
           ))}
         </div>
@@ -2481,16 +2461,16 @@ function OverviewView({ shops = [], shopsParam = '' }) {
 
       {/* The table is the point of this view: every product, every shop, side by side. */}
       <div className="section-head">
-        <h2 className="section-title">All inventory</h2>
+        <h2 className="section-title">{t('overview.allInventory')}</h2>
         <span className="section-meta">{sortedItems.length.toLocaleString()} shown</span>
       </div>
       <div className="toolbar" style={{ marginTop: 4 }}>
-        <SearchField value={search} onChange={setSearch} placeholder="Search product, code, fabric, colour…" />
+        <SearchField value={search} onChange={setSearch} placeholder={t('overview.searchPlaceholder')} />
       </div>
       <div className="filter-panel" style={{ boxShadow: 'none', padding: 0, background: 'transparent', marginBottom: 16 }}>
           {facets.styles.length > 0 && (
             <div className="field">
-              <label>Style</label>
+              <label>{t('stock.style')}</label>
               <select className="select" value={styleFilter} onChange={e => setStyleFilter(e.target.value)}>
                 <option value="">All styles ({facets.styles.length})</option>
                 {facets.styles.map(s => <option key={s} value={s}>{s}</option>)}
@@ -2499,7 +2479,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
           )}
           {facets.fabrics.length > 0 && (
             <div className="field">
-              <label>Fabric</label>
+              <label>{t('stock.fabric')}</label>
               <select className="select" value={fabricFilter} onChange={e => setFabricFilter(e.target.value)}>
                 <option value="">All fabrics ({facets.fabrics.length})</option>
                 {facets.fabrics.map(f => <option key={f} value={f}>{f}</option>)}
@@ -2508,7 +2488,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
           )}
           {facets.colors.length > 0 && (
             <div className="field">
-              <label>Colour</label>
+              <label>{t('stock.colour')}</label>
               <select className="select" value={colorFilter} onChange={e => setColorFilter(e.target.value)}>
                 <option value="">All colours ({facets.colors.length})</option>
                 {facets.colors.map(c => <option key={c} value={c}>{c}</option>)}
@@ -2517,7 +2497,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
           )}
           {facets.sizes.length > 0 && (
             <div className="field">
-              <label>Size</label>
+              <label>{t('stock.size')}</label>
               <select className="select" value={sizeFilter} onChange={e => setSizeFilter(e.target.value)}>
                 <option value="">All sizes ({facets.sizes.length})</option>
                 {facets.sizes.map(s => <option key={s} value={s}>{s}</option>)}
@@ -2525,14 +2505,14 @@ function OverviewView({ shops = [], shopsParam = '' }) {
             </div>
           )}
           <div className="field">
-            <label>Sort</label>
+            <label>{t('common.sort')}</label>
             <select className="select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-              <option value="fabric-color">Fabric → Colour → Style</option>
-              <option value="color">Colour A–Z</option>
-              <option value="style">Style A–Z</option>
-              <option value="name">Product name A–Z</option>
-              <option value="total-desc">Most stock first</option>
-              <option value="total-asc">Least stock first</option>
+              <option value="fabric-color">{t('stock.sortFabricColor')}</option>
+              <option value="color">{t('stock.sortColor')}</option>
+              <option value="style">{t('stock.sortStyle')}</option>
+              <option value="name">{t('stock.sortName')}</option>
+              <option value="total-desc">{t('overview.sortMost')}</option>
+              <option value="total-asc">{t('overview.sortLeast')}</option>
             </select>
           </div>
           {activeFilterCount > 0 && (
@@ -2548,12 +2528,12 @@ function OverviewView({ shops = [], shopsParam = '' }) {
           )}
         </div>
 
-        {loading && <div className="loading">Loading…</div>}
+        {loading && <div className="loading">{t('common.loading')}</div>}
         {!loading && sortedItems.length === 0 && (
           <div className="empty empty-sm">
             <Package size={28} color="var(--text-3)" style={{ margin: '0 auto' }} />
-            <h3>Nothing matches</h3>
-            <p>Try clearing the filters or the search box.</p>
+            <h3>{t('overview.nothingMatches')}</h3>
+            <p>{t('overview.tryClearing')}</p>
           </div>
         )}
         {!loading && sortedItems.length > 0 && (
@@ -2561,12 +2541,12 @@ function OverviewView({ shops = [], shopsParam = '' }) {
             <table className={`data-table ${showSold ? 'with-sold' : ''}`}>
               <thead>
                 <tr>
-                  <th className="sticky-col">Product</th>
-                  <th>Fabric</th>
-                  <th>Colour</th>
-                  <th>Size</th>
+                  <th className="sticky-col">{t('item.product')}</th>
+                  <th>{t('stock.fabric')}</th>
+                  <th>{t('stock.colour')}</th>
+                  <th>{t('stock.size')}</th>
                   {data.shops.map(s => <th key={s} className="num">{s}</th>)}
-                  <th className="num total-col">Total</th>
+                  <th className="num total-col">{t('common.total')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2582,7 +2562,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
                           <td colSpan={colCount}>
                             <span className="fabric-row-name">{fabricOf(item)}</span>
                             <span className="fabric-row-count">
-                              {productCount(fabricCounts[fabricOf(item)])}
+                              {productCount(t, fabricCounts[fabricOf(item)])}
                             </span>
                           </td>
                         </tr>
@@ -2590,7 +2570,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
                       <tr
                         className={`item-row is-clickable ${gapCls}`}
                         onClick={() => setHistorySku(item)}
-                        title="See every date this went in and out"
+                        title={t('item.seeEveryDate')}
                       >
                         <td className="sticky-col">
                           <div className="cell-name">{item.name}</div>
@@ -2682,6 +2662,7 @@ const monthLabel = (ym) => {
 };
 
 function ItemHistoryModal({ item, shopsParam, onClose }) {
+  const t = useT();
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [data, setData] = useState({ months: [], movements: [], years: [] });
   const [loading, setLoading] = useState(true);
@@ -2701,31 +2682,31 @@ function ItemHistoryModal({ item, shopsParam, onClose }) {
   return (
     <Modal title={title} onClose={onClose}>
       <div className="scope-picker" style={{ marginTop: -4 }}>
-        <span className="scope-picker-label">Year</span>
+        <span className="scope-picker-label">{t('common.year')}</span>
         <select
           className="select select-inline"
           value={year}
           onChange={e => setYear(Number(e.target.value))}
-          aria-label="Year"
+          aria-label={t('item.yearAria')}
         >
           {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <span className="scope-picker-note">{item.sku}</span>
       </div>
 
-      {loading && <div className="loading">Loading…</div>}
+      {loading && <div className="loading">{t('common.loading')}</div>}
 
       {!loading && data.movements.length === 0 && (
         <div className="empty empty-sm">
           <History size={26} color="var(--text-3)" style={{ margin: '0 auto' }} />
           <h3>Nothing recorded in {year}</h3>
-          <p>Stock going in and out will show here once it is scanned.</p>
+          <p>{t('item.willShowOnceScanned')}</p>
         </div>
       )}
 
       {!loading && data.months.length > 0 && (
         <>
-          <div className="detail-k" style={{ marginBottom: 8 }}>Month by month</div>
+          <div className="detail-k" style={{ marginBottom: 8 }}>{t('item.monthByMonth')}</div>
           <div className="month-grid">
             {data.months.map(m => (
               <div className="month-cell" key={m.month}>
@@ -2778,6 +2759,7 @@ function ItemHistoryModal({ item, shopsParam, onClose }) {
 // STAFF
 // ═══════════════════════════════════════════════════════════
 function StaffModal({ staff, shops, onClose, onChanged }) {
+  const t = useT();
   const toast = useToast();
   const [name, setName] = useState('');
   const [shopId, setShopId] = useState('');
@@ -2814,18 +2796,15 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
   };
 
   return (
-    <Modal title="Who works here" onClose={onClose}>
+    <Modal title={t('staff.whoWorksHere')} onClose={onClose}>
       <p style={{ color: 'var(--text-2)', marginTop: 0, fontSize: 14 }}>
-        Names, not accounts — nobody needs a password. Whoever is picked on the
-        Sell screen gets credited for what they scan, so you can see each
-        person's sales, work out their commission, and trace where a piece
-        went. Re-adding an existing name updates their rate.
+        {t('staff.explain')}
       </p>
 
       <div className="group-pick-list">
         {staff.length === 0 && (
           <div style={{ color: 'var(--text-2)', fontSize: 14, padding: '14px 8px', textAlign: 'center' }}>
-            No names yet.
+            {t('staff.noNames')}
           </div>
         )}
         {staff.map(s => (
@@ -2851,18 +2830,18 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
       </div>
 
       <div className="group-pick-add">
-        <label>Add someone</label>
+        <label>{t('staff.addSomeone')}</label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
             className="input"
-            placeholder="Name"
+            placeholder={t('common.name')}
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
             style={{ flex: '1 1 140px' }}
           />
           <select className="select" value={shopId} onChange={e => setShopId(e.target.value)} style={{ flex: '0 1 130px' }}>
-            <option value="">Any shop</option>
+            <option value="">{t('staff.anyShop')}</option>
             {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <input
@@ -2871,7 +2850,7 @@ function StaffModal({ staff, shops, onClose, onChanged }) {
             min="0"
             max="100"
             step="0.5"
-            placeholder="% comm."
+            placeholder={t('staff.commShort')}
             value={rate}
             onChange={e => setRate(e.target.value)}
             style={{ flex: '0 1 96px' }}

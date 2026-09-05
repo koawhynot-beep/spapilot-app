@@ -1915,3 +1915,36 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
 /* The sort sits in the toolbar rather than behind Filters: "what am I about
    to run out of" is a daily question, not an advanced one. */
 .toolbar-sort { flex: 0 0 auto; max-width: 220px; }
+
+/* ── Correcting a recorded sale ───────────────────────── */
+/* The whole history row is the control, so it has to look like one. */
+.sale-row.is-clickable { cursor: pointer; }
+.sale-row.is-clickable:hover { background: var(--row-hover); }
+.sale-row.is-return.is-clickable:hover { background: var(--bad-soft); filter: brightness(1.08); }
+.sale-row.is-clickable:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: -2px;
+}
+/* Only shows on hover: a pencil on all 366 rows is noise, but with no hint
+   at all nobody discovers the row is clickable. */
+.sale-edit-hint {
+  margin-left: 6px; vertical-align: -2px; color: var(--text-3);
+  opacity: 0; transition: opacity .12s;
+}
+.sale-row.is-clickable:hover .sale-edit-hint,
+.sale-row.is-clickable:focus-visible .sale-edit-hint { opacity: 1; }
+
+.detail-grid { margin-bottom: var(--s-4); }
+
+/* Two fields side by side; stacks on a phone rather than squeezing. */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+@media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
+.swap-current, .swap-picked {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px; border-radius: var(--r);
+  background: var(--row-hover); border: 1px solid var(--line-soft);
+}
+.swap-picked { border-color: var(--good); background: var(--good-soft); }
+.swap-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.swap-sub { font-size: 11.5px; color: var(--text-3); }
+.swap-picked .btn { align-self: flex-start; margin-top: 4px; }

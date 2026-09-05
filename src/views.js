@@ -6,7 +6,8 @@
 // order it happened, so the drawer can be balanced at close. History is the
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, History, TrendingUp, Download, RefreshCw } from 'lucide-react';
+import { Calendar, History, TrendingUp, Download, RefreshCw, Pencil, Check } from 'lucide-react';
+import { Modal, SearchField } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
 
@@ -41,8 +42,21 @@ function useLoad(path, deps) {
 
 // A sale and a return are the same row shape with opposite signs, so one
 // renderer covers both and the sign carries the meaning.
-const SaleRow = ({ r, showDate, showShop }) => (
-  <div className={`sale-row ${r.units < 0 ? 'is-return' : ''}`}>
+// The whole row is the control when it can be corrected: an edit button on
+// every line is a lot of furniture on a list this dense, and the row is a
+// bigger target on a phone than a pencil icon would be.
+const SaleRow = ({ r, showDate, showShop, onEdit }) => {
+  const t = useT();
+  return (
+  <div
+    className={`sale-row ${r.units < 0 ? 'is-return' : ''} ${onEdit ? 'is-clickable' : ''}`}
+    onClick={onEdit ? () => onEdit(r) : undefined}
+    role={onEdit ? 'button' : undefined}
+    tabIndex={onEdit ? 0 : undefined}
+    onKeyDown={onEdit ? (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(r); }
+    } : undefined}
+  >
     <div className="sale-when">
       {showDate && <span className="sale-date">{day(r.occurredAt)}</span>}
       <span className="sale-time">{clock(r.occurredAt)}</span>
@@ -59,11 +73,15 @@ const SaleRow = ({ r, showDate, showShop }) => (
     <div className="sale-who">{r.staffName}</div>
     <div className="sale-qty">
       {r.units}
-      <span className="sale-qty-label">{r.units < 0 ? 'returned' : 'sold'}</span>
+      <span className="sale-qty-label">{t(r.units < 0 ? 'sale.returned' : 'sale.sold')}</span>
     </div>
-    <div className="sale-value">{idr(r.value)}</div>
+    <div className="sale-value">
+      {idr(r.value)}
+      {onEdit && <Pencil size={13} className="sale-edit-hint" aria-hidden="true" />}
+    </div>
   </div>
-);
+  );
+};
 
 const Empty = ({ icon: Icon, title, hint }) => (
   <div className="empty empty-sm">
@@ -236,6 +254,7 @@ function SalesLog({ qs, showShop }) {
   const t = useT();
   const [rows, setRows] = useState([]);
   const [offset, setOffset] = useState(0);
+  const [editing, setEditing] = useState(null);
 
   useEffect(() => { setOffset(0); setRows([]); }, [qs]);
 
@@ -273,9 +292,19 @@ function SalesLog({ qs, showShop }) {
       {rows.length > 0 && (
         <div className="panel" style={{ marginTop: 12 }}>
           <div className="panel-body">
-            {rows.map(r => <SaleRow key={r.id} r={r} showDate showShop={showShop} />)}
+            {rows.map(r => (
+              <SaleRow key={r.id} r={r} showDate showShop={showShop} onEdit={setEditing} />
+            ))}
           </div>
         </div>
+      )}
+
+      {editing && (
+        <SaleEditModal
+          sale={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => setRows(prev => prev.map(r => (r.id === updated.id ? updated : r)))}
+        />
       )}
 
       {rows.length > 0 && rows.length < total && (
@@ -289,6 +318,166 @@ function SalesLog({ qs, showShop }) {
         </button>
       )}
     </>
+  );
+}
+
+// ── Correcting a recorded sale ────────────────────────────
+// A customer who swaps a garment for another style has not returned anything
+// and has not bought a second thing — the sale was simply recorded against
+// the wrong garment. Style, colour and size live on the stock item, not on
+// the sale, so changing them means pointing the sale at a different item;
+// the server moves the stock to match.
+function SaleEditModal({ sale, onClose, onSaved }) {
+  const t = useT();
+  const [lookup, setLookup] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState(null);
+  const [units, setUnits] = useState(Math.abs(sale.units));
+  // Blank means "whatever it costs on the shelf", which is what every sale
+  // recorded before this screen existed still means.
+  const [price, setPrice] = useState(sale.unitPrice === null ? '' : String(sale.unitPrice));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const q = lookup.trim();
+    if (q.length < 2) { setResults([]); return undefined; }
+    setSearching(true);
+    const timer = setTimeout(() => {
+      api(`/api/shops/${sale.shopId}/stock?search=${encodeURIComponent(q)}`)
+        .then(d => { setResults((Array.isArray(d) ? d : []).slice(0, 20)); setSearching(false); })
+        .catch(() => { setResults([]); setSearching(false); });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [lookup, sale.shopId]);
+
+  const describe = (x) =>
+    [x.category || x.fabric, x.color, x.size].filter(Boolean).join(' · ') || x.name;
+
+  const save = async () => {
+    setBusy(true); setError(null);
+    try {
+      const body = { qty: Number(units) };
+      if (picked) body.itemId = picked.id;
+      const trimmed = String(price).trim();
+      body.unitPrice = trimmed === '' ? null : Number(trimmed);
+      const updated = await api(`/api/sales/${sale.id}`, { method: 'PATCH', body });
+      onSaved(updated);
+      onClose();
+    } catch (e) {
+      setError(e.message || t('edit.failed'));
+      setBusy(false);
+    }
+  };
+
+  const isReturn = sale.units < 0;
+  const shelf = picked ? Number(picked.price) || 0 : sale.price;
+
+  return (
+    <Modal title={isReturn ? t('edit.titleReturn') : t('edit.titleSale')} onClose={onClose}>
+      {error && <div className="error-banner">{error}</div>}
+
+      <div className="detail-grid" style={{ marginBottom: 4 }}>
+        <div className="detail-k">{t('edit.recorded')}</div>
+        <div className="detail-v">
+          {new Date(sale.occurredAt).toLocaleString()}
+          {sale.staffName ? ` · ${sale.staffName}` : ''}
+          {sale.shopName ? ` · ${sale.shopName}` : ''}
+        </div>
+      </div>
+
+      <div className="field">
+        <label>{t('edit.currently')}</label>
+        <div className="swap-current">
+          <span className="swap-name">{describe(sale)}</span>
+          <span className="swap-sub">{sale.sku}{sale.itemName ? ` · ${sale.itemName}` : ''}</span>
+        </div>
+      </div>
+
+      <div className="field">
+        <label>{t('edit.swapFor')}</label>
+        {picked ? (
+          <div className="swap-picked">
+            <span className="swap-name"><Check size={14} /> {describe(picked)}</span>
+            <span className="swap-sub">{picked.sku} · {idr(picked.price)}</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setPicked(null); setLookup(''); }}>
+              {t('edit.undoSwap')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <SearchField value={lookup} onChange={setLookup} placeholder={t('edit.swapPlaceholder')} />
+            {lookup.trim().length >= 2 && (
+              <div className="pick-list">
+                {searching && <div className="pick-empty">{t('common.loading')}</div>}
+                {!searching && results.length === 0 && (
+                  <div className="pick-empty">{t('edit.noMatches')}</div>
+                )}
+                {!searching && results.filter(x => x.id !== sale.itemId).map(it => (
+                  <button
+                    type="button"
+                    key={it.id}
+                    className="pick-row"
+                    onClick={() => setPicked(it)}
+                  >
+                    <span className="pick-main">
+                      <span className="pick-name">{describe(it)}</span>
+                      <span className="pick-sub">
+                        {it.sku}{Number(it.price) > 0 ? ` · ${idr(it.price)}` : ''}
+                      </span>
+                    </span>
+                    <span className="pick-qty">{it.qty}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="form-row">
+        <div className="field">
+          <label>{t('edit.howMany')}</label>
+          <input
+            className="input"
+            type="number"
+            min="1"
+            value={units}
+            onChange={e => setUnits(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label>{t('edit.price')}</label>
+          <input
+            className="input"
+            type="number"
+            min="0"
+            value={price}
+            placeholder={String(shelf)}
+            onChange={e => setPrice(e.target.value)}
+          />
+          <div className="field-hint">
+            {String(price).trim() === ''
+              ? t('edit.priceShelf').replace('{p}', idr(shelf))
+              : t('edit.priceCustom')}
+          </div>
+        </div>
+      </div>
+
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
+          {t('common.cancel')}
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={save}
+          disabled={busy || !Number(units) || Number(units) < 1}
+        >
+          {busy ? t('common.saving') : t('edit.save')}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
