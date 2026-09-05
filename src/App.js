@@ -2410,7 +2410,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
   // Product · Fabric · Colour · Size + one per shop + Total.
   const colCount = 4 + data.shops.length + 1;
 
-  // With two shops the count has to say whether it is one rail or both,
+  // With more than one shop the count has to say which rails it covers,
   // otherwise "42 in stock" is an unanswerable number.
   const scopeText = shopsParam
     ? t('overview.countedAtOnly').replace('{s}', (data.shops || []).join(' + '))
