@@ -2043,3 +2043,51 @@ input[type="datetime-local"].input {
   font-size: 10.5px; font-weight: 700; color: var(--bad);
   letter-spacing: 0.02em;
 }
+
+/* ── Drilling into the takings ────────────────────────── */
+.crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-bottom: 14px; }
+.crumb {
+  font: inherit; font-size: 13px; padding: 3px 7px; border-radius: var(--r-sm);
+  border: none; background: none; color: var(--primary); cursor: pointer;
+}
+.crumb:hover { background: var(--row-hover); }
+.crumb.is-here { color: var(--text); font-weight: 600; padding: 3px 7px; }
+.crumb-sep { color: var(--text-3); font-size: 13px; }
+
+.drill-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 150px 130px;
+  gap: var(--s-3);
+  align-items: center;
+  width: 100%;
+  padding: 11px var(--s-5);
+  font: inherit; text-align: left; color: inherit;
+  background: none; border: none;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.drill-row:last-child { border-bottom: none; }
+.drill-row:hover { background: var(--row-hover); }
+.drill-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.drill-name { font-size: 14px; font-weight: 600; }
+/* A bar rather than a number alone: which month was quiet is the question
+   being asked, and a row of figures does not answer it at a glance. */
+.drill-bar { height: 7px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.drill-fill { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.drill-sub { font-size: 12px; color: var(--text-3); }
+.drill-money {
+  font-size: 13.5px; font-weight: 600; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .drill-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "name money" "bar bar" "sub sub";
+    row-gap: 4px;
+  }
+  .drill-name { grid-area: name; }
+  .drill-money { grid-area: money; }
+  .drill-bar { grid-area: bar; }
+  .drill-sub { grid-area: sub; }
+}

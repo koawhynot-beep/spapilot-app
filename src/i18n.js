@@ -476,6 +476,21 @@ const EN = {
   'sell.onePiece': '1 piece',
   'sell.nPieces': '{n} pieces',
   'sell.eachPrice': '{p} each',
+  'history.pane.periods': 'By date',
+  'drill.pickYear': 'Pick a year',
+  'drill.pickMonth': 'Pick a month',
+  'drill.pickWeek': 'Pick a week',
+  'drill.pickDay': 'Pick a day',
+  'drill.allYears': 'All years',
+  'drill.week': 'Week {n}',
+  'drill.weekDays': '{a}–{b}',
+  'drill.entries': '{n} entries',
+  'drill.oneEntry': '1 entry',
+  'drill.pieces': '{n} pieces',
+  'drill.nothing': 'Nothing sold in this period',
+  'drill.showSales': 'Show these sales',
+  'drill.back': 'Back',
+  'drill.tz': 'Days run on {tz} time',
 };
 
 const ID = {
@@ -932,6 +947,21 @@ const ID = {
   'sell.onePiece': '1 potong',
   'sell.nPieces': '{n} potong',
   'sell.eachPrice': '{p} per potong',
+  'history.pane.periods': 'Per tanggal',
+  'drill.pickYear': 'Pilih tahun',
+  'drill.pickMonth': 'Pilih bulan',
+  'drill.pickWeek': 'Pilih minggu',
+  'drill.pickDay': 'Pilih hari',
+  'drill.allYears': 'Semua tahun',
+  'drill.week': 'Minggu {n}',
+  'drill.weekDays': '{a}–{b}',
+  'drill.entries': '{n} catatan',
+  'drill.oneEntry': '1 catatan',
+  'drill.pieces': '{n} potong',
+  'drill.nothing': 'Tidak ada penjualan pada periode ini',
+  'drill.showSales': 'Tampilkan penjualan ini',
+  'drill.back': 'Kembali',
+  'drill.tz': 'Hari mengikuti waktu {tz}',
 };
 
 const DICTS = { en: EN, id: ID };

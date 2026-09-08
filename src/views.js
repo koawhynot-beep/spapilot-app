@@ -250,7 +250,7 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
   const [pane, setPane] = useState('log');
 
   const panes = useMemo(
-    () => (isAdmin ? ['log', 'stock', 'sellers', 'commission'] : ['log', 'stock']),
+    () => (isAdmin ? ['log', 'periods', 'stock', 'sellers', 'commission'] : ['log', 'stock']),
     [isAdmin]
   );
   // A staff member who had 'commission' selected before losing it would be
@@ -306,6 +306,7 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
       </div>
 
       {pane === 'log' && <SalesLog qs={qs} showShop={showShop} isAdmin={isAdmin} />}
+      {pane === 'periods' && <PeriodsPane qs={qs} showShop={showShop} />}
       {pane === 'stock' && <StockMovesPane qs={qs} showShop={showShop} isAdmin={isAdmin} />}
       {pane === 'sellers' && <SellersPane qs={qs} />}
       {pane === 'commission' && <CommissionPane qs={qs} />}
@@ -643,6 +644,143 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
         </button>
       </div>
     </Modal>
+  );
+}
+
+// ── Drilling into the takings ─────────────────────────────
+// Year, then month, then week, then day, each level saying what it came to.
+// The point is that the next click is an informed one: you can see which
+// month was quiet before deciding to open it.
+//
+// The last step drops into the ordinary sales list, filtered to that day —
+// the same rows, the same corrections, reached a different way.
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function PeriodsPane({ qs, showShop }) {
+  const t = useT();
+  const [at, setAt] = useState({ year: null, month: null, week: null, day: null });
+
+  const level = at.week ? 'day' : at.month ? 'week' : at.year ? 'month' : 'year';
+  const params = new URLSearchParams(qs);
+  params.set('level', level);
+  if (at.year) params.set('year', String(at.year));
+  if (at.month) params.set('month', String(at.month));
+  if (at.week) params.set('week', String(at.week));
+
+  const { data, error, loading } = useLoad(`/api/sales/periods?${params.toString()}`,
+    [qs, level, at.year, at.month, at.week]);
+
+  // The chosen day feeds the ordinary sales list, bounded to that one date.
+  const dayQs = useMemo(() => {
+    if (!at.day) return null;
+    const p = new URLSearchParams(qs);
+    const pad = (n) => String(n).padStart(2, '0');
+    const iso = `${at.year}-${pad(at.month)}-${pad(at.day)}`;
+    p.set('from', iso);
+    p.set('to', iso);
+    return p.toString();
+  }, [qs, at]);
+
+  const buckets = data?.buckets || [];
+  const peak = Math.max(1, ...buckets.map(b => Math.abs(b.revenue)));
+
+  const label = (key) => {
+    if (level === 'year') return String(key);
+    if (level === 'month') return MONTHS[key - 1];
+    if (level === 'week') {
+      const first = (key - 1) * 7 + 1;
+      const last = key === 5 ? '' : String(key * 7);
+      return `${t('drill.week').replace('{n}', String(key))} · ${first}${last ? '–' + last : '+'}`;
+    }
+    return `${MONTHS[at.month - 1]} ${key}`;
+  };
+
+  const crumbs = [
+    { text: t('drill.allYears'), onClick: () => setAt({ year: null, month: null, week: null, day: null }) },
+    at.year && { text: String(at.year), onClick: () => setAt({ year: at.year, month: null, week: null, day: null }) },
+    at.month && { text: MONTHS[at.month - 1], onClick: () => setAt({ ...at, week: null, day: null }) },
+    at.week && { text: t('drill.week').replace('{n}', String(at.week)), onClick: () => setAt({ ...at, day: null }) },
+    at.day && { text: String(at.day), onClick: null },
+  ].filter(Boolean);
+
+  const prompt = { year: 'drill.pickYear', month: 'drill.pickMonth', week: 'drill.pickWeek', day: 'drill.pickDay' }[level];
+
+  return (
+    <>
+      <div className="crumbs">
+        {crumbs.map((c, i) => (
+          <span key={i}>
+            {i > 0 && <span className="crumb-sep">›</span>}
+            {c.onClick
+              ? <button type="button" className="crumb" onClick={c.onClick}>{c.text}</button>
+              : <span className="crumb is-here">{c.text}</span>}
+          </span>
+        ))}
+      </div>
+
+      {at.day && dayQs ? (
+        <>
+          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 10 }}
+                  onClick={() => setAt({ ...at, day: null })}>
+            ← {t('drill.back')}
+          </button>
+          <SalesLog qs={dayQs} showShop={showShop} isAdmin />
+        </>
+      ) : (
+        <>
+          {error && <div className="error-banner">{error}</div>}
+          {loading && buckets.length === 0 && <div className="loading">{t('common.loading')}</div>}
+          {!loading && !error && buckets.length === 0 && (
+            <Empty icon={Calendar} title={t('drill.nothing')} />
+          )}
+
+          {buckets.length > 0 && (
+            <>
+              <div className="detail-k" style={{ marginBottom: 8 }}>{t(prompt)}</div>
+              <div className="panel">
+                <div className="panel-body">
+                  {buckets.map(b => (
+                    <button
+                      type="button"
+                      key={b.key}
+                      className="drill-row"
+                      onClick={() => {
+                        if (level === 'year') setAt({ year: b.key, month: null, week: null, day: null });
+                        else if (level === 'month') setAt({ ...at, month: b.key, week: null, day: null });
+                        else if (level === 'week') setAt({ ...at, week: b.key, day: null });
+                        else setAt({ ...at, day: b.key });
+                      }}
+                    >
+                      <span className="drill-name">{label(b.key)}</span>
+                      <span className="drill-bar" aria-hidden="true">
+                        <span className="drill-fill"
+                              style={{ width: `${Math.max(2, (Math.abs(b.revenue) / peak) * 100)}%` }} />
+                      </span>
+                      <span className="drill-sub">
+                        {t('drill.pieces').replace('{n}', String(b.units))}
+                        {' · '}
+                        {b.entries === 1
+                          ? t('drill.oneEntry')
+                          : t('drill.entries').replace('{n}', String(b.entries))}
+                      </span>
+                      <span className="drill-money">{idr(b.revenue)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {data?.timezone && (
+                <div className="field-hint" style={{ marginTop: 8 }}>
+                  {t('drill.tz').replace('{tz}', data.timezone)}
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </>
   );
 }
 
