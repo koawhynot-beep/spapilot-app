@@ -461,6 +461,21 @@ const EN = {
   'stock.allSizes': 'All sizes ({n})',
   'sell.nInStock': '{n} in stock',
   'overview.soldTag': 'sold in {y}',
+  'sell.discount': 'Discount',
+  'sell.discountNone': 'No discount',
+  'sell.discountPct': 'Discount %',
+  'sell.discountAgain': 'Type it again',
+  'sell.discountConfirm': 'Type the same number twice before selling',
+  'sell.discountNoMatch': 'The two do not match',
+  'sell.discountOk': 'Confirmed',
+  'sell.wasPrice': 'was {p}',
+  'sell.nowPrice': 'Customer pays {p} each',
+  'sale.off': '{n}% off',
+  'edit.discount': 'Discount %',
+  'edit.charged': 'Customer pays {p} each',
+  'sell.onePiece': '1 piece',
+  'sell.nPieces': '{n} pieces',
+  'sell.eachPrice': '{p} each',
 };
 
 const ID = {
@@ -902,6 +917,21 @@ const ID = {
   'stock.allSizes': 'Semua ukuran ({n})',
   'sell.nInStock': '{n} tersedia',
   'overview.soldTag': 'terjual {y}',
+  'sell.discount': 'Diskon',
+  'sell.discountNone': 'Tanpa diskon',
+  'sell.discountPct': 'Diskon %',
+  'sell.discountAgain': 'Ketik sekali lagi',
+  'sell.discountConfirm': 'Ketik angka yang sama dua kali sebelum menjual',
+  'sell.discountNoMatch': 'Keduanya tidak sama',
+  'sell.discountOk': 'Terkonfirmasi',
+  'sell.wasPrice': 'semula {p}',
+  'sell.nowPrice': 'Pelanggan bayar {p} per potong',
+  'sale.off': 'diskon {n}%',
+  'edit.discount': 'Diskon %',
+  'edit.charged': 'Pelanggan bayar {p} per potong',
+  'sell.onePiece': '1 potong',
+  'sell.nPieces': '{n} potong',
+  'sell.eachPrice': '{p} per potong',
 };
 
 const DICTS = { en: EN, id: ID };

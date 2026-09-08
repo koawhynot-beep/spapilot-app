@@ -111,6 +111,9 @@ const SaleRow = ({ r, showDate, showShop, onEdit }) => {
       <span className="sale-qty-label">{t(r.units < 0 ? 'sale.returned' : 'sale.sold')}</span>
     </div>
     <div className="sale-value">
+      {r.discountPct > 0 && (
+        <span className="sale-off">{t('sale.off').replace('{n}', String(r.discountPct))}</span>
+      )}
       {idr(r.value)}
       {onEdit && <Pencil size={13} className="sale-edit-hint" aria-hidden="true" />}
     </div>
@@ -401,6 +404,7 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
   // recorded before this screen existed still means.
   const [price, setPrice] = useState(sale.unitPrice === null ? '' : String(sale.unitPrice));
   const [pay, setPay] = useState(sale.payment || '');
+  const [disc, setDisc] = useState(sale.discountPct ? String(sale.discountPct) : '');
   // datetime-local wants "YYYY-MM-DDTHH:mm" in local time, which is exactly
   // what toISOString does not give you.
   const [when, setWhen] = useState(() => localInputValue(sale.occurredAt));
@@ -432,6 +436,7 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
       body.unitPrice = trimmed === '' ? null : Number(trimmed);
       if (when) body.occurredAt = new Date(when).toISOString();
       body.payment = pay;
+      body.discountPct = disc.trim() === '' ? 0 : Number(disc);
       const staffId = readStaffId();
       if (staffId) body.staffId = staffId;
       const updated = await api(`/api/sales/${sale.id}`, { method: 'PATCH', body });
@@ -532,6 +537,22 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
           />
         </div>
         <div className="field">
+          <label>{t('edit.discount')}</label>
+          <div className="pct-wrap">
+            <input
+              className="input"
+              type="number"
+              min="0"
+              max="100"
+              inputMode="numeric"
+              placeholder="0"
+              value={disc}
+              onChange={e => setDisc(e.target.value)}
+            />
+            <span className="pct-sign" aria-hidden="true">%</span>
+          </div>
+        </div>
+        <div className="field">
           <label>{t('edit.price')}</label>
           <input
             className="input"
@@ -547,6 +568,15 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
               : t('edit.priceCustom')}
           </div>
         </div>
+      </div>
+
+      <div className="discount-preview" style={{ marginBottom: 16 }}>
+        <strong>
+          {t('edit.charged').replace('{p}', idr(Math.round(
+            (String(price).trim() === '' ? shelf : Number(price) || 0)
+            * (1 - (disc.trim() === '' ? 0 : Number(disc) || 0) / 100)
+          )))}
+        </strong>
       </div>
 
       <div className="field">

@@ -24,7 +24,6 @@ const NOT_PROSE = [
   /^\d/,                             // starts with a digit
   /[=<>!&|]/,                        // leaked JS/JSX: attributes, operators
   /^(IDR|OK|CSV|PDF|TSV|A4|SKU|EN|ID)$/,
-  /^(MITRA SAMADI|Mitra Samadi)$/,   // the shop's own name
 ];
 
 // Two words, or one capitalised word of any length. Short pairs count:

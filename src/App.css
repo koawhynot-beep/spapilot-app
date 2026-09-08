@@ -1,4 +1,4 @@
-/* Mitra Samadi — calm, modern inventory UI.
+/* Calm, modern inventory UI.
    Principles: whitespace over borders, soft shadows over outlines,
    a near-black accent, colour reserved for stock that needs attention.
    Every colour is a token below, so light and dark stay in step. */
@@ -2017,3 +2017,29 @@ input[type="datetime-local"].input {
 }
 .pay-pill.is-cash { background: var(--good-soft); color: var(--good); border-color: transparent; }
 .pay-pill.is-card { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
+
+/* ── Discount, typed twice ────────────────────────────── */
+.pct-wrap { position: relative; }
+/* The % lives in the box so the number is read as a percentage and not as
+   an amount of money — on this screen both are plausible. */
+.pct-sign {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; font-weight: 600; color: var(--text-3); pointer-events: none;
+}
+.pct-wrap .input { padding-right: 30px; }
+.input.is-wrong, .input.is-wrong:focus {
+  border-color: var(--bad);
+  box-shadow: 0 0 0 3px var(--bad-soft);
+}
+.field-hint.is-wrong { color: var(--bad); font-weight: 550; }
+.discount-preview {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin-top: 10px; font-size: 13.5px;
+}
+.discount-preview s { color: var(--text-3); }
+.discount-preview strong { color: var(--good); font-weight: 650; }
+.sale-off {
+  display: inline-block; margin-right: 6px;
+  font-size: 10.5px; font-weight: 700; color: var(--bad);
+  letter-spacing: 0.02em;
+}

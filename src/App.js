@@ -269,7 +269,7 @@ function StatCard({ value, label, tone, active, onClick }) {
 // ═══════════════════════════════════════════════════════════
 // MAIN APP (post-auth)
 // ═══════════════════════════════════════════════════════════
-function MainApp({ user, business, shop, onSwitchAccess }) {
+function MainApp({ user, shop, onSwitchAccess }) {
   const t = useT();
   // Staff work the till; admin runs the business. Staff open on Sell because
   // that is the whole job; admin opens on Stock, which is where the owner
@@ -341,12 +341,19 @@ function MainApp({ user, business, shop, onSwitchAccess }) {
   return (
     <div className="app">
       <div className="topbar">
+        {/* The shop, not the business. The name was on every screen twice
+            over for a manager — once as the app's title and again as the
+            business underneath it — and it never told anyone anything they
+            did not already know. Which counter you are looking at does. The
+            sign-in screen still carries the name, where it answers a real
+            question. */}
         <div>
-          <h1>Mitra Samadi</h1>
-          <div className="topbar-sub">
-            {isAdmin ? (business?.name || 'Mitra Samadi') : scopeLabel}
-            {!isAdmin && <span className="topbar-scope">{t('scope.staff')}</span>}
-          </div>
+          <h1>{scopeLabel || t('shop.allShops')}</h1>
+          {!isAdmin && (
+            <div className="topbar-sub">
+              <span className="topbar-scope">{t('scope.staff')}</span>
+            </div>
+          )}
         </div>
         <div className="topbar-actions">
           <ThemeToggle />
@@ -1725,6 +1732,13 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   // It stays on the last method used within the session, which is visible on
   // screen, so a run of cash sales is still one tap each.
   const [payment, setPayment] = useState('');
+  // Typed twice on purpose. The first box is what somebody meant, the second
+  // is proof they meant it — a slipped key turning 10% into 100% is the
+  // whole reason this is here, and one of those two boxes will catch it.
+  // Both reset after every sale: a discount is agreed with one customer, and
+  // carrying it silently to the next is the mistake this is guarding against.
+  const [discount, setDiscount] = useState('');
+  const [discountAgain, setDiscountAgain] = useState('');
 
   // Who is scanning. Remembered on this device across shifts.
   const [staffId, setStaffId] = useState(readStaffId);
@@ -1778,8 +1792,13 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     }, ...r].slice(0, 30));
     // Only actual sales go on a customer's receipt.
     if (d.mode === 'sell') {
+      const gross = Number(d.item.price) || 0;
+      const pct = discountEntered ? discountNum : 0;
       setBasket(b => {
-        const i = b.findIndex(x => x.sku === d.item.sku);
+        // Two of the same garment at two different discounts are two lines,
+        // not one — merging them would show a single price that neither of
+        // them was sold at, and the receipt would not add up.
+        const i = b.findIndex(x => x.sku === d.item.sku && x.discountPct === pct);
         if (i >= 0) {
           const next = [...b];
           next[i] = { ...next[i], qty: next[i].qty + d.qtyChanged };
@@ -1788,7 +1807,9 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
         return [...b, {
           sku: d.item.sku,
           name: [d.item.category, d.item.fabric, d.item.color, d.item.size].filter(Boolean).join(' · ') || d.item.name,
-          price: Number(d.item.price) || 0,
+          price: gross,
+          discountPct: pct,
+          net: Math.round(gross * (1 - pct / 100)),
           qty: d.qtyChanged,
         }];
       });
@@ -1801,12 +1822,23 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     mode: scanMode,
     reason: scanMode === 'out' ? outReason : '',
     payment: scanMode === 'sell' ? payment : '',
+    discountPct: scanMode === 'sell' && discountEntered ? discountNum : 0,
     staffId: staffId || undefined,
   });
 
   // Nothing is sold until it is known how it was paid for. Only selling: a
   // delivery and a write-off have no customer.
   const needsPayment = scanMode === 'sell' && !payment;
+
+  // Blank means no discount, which is the normal sale and asks nothing of
+  // anyone. Only once a number is in the first box does the second have to
+  // agree with it.
+  const discountNum = discount.trim() === '' ? 0 : Number(discount);
+  const discountValid = Number.isFinite(discountNum) && discountNum >= 0 && discountNum <= 100;
+  const discountEntered = discount.trim() !== '' && discountNum > 0;
+  const discountMatches = discountAgain.trim() === discount.trim();
+  const needsDiscountConfirm = scanMode === 'sell'
+    && (!discountValid || (discountEntered && !discountMatches));
 
   // A scanner is a keyboard that types impossibly fast. Whether it also sends
   // an Enter afterwards is a per-device setting we cannot rely on — plenty
@@ -1842,7 +1874,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       clearScanTimer();
       // The buttons are disabled without a payment method; a scan submits by
       // itself, so it has to be stopped here or it would walk straight past.
-      if (looksScanned && !needsPayment) submitCode(value);
+      if (looksScanned && !needsPayment && !needsDiscountConfirm) submitCode(value);
     }, SCAN_IDLE_MS);
   };
 
@@ -1865,7 +1897,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
 
   const submitCode = async (raw) => {
     const c = String(raw || '').trim();
-    if (!c || !shopId || needsPayment) return;
+    if (!c || !shopId || needsPayment || needsDiscountConfirm) return;
     setCode('');
     setInFlight(n => n + 1);
     setMsg(null);
@@ -1895,6 +1927,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       record(d, d.label);
       onChanged?.();
       setPicked(null); setLookup(''); setResults([]); setSellQty(1);
+      setDiscount(''); setDiscountAgain('');
     } catch (err) {
       setMsg({ type: 'err', text: err.message || 'Could not record that' });
     } finally {
@@ -1905,7 +1938,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   const shopName = shops.find(s => s.id === shopId)?.name || '';
   const adding = ADDS_STOCK.has(scanMode);
   const basketCount = basket.reduce((n, b) => n + b.qty, 0);
-  const basketTotal = basket.reduce((n, b) => n + b.price * b.qty, 0);
+  const basketTotal = basket.reduce((n, b) => n + (b.net != null ? b.net : b.price) * b.qty, 0);
 
   // Printing goes through the browser, so it works with whatever printer the
   // shop has installed — thermal or otherwise — with no driver of our own.
@@ -2035,6 +2068,71 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
           </div>
         )}
 
+        {/* Typed twice. Not a confirmation dialog, because a dialog is a
+            thing you dismiss without reading; retyping the number is work
+            that only succeeds if you actually looked at it. */}
+        {scanMode === 'sell' && (
+          <div className="field">
+            <label>{t('sell.discount')}</label>
+            <div className="form-row">
+              <div>
+                <div className="pct-wrap">
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    max="100"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={discount}
+                    onChange={e => setDiscount(e.target.value)}
+                    aria-label={t('sell.discountPct')}
+                  />
+                  <span className="pct-sign" aria-hidden="true">%</span>
+                </div>
+                <div className="field-hint">{t('sell.discountPct')}</div>
+              </div>
+              {discountEntered && (
+                <div>
+                  <div className="pct-wrap">
+                    <input
+                      className={`input ${discountAgain.trim() !== '' && !discountMatches ? 'is-wrong' : ''}`}
+                      type="number"
+                      min="0"
+                      max="100"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={discountAgain}
+                      onChange={e => setDiscountAgain(e.target.value)}
+                      aria-label={t('sell.discountAgain')}
+                    />
+                    <span className="pct-sign" aria-hidden="true">%</span>
+                  </div>
+                  <div className={`field-hint ${discountAgain.trim() !== '' && !discountMatches ? 'is-wrong' : ''}`}>
+                    {discountAgain.trim() === ''
+                      ? t('sell.discountAgain')
+                      : (discountMatches ? t('sell.discountOk') : t('sell.discountNoMatch'))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* The number in rupiah, because a percentage is not what anyone
+                hands over and 15% of 1,350,000 is not obvious at a glance. */}
+            {discountEntered && discountMatches && discountValid && picked && (
+              <div className="discount-preview">
+                <s>{t('sell.wasPrice').replace('{p}', idr(picked.price))}</s>
+                <strong>
+                  {t('sell.nowPrice').replace('{p}',
+                    idr(Math.round(Number(picked.price || 0) * (1 - discountNum / 100))))}
+                </strong>
+              </div>
+            )}
+            {needsDiscountConfirm && (
+              <div className="field-hint is-wrong">{t('sell.discountConfirm')}</div>
+            )}
+          </div>
+        )}
+
         <div className="segmented segmented-wide" role="group" aria-label={t('sell.howToFind')} style={{ marginBottom: 20 }}>
           <button type="button" className={mode === 'scan' ? 'is-active' : ''} onClick={() => setMode('scan')}>
             <ScanLine size={16} /> {t('sell.scanBarcode')}
@@ -2059,7 +2157,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                 inputMode="text"
               />
             </div>
-            <button className="btn btn-primary btn-block btn-large" disabled={!code.trim() || needsPayment}>
+            <button className="btn btn-primary btn-block btn-large" disabled={!code.trim() || needsPayment || needsDiscountConfirm}>
               <ScanLine size={19} /> {t(`sell.verb.${scanMode}`)} {t('sell.one')}
               {inFlight > 0 && <span className="inflight-dot">{inFlight}</span>}
             </button>
@@ -2143,7 +2241,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
             <button
               type="button"
               className="btn btn-primary btn-block btn-large"
-              disabled={busy || needsPayment || (!adding && picked.qty === 0)}
+              disabled={busy || needsPayment || needsDiscountConfirm || (!adding && picked.qty === 0)}
               onClick={submitPicked}
             >
               <Check size={19} /> {t(`sell.verb.${scanMode}`)} {sellQty}
@@ -2165,22 +2263,36 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
         <>
           <div className="section-head">
             <h2 className="section-title">{t('sell.thisSale')}</h2>
-            <span className="section-meta">{basketCount} piece{basketCount === 1 ? '' : 's'}</span>
+            <span className="section-meta">
+              {basketCount === 1
+                ? t('sell.onePiece')
+                : t('sell.nPieces').replace('{n}', String(basketCount))}
+            </span>
           </div>
           <div className="panel">
             <div className="panel-body">
               {basket.map(b => (
-                <div className="rank-row" key={b.sku}>
+                <div className="rank-row" key={`${b.sku}@${b.discountPct || 0}`}>
                   <div className="rank-main">
                     <div className="rank-name">{b.name}</div>
-                    <div className="rank-sub">{b.sku}{b.price > 0 ? ` · ${idr(b.price)} each` : ''}</div>
+                    <div className="rank-sub">
+                      {b.sku}
+                      {b.price > 0
+                        ? ` · ${t('sell.eachPrice').replace('{p}', idr(b.net != null ? b.net : b.price))}`
+                        : ''}
+                      {b.discountPct > 0
+                        ? ` · ${t('sale.off').replace('{n}', String(b.discountPct))}`
+                        : ''}
+                    </div>
                   </div>
                   <div className="rank-stat">
                     <div className="rank-stat-num">{b.qty}</div>
-                    <div className="rank-stat-label">qty</div>
+                    <div className="rank-stat-label">{t('common.qty')}</div>
                   </div>
                   <div className="rank-stat" style={{ minWidth: 116 }}>
-                    <div className="rank-stat-num" style={{ fontSize: 14 }}>{idr(b.price * b.qty)}</div>
+                    <div className="rank-stat-num" style={{ fontSize: 14 }}>
+                      {idr((b.net != null ? b.net : b.price) * b.qty)}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -2252,8 +2364,7 @@ function Receipt({ data }) {
   return (
     <div className="receipt" aria-hidden="true">
       <div className="receipt-head">
-        <div className="receipt-brand">MITRA SAMADI</div>
-        <div className="receipt-shop">{data.shop}</div>
+        <div className="receipt-brand">{data.shop}</div>
       </div>
       <div className="receipt-meta">
         <div>{data.at.toLocaleDateString()} {data.at.toLocaleTimeString()}</div>
@@ -2263,11 +2374,14 @@ function Receipt({ data }) {
       </div>
       <div className="receipt-rule" />
       {data.lines.map(l => (
-        <div className="receipt-line" key={l.sku}>
+        <div className="receipt-line" key={`${l.sku}@${l.discountPct || 0}`}>
           <div className="receipt-line-name">{l.name}</div>
           <div className="receipt-line-nums">
-            <span>{l.qty} × {Number(l.price).toLocaleString('en-US')}</span>
-            <span>{(l.price * l.qty).toLocaleString('en-US')}</span>
+            <span>
+              {l.qty} × {Number(l.net != null ? l.net : l.price).toLocaleString('en-US')}
+              {l.discountPct > 0 ? ` (−${l.discountPct}%)` : ''}
+            </span>
+            <span>{((l.net != null ? l.net : l.price) * l.qty).toLocaleString('en-US')}</span>
           </div>
         </div>
       ))}
@@ -3559,7 +3673,6 @@ function AccessGate({ onAuthed }) {
     <div className="auth-screen">
       <div className="auth-card">
         <div className="brand">
-          <h1>Mitra Samadi</h1>
           <p>{t('gate.prompt')}</p>
         </div>
         <form onSubmit={submit}>
@@ -3597,7 +3710,6 @@ function AccessGate({ onAuthed }) {
 
 function AppInner() {
   const [user, setUser] = useState(null);
-  const [business, setBusiness] = useState(null);
   const [shop, setShop] = useState(null);
   const [checking, setChecking] = useState(true);
 
@@ -3605,12 +3717,12 @@ function AppInner() {
     const token = getToken();
     if (!token) { setChecking(false); return; }
     api('/api/auth/me')
-      .then(d => { setUser(d.user); setBusiness(d.business); setShop(d.shop || null); setChecking(false); })
+      .then(d => { setUser(d.user); setShop(d.shop || null); setChecking(false); })
       .catch(() => { setToken(null); setChecking(false); });
   }, []);
 
   useEffect(() => {
-    const handler = () => { setUser(null); setBusiness(null); setShop(null); };
+    const handler = () => { setUser(null); setShop(null); };
     window.addEventListener('app:unauth', handler);
     return () => window.removeEventListener('app:unauth', handler);
   }, []);
@@ -3627,7 +3739,7 @@ function AppInner() {
 
   // The only way in: enter an access code. Which code decides what you reach.
   if (!user) {
-    return <AccessGate onAuthed={(u, b, sh) => { setUser(u); setBusiness(b); setShop(sh); }} />;
+    return <AccessGate onAuthed={(u, _biz, sh) => { setUser(u); setShop(sh); }} />;
   }
 
   return (
@@ -3636,9 +3748,8 @@ function AppInner() {
       // new code is not allowed to see.
       key={user.accessRole}
       user={user}
-      business={business}
       shop={shop}
-      onSwitchAccess={(u, b, sh) => { setUser(u); setBusiness(b); setShop(sh); }}
+      onSwitchAccess={(u, _biz, sh) => { setUser(u); setShop(sh); }}
     />
   );
 }
