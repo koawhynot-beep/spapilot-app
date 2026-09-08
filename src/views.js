@@ -6,7 +6,7 @@
 // order it happened, so the drawer can be balanced at close. History is the
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, History, TrendingUp, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard } from 'lucide-react';
+import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard } from 'lucide-react';
 import { Modal, SearchField } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
@@ -250,7 +250,9 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
   const [pane, setPane] = useState('log');
 
   const panes = useMemo(
-    () => (isAdmin ? ['log', 'periods', 'stock', 'sellers', 'commission'] : ['log', 'stock']),
+    () => (isAdmin
+      ? ['log', 'periods', 'staff', 'stock', 'sellers', 'commission']
+      : ['log', 'stock']),
     [isAdmin]
   );
   // A staff member who had 'commission' selected before losing it would be
@@ -308,6 +310,7 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
       {pane === 'log' && <SalesLog qs={qs} showShop={showShop} isAdmin={isAdmin} />}
       {pane === 'periods' && <PeriodsPane qs={qs} showShop={showShop} />}
       {pane === 'stock' && <StockMovesPane qs={qs} showShop={showShop} isAdmin={isAdmin} />}
+      {pane === 'staff' && <StaffTotalsPane qs={qs} />}
       {pane === 'sellers' && <SellersPane qs={qs} />}
       {pane === 'commission' && <CommissionPane qs={qs} />}
     </>
@@ -994,6 +997,86 @@ function ExportButton({ href, label }) {
 }
 
 // ── Best and worst ────────────────────────────────────────
+// ── Takings per seller ────────────────────────────────────
+// What each person sold over the period on screen. Sales net of returns and
+// of discounts, so nobody's total is flattered by a rail that went out at
+// half price.
+//
+// Sales with no name recorded are shown as their own row rather than hidden.
+// Leaving them out would make this page disagree with the sales list, and a
+// total that does not reconcile with the log is worse than an awkward row.
+function StaffTotalsPane({ qs }) {
+  const t = useT();
+  const { data, error, loading } = useLoad(`/api/sales/by-staff?${qs}`, [qs]);
+
+  if (loading) return <div className="loading">{t('common.loading')}</div>;
+  if (error) return <div className="error-banner">{error}</div>;
+
+  const items = data?.items || [];
+  if (items.length === 0) return <Empty icon={Users} title={t('staff.nothing')} />;
+
+  const totals = data.totals || { units: 0, revenue: 0, entries: 0, sellers: 0 };
+  const peak = Math.max(1, ...items.map(i => Math.abs(i.revenue)));
+
+  return (
+    <>
+      <div className="section-head">
+        <h2 className="section-title">{t('staff.heading')}</h2>
+        <span className="section-meta">
+          {totals.sellers === 1
+            ? t('staff.oneSeller')
+            : t('staff.sellers').replace('{n}', String(totals.sellers))}
+        </span>
+      </div>
+
+      <div className="panel">
+        <div className="panel-body">
+          {items.map((s, i) => (
+            <div className="seller-row" key={(s.staffId || 's') + '-' + i}>
+              <div className="seller-name">
+                {s.name || <span className="seller-unnamed">{t('staff.noName')}</span>}
+              </div>
+              <div className="seller-bar" aria-hidden="true">
+                <div className="seller-fill"
+                     style={{ width: `${Math.max(2, (Math.abs(s.revenue) / peak) * 100)}%` }} />
+              </div>
+              <div className="seller-sub">
+                {t('drill.pieces').replace('{n}', String(s.units))}
+                {' · '}
+                {s.entries === 1
+                  ? t('drill.oneEntry')
+                  : t('drill.entries').replace('{n}', String(s.entries))}
+                {totals.revenue > 0 && (
+                  <> {' · '}
+                    {t('staff.share').replace('{n}',
+                      String(Math.round((s.revenue / totals.revenue) * 100)))}
+                  </>
+                )}
+              </div>
+              <div className="seller-money">{idr(s.revenue)}</div>
+            </div>
+          ))}
+
+          <div className="seller-row is-total">
+            <div className="seller-name">{t('staff.total')}</div>
+            <div className="seller-bar" aria-hidden="true" />
+            <div className="seller-sub">
+              {t('drill.pieces').replace('{n}', String(totals.units))}
+              {' · '}
+              {t('drill.entries').replace('{n}', String(totals.entries))}
+            </div>
+            <div className="seller-money">{idr(totals.revenue)}</div>
+          </div>
+        </div>
+      </div>
+
+      {items.some(s => !s.name) && (
+        <div className="field-hint" style={{ marginTop: 8 }}>{t('staff.noNameNote')}</div>
+      )}
+    </>
+  );
+}
+
 function SellersPane({ qs }) {
   const t = useT();
   const { data: d, error, loading } = useLoad(`/api/analytics/summary?${qs}`, [qs]);

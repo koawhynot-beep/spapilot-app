@@ -491,6 +491,16 @@ const EN = {
   'drill.showSales': 'Show these sales',
   'drill.back': 'Back',
   'drill.tz': 'Days run on {tz} time',
+  'history.pane.staff': 'Per seller',
+  'staff.heading': 'What each person sold',
+  'staff.noName': 'Name not recorded',
+  'staff.noNameNote': 'Sales entered with no seller name',
+  'staff.nothing': 'Nothing sold in this period',
+  'staff.sellers': '{n} sellers',
+  'staff.oneSeller': '1 seller',
+  'staff.total': 'Everyone together',
+  'staff.share': '{n}% of the takings',
+  'staff.last': 'Last sale {d}',
 };
 
 const ID = {
@@ -962,6 +972,16 @@ const ID = {
   'drill.showSales': 'Tampilkan penjualan ini',
   'drill.back': 'Kembali',
   'drill.tz': 'Hari mengikuti waktu {tz}',
+  'history.pane.staff': 'Per penjual',
+  'staff.heading': 'Penjualan tiap orang',
+  'staff.noName': 'Nama tidak tercatat',
+  'staff.noNameNote': 'Penjualan yang dimasukkan tanpa nama penjual',
+  'staff.nothing': 'Tidak ada penjualan pada periode ini',
+  'staff.sellers': '{n} penjual',
+  'staff.oneSeller': '1 penjual',
+  'staff.total': 'Semua digabung',
+  'staff.share': '{n}% dari total',
+  'staff.last': 'Penjualan terakhir {d}',
 };
 
 const DICTS = { en: EN, id: ID };
