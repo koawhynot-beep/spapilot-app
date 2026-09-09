@@ -2044,57 +2044,75 @@ input[type="datetime-local"].input {
   letter-spacing: 0.02em;
 }
 
-/* ── Drilling into the takings ────────────────────────── */
-.crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-bottom: 14px; }
-.crumb {
-  font: inherit; font-size: 13px; padding: 3px 7px; border-radius: var(--r-sm);
-  border: none; background: none; color: var(--primary); cursor: pointer;
+/* ── The date pickers ───────────────────────────
+   Four rows of chips, all visible at once. Each row scrolls sideways on its
+   own rather than wrapping to three lines, so the four rows stay in one
+   glance on a phone. */
+.pickers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
 }
-.crumb:hover { background: var(--row-hover); }
-.crumb.is-here { color: var(--text); font-weight: 600; padding: 3px 7px; }
-.crumb-sep { color: var(--text-3); font-size: 13px; }
-
-.drill-row {
-  display: grid;
-  grid-template-columns: 150px 1fr 150px 130px;
-  gap: var(--s-3);
-  align-items: center;
-  width: 100%;
-  padding: 11px var(--s-5);
+.picker-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-3);
+  margin-bottom: 6px;
+}
+.picker-chips {
+  display: flex; gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.picker-none { font-size: 13px; color: var(--text-3); }
+.chip {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 7px 13px;
   font: inherit; text-align: left; color: inherit;
-  background: none; border: none;
-  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.drill-row:last-child { border-bottom: none; }
-.drill-row:hover { background: var(--row-hover); }
-.drill-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-.drill-name { font-size: 14px; font-weight: 600; }
-/* A bar rather than a number alone: which month was quiet is the question
-   being asked, and a row of figures does not answer it at a glance. */
-.drill-bar { height: 7px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-.drill-fill { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
-.drill-sub { font-size: 12px; color: var(--text-3); }
-.drill-money {
-  font-size: 13.5px; font-weight: 600; text-align: right;
+.chip:hover { border-color: var(--line); }
+.chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.chip-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.chip-money {
+  font-size: 11px; color: var(--text-3); white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-@media (max-width: 720px) {
-  .drill-row {
-    grid-template-columns: 1fr auto;
-    grid-template-areas: "name money" "bar bar" "sub sub";
-    row-gap: 4px;
-  }
-  .drill-name { grid-area: name; }
-  .drill-money { grid-area: money; }
-  .drill-bar { grid-area: bar; }
-  .drill-sub { grid-area: sub; }
+/* The chosen chip has to be unmistakable: with four rows on screen, a faint
+   highlight leaves you unsure what you actually asked for. */
+.chip.is-on {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
 }
+.chip.is-on .chip-money { color: inherit; opacity: 0.75; }
 
-/* ── Takings per seller ─────────────────────────────────────
-   The same shape as the drill-down rows, so the two read as one family.
-   Not a button: there is nothing underneath to open. */
+.picked-total {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: "k v clear" "sub v clear";
+  align-items: center;
+  column-gap: var(--s-4);
+  padding: 12px var(--s-5);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+}
+.picked-total-k { grid-area: k; font-size: 13px; font-weight: 600; }
+.picked-total-sub { grid-area: sub; font-size: 12px; color: var(--text-3); }
+.picked-total-v {
+  grid-area: v; font-size: 17px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.picked-total .btn { grid-area: clear; }
+
 .seller-row {
   display: grid;
   grid-template-columns: 150px 1fr 235px 130px;
