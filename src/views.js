@@ -247,6 +247,7 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
   const [range, setRange] = useState('30d');
   const [staffId, setStaffId] = useState('');
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('recent');
   const [pane, setPane] = useState('log');
 
   const panes = useMemo(
@@ -263,9 +264,10 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
     const q = { ...rangeToQuery(range) };
     if (staffId) q.staffId = staffId;
     if (search.trim()) q.q = search.trim();
+    if (sort !== 'recent') q.sort = sort;
     if (shopsParam) q.shops = shopsParam;
     return new URLSearchParams(q).toString();
-  }, [range, staffId, search, shopsParam]);
+  }, [range, staffId, search, sort, shopsParam]);
 
   // Only worth naming the shop on each row when more than one is in view.
   const showShop = shops.length > 1 && !shopsParam;
@@ -285,6 +287,13 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
         <select className="select select-inline" value={staffId} onChange={e => setStaffId(e.target.value)}>
           <option value="">{t('history.anyStaff')}</option>
           {staff.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+        </select>
+        {/* Grouping by fabric answers a different question from "what happened
+            lately" — what the linen has been doing, all of it together. */}
+        <select className="select select-inline" value={sort} onChange={e => setSort(e.target.value)}
+                aria-label={t('history.sortLabel')}>
+          <option value="recent">{t('history.sortRecent')}</option>
+          <option value="fabric">{t('history.sortFabric')}</option>
         </select>
       </div>
 

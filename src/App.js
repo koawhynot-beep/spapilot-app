@@ -5,7 +5,7 @@ import {
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
   MoreHorizontal, Sun, Moon, Printer, Undo2, ClipboardCheck,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
-  Banknote, CreditCard,
+  Banknote, CreditCard, Truck, ClipboardList,
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
@@ -13,6 +13,7 @@ import { TodayView, HistoryView } from './views';
 import { Modal, SearchField } from './ui';
 import { tStatic } from './i18n';
 import { StockCheckView } from './stockcheck';
+import { TransferBuildView, TransferCheckView } from './transfers';
 import { parseStockSheet } from './sheetparse';
 import './App.css';
 
@@ -316,10 +317,24 @@ function MainApp({ user, shop, onSwitchAccess }) {
   // then read the business. Staff get everything except the Overview: they
   // need History because that is where a sale gets corrected, and a mistake
   // is spotted by whoever made it.
+  // How many transfers are sitting waiting for somebody to walk the rail.
+  // On the tab itself, because a delivery nobody notices is a delivery that
+  // stays unchecked for two days and then loses its ticks.
+  const [pendingTransfers, setPendingTransfers] = useState(0);
+  const reloadTransfers = useCallback(() => {
+    api('/api/transfers')
+      .then(d => setPendingTransfers((d?.transfers || []).length))
+      .catch(() => {});
+  }, []);
+  useEffect(() => { reloadTransfers(); }, [reloadTransfers]);
+
   const allTabs = [
     { id: 'sell',     label: t('tab.sell'),     icon: ScanLine,   staff: true },
     { id: 'stock',    label: t('tab.stock'),    icon: Package,    staff: true },
     { id: 'check',    label: t('tab.check'),    icon: ClipboardCheck, staff: true },
+    { id: 'transfers', label: t('tab.transfers'), icon: Truck },
+    { id: 'transfercheck', label: t('tab.transferCheck'), icon: ClipboardList,
+      staff: true, badge: pendingTransfers },
     { id: 'today',    label: t('tab.today'),    icon: Calendar,   staff: true },
     { id: 'overview', label: t('tab.overview'), icon: SlidersHorizontal },
     { id: 'history',  label: t('tab.history'),  icon: History,  staff: true },
@@ -376,7 +391,10 @@ function MainApp({ user, shop, onSwitchAccess }) {
 
         {/* One picker, above everything, so the shop in view is never in
             doubt. Hidden for staff, who have nothing to choose. */}
-        {isAdmin && shopList.length > 1 && (
+        {/* The transfer screens carry their own From and To, and the
+            checklist is deliberately every shop at once. A second shop
+            picker above them would only be a way to hide a delivery. */}
+        {isAdmin && shopList.length > 1 && tab !== 'transfers' && tab !== 'transfercheck' && (
           <ShopSwitcher
             shops={shopList}
             value={shopSel}
@@ -410,6 +428,12 @@ function MainApp({ user, shop, onSwitchAccess }) {
         )}
         {tab === 'check' && (
           <StockCheckView staff={staff.data} shopsParam={shopsParam} />
+        )}
+        {tab === 'transfers' && isAdmin && (
+          <TransferBuildView shops={shopList} onMade={reloadTransfers} />
+        )}
+        {tab === 'transfercheck' && (
+          <TransferCheckView isAdmin={isAdmin} onChanged={reloadTransfers} />
         )}
         {tab === 'today' && (
           <TodayView isAdmin={isAdmin} shopsParam={shopsParam} />
@@ -741,6 +765,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           aria-label={t('common.sort')}
         >
           <option value="fabric-color">{t('stock.sortFabricColor')}</option>
+          <option value="fabric">{t('stock.sortFabric')}</option>
           <option value="qty-asc">{t('stock.sortFewest')}</option>
           <option value="qty-desc">{t('stock.sortMost')}</option>
           <option value="color">{t('stock.sortColor')}</option>
@@ -2668,6 +2693,7 @@ function OverviewView({ shops = [], shopsParam = '' }) {
             <label>{t('common.sort')}</label>
             <select className="select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
               <option value="fabric-color">{t('stock.sortFabricColor')}</option>
+              <option value="fabric">{t('stock.sortFabric')}</option>
               <option value="color">{t('stock.sortColor')}</option>
               <option value="style">{t('stock.sortStyle')}</option>
               <option value="name">{t('stock.sortName')}</option>
@@ -2824,7 +2850,7 @@ const monthLabel = (ym) => {
 function ItemHistoryModal({ item, shopsParam, onClose }) {
   const t = useT();
   const [year, setYear] = useState(() => new Date().getFullYear());
-  const [data, setData] = useState({ months: [], movements: [], years: [] });
+  const [data, setData] = useState({ months: [], movements: [], years: [], byYear: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -2832,8 +2858,8 @@ function ItemHistoryModal({ item, shopsParam, onClose }) {
     const p = new URLSearchParams({ sku: item.sku, year: String(year) });
     if (shopsParam) p.set('shops', shopsParam);
     api(`/api/business/sku-history?${p.toString()}`)
-      .then(d => { setData(d || { months: [], movements: [], years: [] }); setLoading(false); })
-      .catch(() => { setData({ months: [], movements: [], years: [] }); setLoading(false); });
+      .then(d => { setData(d || { months: [], movements: [], years: [], byYear: [] }); setLoading(false); })
+      .catch(() => { setData({ months: [], movements: [], years: [], byYear: [] }); setLoading(false); });
   }, [item.sku, year, shopsParam]);
 
   const title = [item.style, item.fabric, item.color, item.size].filter(Boolean).join(' · ') || item.name;
@@ -2855,6 +2881,30 @@ function ItemHistoryModal({ item, shopsParam, onClose }) {
       </div>
 
       {loading && <div className="loading">{t('common.loading')}</div>}
+
+      {/* Five years kept apart rather than added together. Thirty in one year
+          and twenty in the next is the shape of a garment going quiet, and a
+          single total of fifty hides it. Not narrowed by the year picker
+          above — this is the long view, and the reason to touch that picker. */}
+      {!loading && (data.byYear || []).length > 0 && (
+        <>
+          <div className="detail-k" style={{ margin: '4px 0 8px' }}>{t('item.byYear')}</div>
+          <div className="year-strip">
+            {data.byYear.map(y => (
+              <button
+                type="button"
+                key={y.year}
+                className={'year-cell' + (y.year === year ? ' is-on' : '') + (y.sold === 0 ? ' is-quiet' : '')}
+                onClick={() => setYear(y.year)}
+              >
+                <span className="year-cell-y">{y.year}</span>
+                <span className="year-cell-n">{y.sold === 0 ? t('item.soldNone') : y.sold}</span>
+                {y.revenue > 0 && <span className="year-cell-v">{idr(y.revenue)}</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {!loading && data.movements.length === 0 && (
         <div className="empty empty-sm">
@@ -2886,7 +2936,7 @@ function ItemHistoryModal({ item, shopsParam, onClose }) {
       {!loading && data.movements.length > 0 && (
         <>
           <div className="detail-k" style={{ margin: '18px 0 8px' }}>
-            Every movement · {data.movements.length}
+            {t('item.everyMovement')} · {data.movements.length}
           </div>
           <div className="ledger">
             {data.movements.map(m => {

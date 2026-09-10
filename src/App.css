@@ -2149,3 +2149,188 @@ input[type="datetime-local"].input {
   .seller-bar { grid-area: bar; }
   .seller-sub { grid-area: sub; }
 }
+
+/* ── Five years, side by side ────────────────────────────────
+   The point is the comparison, so the years sit in a row and the numbers
+   line up under each other. A year that sold nothing is dimmed but still
+   present: the gap is a fact about the garment. */
+.year-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: var(--s-4);
+}
+.year-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 9px 4px;
+  font: inherit; color: inherit;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.year-cell:hover { border-color: var(--line); }
+.year-cell:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.year-cell-y { font-size: 11px; color: var(--text-3); }
+.year-cell-n { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.year-cell-v {
+  font-size: 10px; color: var(--text-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.year-cell.is-quiet .year-cell-n { font-size: 13px; font-weight: 500; color: var(--text-3); }
+.year-cell.is-on { border-color: var(--primary); background: var(--primary-soft, var(--surface-2)); }
+.year-cell.is-on .year-cell-y { color: var(--text); font-weight: 600; }
+@media (max-width: 520px) {
+  .year-strip { gap: 4px; }
+  .year-cell { padding: 8px 2px; }
+  .year-cell-v { display: none; }
+}
+
+/* ── Transfers ───────────────────────────────────────────────
+   Building one on the left, the list going out on the right, so the shop
+   can see what it has added without losing the search. */
+.transfer-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-5);
+  align-items: start;
+}
+@media (max-width: 860px) { .transfer-cols { grid-template-columns: 1fr; } }
+
+.field-with-icon { position: relative; }
+.field-with-icon > svg {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-3); pointer-events: none;
+}
+.field-with-icon .input { padding-left: 36px; }
+
+.pick-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--s-3);
+  align-items: center;
+  width: 100%;
+  padding: 9px var(--s-5);
+  font: inherit; text-align: left; color: inherit;
+  background: none; border: none;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pick-row:last-child { border-bottom: none; }
+.pick-row:hover { background: var(--row-hover); }
+.pick-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.pick-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pick-name { font-size: 13.5px; font-weight: 600; }
+.pick-sub { font-size: 11.5px; color: var(--text-3); }
+.pick-have { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.pick-add { display: flex; color: var(--primary); }
+
+.basket-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--s-3);
+  align-items: center;
+  padding: 9px var(--s-5);
+  border-bottom: 1px solid var(--line-soft);
+}
+.basket-row:last-child { border-bottom: none; }
+.basket-name { font-size: 13.5px; font-weight: 600; }
+.basket-sub { font-size: 11.5px; color: var(--text-3); }
+
+.qty-step { display: flex; align-items: center; gap: 2px; }
+.qty-step button {
+  width: 30px; height: 30px;
+  font: inherit; font-size: 17px; line-height: 1; color: inherit;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+  border-radius: 8px; cursor: pointer;
+}
+.qty-step button:disabled { opacity: 0.35; cursor: not-allowed; }
+.qty-step span {
+  min-width: 30px; text-align: center;
+  font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  color: var(--text-3); background: none; border: none;
+  border-radius: 7px; cursor: pointer;
+}
+.icon-btn:hover { background: var(--row-hover); color: var(--text); }
+
+/* ── The checklist ───────────────────────────────────────────
+   One block per transfer. Two deliveries from two shops on one flat list
+   would be ticked off as though they were one delivery. */
+.transfer-block {
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  padding: var(--s-4);
+  margin-bottom: var(--s-5);
+  background: var(--surface);
+}
+.transfer-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s-3); margin-bottom: var(--s-3);
+}
+.transfer-route { font-size: 15px; font-weight: 700; }
+.transfer-arrow { color: var(--text-3); margin: 0 2px; }
+.transfer-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.transfer-progress span {
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+.transfer-progress span.is-all { color: var(--good); }
+.transfer-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s-3); margin-top: var(--s-3);
+}
+
+/* A real button, not a div with a checkbox in it: the whole row is the
+   target, which matters when it is being tapped with one hand at a rail. */
+.tick-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: var(--s-3);
+  align-items: center;
+  width: 100%;
+  padding: 11px var(--s-5);
+  font: inherit; text-align: left; color: inherit;
+  background: none; border: none;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tick-row:last-child { border-bottom: none; }
+.tick-row:hover { background: var(--row-hover); }
+.tick-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.tick-row:disabled { opacity: 0.5; }
+.tick-box {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border: 2px solid var(--line); border-radius: 6px;
+  color: var(--on-primary);
+}
+.tick-box.is-on { background: var(--primary); border-color: var(--primary); }
+.tick-qty {
+  min-width: 24px; text-align: right;
+  font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.tick-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tick-name { font-size: 13.5px; font-weight: 600; }
+.tick-sub { font-size: 11.5px; color: var(--text-3); }
+.tick-row.is-on .tick-name { color: var(--text-3); text-decoration: line-through; }
+.tick-short { font-size: 11.5px; color: var(--warn); white-space: nowrap; }
+.tick-row.is-short .tick-qty { color: var(--warn); }
+
+.notice {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: 10px var(--s-4);
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: var(--s-3);
+}
+.notice-good { background: var(--good-soft); color: var(--text); }
+.notice-warn { background: var(--bad-soft); color: var(--text); }
+.notice > span { flex: 1; }
+.modal-text { font-size: 14px; color: var(--text-2); line-height: 1.55; }

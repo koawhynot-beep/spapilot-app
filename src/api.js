@@ -36,9 +36,16 @@ async function request(path, opts = {}) {
   }
   if (!res.ok) {
     let msg = `${res.status}`;
-    try { const d = await res.json(); msg = d.error || msg; } catch {}
+    let body = null;
+    try { body = await res.json(); msg = body.error || msg; } catch {}
     if (res.status >= 500) msg = `Server error (${res.status}). Try again.`;
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = res.status;
+    // Some refusals carry the detail that makes them useful — which lines of
+    // a transfer are short, which rows of an import would not parse. The
+    // message alone cannot say that, so the whole body comes with it.
+    if (body) Object.assign(err, body);
+    throw err;
   }
   return res;
 }
