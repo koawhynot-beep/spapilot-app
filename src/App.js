@@ -503,10 +503,12 @@ function ShopSwitcher({ shops, value, onChange, allowAll, activeShopId, onPickAc
 // ═══════════════════════════════════════════════════════════
 // STOCK VIEW
 // ═══════════════════════════════════════════════════════════
-// Sold each year, back to the first sale and no further, ten years at most.
-// The comparison is the point, so the years sit in one row with the numbers
-// lined up under each other; a year that sold nothing is dimmed, not dropped.
-function SoldByYear({ sku }) {
+// One garment in all its sizes, what each sold in each year, and what is
+// on the rail now. Drawn the way the owner sketched it: the size once on the
+// left, the years across, the total, then stock. Every size of the garment
+// is shown whichever size was opened, so opening the M/L answers the S/M
+// question too.
+function SizesTable({ sku }) {
   const t = useT();
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -514,50 +516,47 @@ function SoldByYear({ sku }) {
   useEffect(() => {
     if (!sku) return;
     let gone = false;
-    // Every shop, whichever one is on screen: the question is how well the
-    // garment sells, not how well it sells here.
-    api(`/api/stock/sold-by-year?${new URLSearchParams({ sku }).toString()}`)
+    api(`/api/stock/sizes?${new URLSearchParams({ sku }).toString()}`)
       .then(d => { if (!gone) setData(d); })
       .catch(() => { if (!gone) setFailed(true); });
     return () => { gone = true; };
   }, [sku]);
 
-  if (!sku || failed) return null;
-  if (!data) return <div className="detail-k">{t('item.soldByYear')} …</div>;
+  if (!sku) return null;
+  if (failed) return <div className="field-hint">{t('common.error')}</div>;
+  if (!data) return <div className="loading" style={{ padding: 8 }}>{t('common.loading')}</div>;
 
   const years = data.years || [];
-  const sold = data.totals?.sold || 0;
+  const sizes = data.sizes || [];
+  if (sizes.length === 0) return <div className="field-hint">{t('sizes.none')}</div>;
+  const anySold = sizes.some(z => z.total > 0);
+
   return (
-    <>
-      <div className="detail-k" style={{ marginBottom: 6 }}>
-        {t('item.soldByYear')}
-        {sold > 0 && (
-          <span style={{ fontWeight: 400, marginLeft: 8 }}>
-            {t('item.soldTotal').replace('{n}', String(sold)).replace('{v}', idr(data.totals.revenue))}
-          </span>
-        )}
-      </div>
-      {sold === 0 ? (
-        <div className="detail-v" style={{ color: 'var(--text-3)' }}>{t('item.soldNever')}</div>
-      ) : (
-        <>
-          <div className="year-strip year-strip-flow">
-            {years.map(y => (
-              <div key={y.year} className={'year-cell' + (y.sold === 0 ? ' is-quiet' : '')}>
-                <span className="year-cell-y">{y.year}</span>
-                <span className="year-cell-n">{y.sold === 0 ? t('item.soldNone') : y.sold}</span>
-                {y.revenue > 0 && <span className="year-cell-v">{idr(y.revenue)}</span>}
-              </div>
-            ))}
-          </div>
-          {(data.byShop || []).length > 1 && (
-            <div className="detail-v" style={{ marginTop: 6, fontSize: 12, color: 'var(--text-3)' }}>
-              {data.byShop.map(b => `${b.shop} ${b.sold}`).join(' · ')}
-            </div>
-          )}
-        </>
-      )}
-    </>
+    <div className="sizes-scroll">
+      <table className="sizes-table">
+        <thead>
+          <tr>
+            <th className="sizes-size">{t('sizes.size')}</th>
+            {anySold && years.map(y => <th key={y}>{t('sizes.sold').replace('{y}', String(y))}</th>)}
+            {anySold && <th className="sizes-total">{t('sizes.total')}</th>}
+            <th className="sizes-stock">{t('sizes.stockNow')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sizes.map(z => (
+            <tr key={z.size || '-'} className={z.skus.some(k => k.toUpperCase() === sku.toUpperCase()) ? 'is-this' : ''}>
+              <td className="sizes-size">{z.size || t('sizes.oneSize')}</td>
+              {anySold && z.byYear.map((n, i) => (
+                <td key={years[i]} className={n === 0 ? 'is-zero' : ''}>{n === 0 ? '–' : n}</td>
+              ))}
+              {anySold && <td className="sizes-total">{z.total}</td>}
+              <td className={'sizes-stock' + (z.stock === 0 ? ' is-zero' : '')}>{z.stock}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!anySold && <div className="field-hint" style={{ marginTop: 6 }}>{t('sizes.neverSold')}</div>}
+    </div>
   );
 }
 
@@ -1110,59 +1109,11 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             </button>
 
             {expanded && (
-              <div className="details-body">
-                {/* What this garment has done, year by year, back to its first
-                    sale. Full width, so it never fights the fields beside it. */}
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <SoldByYear sku={item.sku} />
-                </div>
-                {item.name && title !== item.name && (
-                  <div><div className="detail-k">{t('item.product')}</div><div className="detail-v">{item.name}</div></div>
-                )}
-                {Number(item.price) > 0 && (
-                  <div>
-                    <div className="detail-k">{t('item.stockValue')}</div>
-                    <div className="detail-v">{idr(item.qty * Number(item.price))}</div>
-                  </div>
-                )}
-                <div><div className="detail-k">{t('item.lowStockAlert')}</div><div className="detail-v">{item.threshold}</div></div>
-                {item.supplier && (
-                  <div><div className="detail-k">{t('item.supplier')}</div><div className="detail-v">{item.supplier}</div></div>
-                )}
-                {item.createdAt && (
-                  <div>
-                    <div className="detail-k">{t('item.stocked')}</div>
-                    <div className="detail-v">{new Date(item.createdAt).toLocaleDateString()}</div>
-                  </div>
-                )}
-                {item.lastSoldAt && (
-                  <div>
-                    <div className="detail-k">{t('item.lastSold')}</div>
-                    <div className="detail-v">{new Date(item.lastSoldAt).toLocaleDateString()}</div>
-                  </div>
-                )}
-                {itemGroup && (
-                  <div>
-                    <div className="detail-k">{t('stock.group')}</div>
-                    <div className="detail-v"><span className="group-tag"><FolderOpen size={11} /> {itemGroup.name}</span></div>
-                  </div>
-                )}
-                {isAll && Object.keys(item.byShop || {}).length > 0 && (
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="detail-k">{t('item.byShop')}</div>
-                    <div className="detail-v" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      {Object.entries(item.byShop).map(([shopName, q]) => (
-                        <span key={shopName}>{shopName}: <strong>{q}</strong></span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {item.notes && (
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="detail-k">{t('item.notes')}</div>
-                    <div className="detail-v">{item.notes}</div>
-                  </div>
-                )}
+              <div className="details-body details-sizes">
+                {/* The owner's sketch: one line per size, the years along
+                    it, the total, and what is on the rail now. Nothing else —
+                    the name and code are already on the row above. */}
+                <SizesTable sku={item.sku} />
               </div>
             )}
           </div>

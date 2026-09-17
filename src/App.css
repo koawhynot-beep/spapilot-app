@@ -2358,3 +2358,34 @@ input[type="datetime-local"].input {
 
 /* A short number field that sits inline with the pickers beside it. */
 .input-inline { width: 84px; padding-top: 8px; padding-bottom: 8px; text-align: center; }
+
+/* ── One garment, all its sizes ─────────────────────────────
+   The owner's sketch: the size once on the left, the years across, the
+   total, then what is on the rail. A table, because it is one. */
+.details-sizes { display: block; }
+.sizes-scroll { overflow-x: auto; }
+.sizes-table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.sizes-table th, .sizes-table td {
+  padding: 8px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.sizes-table th {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.sizes-table tbody tr:last-child td { border-bottom: none; }
+.sizes-table td { font-size: 15px; font-weight: 600; }
+.sizes-table .sizes-size { text-align: left; font-weight: 700; font-size: 15px; }
+.sizes-table .sizes-total { background: var(--surface-2); }
+.sizes-table .sizes-stock { color: var(--text-2); border-left: 1px solid var(--line-soft); }
+.sizes-table td.is-zero { color: var(--text-3); font-weight: 400; }
+/* The size that was opened, so the eye lands where the finger did. */
+.sizes-table tr.is-this td { background: var(--primary-soft); }
+.sizes-table tr.is-this td.sizes-total { background: var(--primary-soft); filter: brightness(0.96); }
