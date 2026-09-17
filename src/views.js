@@ -704,11 +704,14 @@ function PeriodsPane({ qs, showShop }) {
       const first = (key - 1) * 7 + 1;
       return `${t('drill.week').replace('{n}', String(key))} · ${first}${key === 5 ? '+' : '–' + key * 7}`;
     }
-    // A day only has a weekday once the year and month are both chosen.
-    // "The 9th" across every month is a different Wednesday each time, so
-    // no weekday is shown until it means one thing.
-    if (at.year && at.month) {
-      const dow = new Date(at.year, at.month - 1, key).getDay() || 7;  // ISO: Mon=1 … Sun=7
+    // A day only has a weekday once it is one date. "The 9th" across every
+    // month is a different Wednesday each time. But a year or month does not
+    // have to be clicked to be settled: if the data holds only one, that is
+    // the one, and the weekday is shown without making anyone click it.
+    const year = at.year || (data?.years?.length === 1 ? data.years[0].key : null);
+    const month = at.month || (data?.months?.length === 1 ? data.months[0].key : null);
+    if (year && month) {
+      const dow = new Date(year, month - 1, key).getDay() || 7;  // ISO: Mon=1 … Sun=7
       return `${ORDINAL(key)} · ${t('weekdayShort.' + dow)}`;
     }
     return ORDINAL(key);
@@ -1097,7 +1100,10 @@ function SellersPane({ qs }) {
   if (error) return <div className="error-banner">{error}</div>;
   if (!d) return <Empty icon={TrendingUp} title={t('history.nothing')} />;
 
-  const days = d.weekdays || [];
+  // Seven at most, and only rows that are actually weekdays. The frontend
+  // and backend deploy separately, and a list this long should never be
+  // able to render whatever it is handed.
+  const days = (d.weekdays || []).filter(x => x.dow >= 1 && x.dow <= 7).slice(0, 7);
   const best = days[0];
   const worst = days[days.length - 1];
   const peak = Math.max(1, ...days.map(x => x.perDay));
