@@ -506,7 +506,7 @@ function ShopSwitcher({ shops, value, onChange, allowAll, activeShopId, onPickAc
 // Sold each year, back to the first sale and no further, ten years at most.
 // The comparison is the point, so the years sit in one row with the numbers
 // lined up under each other; a year that sold nothing is dimmed, not dropped.
-function SoldByYear({ sku, shopId }) {
+function SoldByYear({ sku }) {
   const t = useT();
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -514,13 +514,13 @@ function SoldByYear({ sku, shopId }) {
   useEffect(() => {
     if (!sku) return;
     let gone = false;
-    const p = new URLSearchParams({ sku });
-    if (shopId) p.set('shopId', String(shopId));
-    api(`/api/stock/sold-by-year?${p.toString()}`)
+    // Every shop, whichever one is on screen: the question is how well the
+    // garment sells, not how well it sells here.
+    api(`/api/stock/sold-by-year?${new URLSearchParams({ sku }).toString()}`)
       .then(d => { if (!gone) setData(d); })
       .catch(() => { if (!gone) setFailed(true); });
     return () => { gone = true; };
-  }, [sku, shopId]);
+  }, [sku]);
 
   if (!sku || failed) return null;
   if (!data) return <div className="detail-k">{t('item.soldByYear')} …</div>;
@@ -540,15 +540,22 @@ function SoldByYear({ sku, shopId }) {
       {sold === 0 ? (
         <div className="detail-v" style={{ color: 'var(--text-3)' }}>{t('item.soldNever')}</div>
       ) : (
-        <div className="year-strip year-strip-flow">
-          {years.map(y => (
-            <div key={y.year} className={'year-cell' + (y.sold === 0 ? ' is-quiet' : '')}>
-              <span className="year-cell-y">{y.year}</span>
-              <span className="year-cell-n">{y.sold === 0 ? t('item.soldNone') : y.sold}</span>
-              {y.revenue > 0 && <span className="year-cell-v">{idr(y.revenue)}</span>}
+        <>
+          <div className="year-strip year-strip-flow">
+            {years.map(y => (
+              <div key={y.year} className={'year-cell' + (y.sold === 0 ? ' is-quiet' : '')}>
+                <span className="year-cell-y">{y.year}</span>
+                <span className="year-cell-n">{y.sold === 0 ? t('item.soldNone') : y.sold}</span>
+                {y.revenue > 0 && <span className="year-cell-v">{idr(y.revenue)}</span>}
+              </div>
+            ))}
+          </div>
+          {(data.byShop || []).length > 1 && (
+            <div className="detail-v" style={{ marginTop: 6, fontSize: 12, color: 'var(--text-3)' }}>
+              {data.byShop.map(b => `${b.shop} ${b.sold}`).join(' · ')}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </>
   );
@@ -1107,7 +1114,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
                 {/* What this garment has done, year by year, back to its first
                     sale. Full width, so it never fights the fields beside it. */}
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <SoldByYear sku={item.sku} shopId={isAll ? null : selectedShopId} />
+                  <SoldByYear sku={item.sku} />
                 </div>
                 {item.name && title !== item.name && (
                   <div><div className="detail-k">{t('item.product')}</div><div className="detail-v">{item.name}</div></div>
