@@ -704,6 +704,13 @@ function PeriodsPane({ qs, showShop }) {
       const first = (key - 1) * 7 + 1;
       return `${t('drill.week').replace('{n}', String(key))} · ${first}${key === 5 ? '+' : '–' + key * 7}`;
     }
+    // A day only has a weekday once the year and month are both chosen.
+    // "The 9th" across every month is a different Wednesday each time, so
+    // no weekday is shown until it means one thing.
+    if (at.year && at.month) {
+      const dow = new Date(at.year, at.month - 1, key).getDay() || 7;  // ISO: Mon=1 … Sun=7
+      return `${ORDINAL(key)} · ${t('weekdayShort.' + dow)}`;
+    }
     return ORDINAL(key);
   };
 
@@ -1074,17 +1081,102 @@ function StaffTotalsPane({ qs }) {
 
 function SellersPane({ qs }) {
   const t = useT();
-  const { data: d, error, loading } = useLoad(`/api/analytics/summary?${qs}`, [qs]);
+  // How long the lists are. Twenty by default; type any number up to 200.
+  const [limit, setLimit] = useState(20);
+  const [typed, setTyped] = useState('20');
+  const { data: d, error, loading } = useLoad(
+    `/api/analytics/summary?${qs}&limit=${limit}`, [qs, limit]);
 
-  if (loading) return <div className="loading">{t('common.loading')}</div>;
+  const commit = () => {
+    const n = Math.min(200, Math.max(1, parseInt(typed, 10) || 20));
+    setTyped(String(n));
+    setLimit(n);
+  };
+
+  if (loading && !d) return <div className="loading">{t('common.loading')}</div>;
   if (error) return <div className="error-banner">{error}</div>;
   if (!d) return <Empty icon={TrendingUp} title={t('history.nothing')} />;
 
+  const days = d.weekdays || [];
+  const best = days[0];
+  const worst = days[days.length - 1];
+  const peak = Math.max(1, ...days.map(x => x.perDay));
+  const fmt1 = (n) => (Math.round(n * 10) / 10).toString();
+
   const trend = d.trend || [];
-  const peak = Math.max(1, ...trend.map(m => m.revenue));
+  const trendPeak = Math.max(1, ...trend.map(m => m.revenue));
 
   return (
     <>
+      {/* Which weekday sells. Said in sentences first, because "usually
+          Thursday" is the answer being asked for; the ranked list under it is
+          for the person who wants to see why. Ranked by pieces per trading
+          day, not by total, so a day the shop was open more often does not
+          win by attendance. */}
+      {days.length > 0 && (
+        <>
+          {d.enoughDays && best && worst && best !== worst ? (
+            <div className="pattern-lede">
+              <p>{t('patterns.bestDay').replace('{day}', t('weekday.' + best.dow))}</p>
+              <p>{t('patterns.worstDay').replace('{day}', t('weekday.' + worst.dow))}</p>
+            </div>
+          ) : (
+            <div className="field-hint" style={{ marginBottom: 14 }}>
+              {t('patterns.notEnough').replace('{n}', String(d.realDays || 0))}
+            </div>
+          )}
+          <div className="section-head">
+            <h2 className="section-title">{t('patterns.rankTitle')}</h2>
+          </div>
+          <div className="panel">
+            <div className="panel-body">
+              {days.map((x, i) => (
+                <div className="seller-row" key={x.dow}>
+                  <div className="seller-name">
+                    <span className="rank-index" style={{ marginRight: 8 }}>{i + 1}</span>
+                    {t('weekday.' + x.dow)}
+                  </div>
+                  <div className="seller-bar" aria-hidden="true">
+                    <div className="seller-fill" style={{ width: `${Math.max(2, (x.perDay / peak) * 100)}%` }} />
+                  </div>
+                  <div className="seller-sub">
+                    {t('patterns.perDay').replace('{n}', fmt1(x.perDay))}
+                    {' · '}
+                    {t('patterns.onDays').replace('{n}', String(x.days)).replace('{day}', t('weekday.' + x.dow))}
+                  </div>
+                  <div className="seller-money">{idr(x.revenuePerDay)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="field-hint" style={{ marginTop: 8 }}>{t('patterns.sheetNote')}</div>
+        </>
+      )}
+
+      {/* The lists. One control sets how long all of them are. */}
+      {/* A form, so Enter commits the way a keyboard user expects without
+          matching key names by hand. */}
+      <form className="scope-picker" style={{ marginTop: 26 }}
+            onSubmit={e => { e.preventDefault(); commit(); }}>
+        <span className="scope-picker-label">{t('patterns.showTop')}</span>
+        <input
+          className="input input-inline"
+          type="number" inputMode="numeric" min={1} max={200}
+          value={typed}
+          onChange={e => setTyped(e.target.value)}
+          onBlur={commit}
+          aria-label={t('patterns.showTop')}
+        />
+        <div className="segmented segmented-sm">
+          {[10, 20, 50, 100].map(n => (
+            <button key={n} type="button" className={limit === n ? 'is-active' : ''}
+                    onClick={() => { setTyped(String(n)); setLimit(n); }}>
+              {n}
+            </button>
+          ))}
+        </div>
+      </form>
+
       <Rank title={t('history.bestByUnits')} rows={d.bestByUnits} metric="units" />
       <Rank title={t('history.bestByRevenue')} rows={d.bestByRevenue} metric="revenue" />
       <Rank title={t('history.worstSellers')} rows={d.worstByUnits} metric="units" />
@@ -1101,7 +1193,7 @@ function SellersPane({ qs }) {
               <div className="trend-row" key={m.month}>
                 <div className="trend-month">{m.month}</div>
                 <div className="trend-bar-track">
-                  <div className="trend-bar" style={{ width: `${Math.max(2, (m.revenue / peak) * 100)}%` }} />
+                  <div className="trend-bar" style={{ width: `${Math.max(2, (m.revenue / trendPeak) * 100)}%` }} />
                 </div>
                 <div className="trend-units">{m.units}</div>
                 <div className="trend-value">{idr(m.revenue)}</div>

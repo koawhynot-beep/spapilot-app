@@ -2334,3 +2334,27 @@ input[type="datetime-local"].input {
 .notice-warn { background: var(--bad-soft); color: var(--text); }
 .notice > span { flex: 1; }
 .modal-text { font-size: 14px; color: var(--text-2); line-height: 1.55; }
+
+/* Sold-by-year inside the stock row: as many years as there are, scrolling
+   sideways past six so the row never grows taller than the fields above. */
+.year-strip-flow {
+  grid-template-columns: none;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin-bottom: 0;
+}
+.year-strip-flow .year-cell { flex: 0 0 auto; min-width: 84px; }
+
+/* The two sentences at the top of Patterns. Larger than body text: they are
+   the answer, and the list beneath is the working. */
+.pattern-lede { margin-bottom: 18px; }
+.pattern-lede p {
+  margin: 0 0 6px;
+  font-size: 16px; font-weight: 600; line-height: 1.4;
+}
+.pattern-lede p + p { color: var(--text-2); font-weight: 500; }
+
+/* A short number field that sits inline with the pickers beside it. */
+.input-inline { width: 84px; padding-top: 8px; padding-bottom: 8px; text-align: center; }

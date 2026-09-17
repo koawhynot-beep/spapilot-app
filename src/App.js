@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
-import { TodayView, HistoryView } from './views';
+import { HistoryView } from './views';
 import { Modal, SearchField } from './ui';
 import { tStatic } from './i18n';
 import { StockCheckView } from './stockcheck';
@@ -335,7 +335,6 @@ function MainApp({ user, shop, onSwitchAccess }) {
     { id: 'transfers', label: t('tab.transfers'), icon: Truck },
     { id: 'transfercheck', label: t('tab.transferCheck'), icon: ClipboardList,
       staff: true, badge: pendingTransfers },
-    { id: 'today',    label: t('tab.today'),    icon: Calendar,   staff: true },
     { id: 'overview', label: t('tab.overview'), icon: SlidersHorizontal },
     { id: 'history',  label: t('tab.history'),  icon: History,  staff: true },
   ];
@@ -435,9 +434,6 @@ function MainApp({ user, shop, onSwitchAccess }) {
         {tab === 'transfercheck' && (
           <TransferCheckView isAdmin={isAdmin} onChanged={reloadTransfers} />
         )}
-        {tab === 'today' && (
-          <TodayView isAdmin={isAdmin} shopsParam={shopsParam} />
-        )}
         {tab === 'overview' && isAdmin && (
           <OverviewView shops={shopList} shopsParam={shopsParam} />
         )}
@@ -507,6 +503,57 @@ function ShopSwitcher({ shops, value, onChange, allowAll, activeShopId, onPickAc
 // ═══════════════════════════════════════════════════════════
 // STOCK VIEW
 // ═══════════════════════════════════════════════════════════
+// Sold each year, back to the first sale and no further, ten years at most.
+// The comparison is the point, so the years sit in one row with the numbers
+// lined up under each other; a year that sold nothing is dimmed, not dropped.
+function SoldByYear({ sku, shopId }) {
+  const t = useT();
+  const [data, setData] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!sku) return;
+    let gone = false;
+    const p = new URLSearchParams({ sku });
+    if (shopId) p.set('shopId', String(shopId));
+    api(`/api/stock/sold-by-year?${p.toString()}`)
+      .then(d => { if (!gone) setData(d); })
+      .catch(() => { if (!gone) setFailed(true); });
+    return () => { gone = true; };
+  }, [sku, shopId]);
+
+  if (!sku || failed) return null;
+  if (!data) return <div className="detail-k">{t('item.soldByYear')} …</div>;
+
+  const years = data.years || [];
+  const sold = data.totals?.sold || 0;
+  return (
+    <>
+      <div className="detail-k" style={{ marginBottom: 6 }}>
+        {t('item.soldByYear')}
+        {sold > 0 && (
+          <span style={{ fontWeight: 400, marginLeft: 8 }}>
+            {t('item.soldTotal').replace('{n}', String(sold)).replace('{v}', idr(data.totals.revenue))}
+          </span>
+        )}
+      </div>
+      {sold === 0 ? (
+        <div className="detail-v" style={{ color: 'var(--text-3)' }}>{t('item.soldNever')}</div>
+      ) : (
+        <div className="year-strip year-strip-flow">
+          {years.map(y => (
+            <div key={y.year} className={'year-cell' + (y.sold === 0 ? ' is-quiet' : '')}>
+              <span className="year-cell-y">{y.year}</span>
+              <span className="year-cell-n">{y.sold === 0 ? t('item.soldNone') : y.sold}</span>
+              {y.revenue > 0 && <span className="year-cell-v">{idr(y.revenue)}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, jump, onJumpHandled }) {
   const t = useT();
   const toast = useToast();
@@ -1057,6 +1104,11 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
 
             {expanded && (
               <div className="details-body">
+                {/* What this garment has done, year by year, back to its first
+                    sale. Full width, so it never fights the fields beside it. */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <SoldByYear sku={item.sku} shopId={isAll ? null : selectedShopId} />
+                </div>
                 {item.name && title !== item.name && (
                   <div><div className="detail-k">{t('item.product')}</div><div className="detail-v">{item.name}</div></div>
                 )}
