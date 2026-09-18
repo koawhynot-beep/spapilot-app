@@ -2389,3 +2389,49 @@ input[type="datetime-local"].input {
 /* The size that was opened, so the eye lands where the finger did. */
 .sizes-table tr.is-this td { background: var(--primary-soft); }
 .sizes-table tr.is-this td.sizes-total { background: var(--primary-soft); filter: brightness(0.96); }
+
+/* ── Quick check ─────────────────────────────────────────────
+   One card per garment. Two rows inside: sizes with their counts, years
+   with their sales. Both read left to right, both end in a total. */
+.quick-tools { display: flex; gap: var(--s-3); align-items: center; margin-bottom: var(--s-4); }
+.quick-tools .btn { white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.quick-card {
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-lg, 14px);
+  padding: var(--s-4) var(--s-5);
+  margin-bottom: var(--s-2);
+}
+.quick-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.quick-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.quick-meta { display: flex; gap: var(--s-3); font-size: 12.5px; color: var(--text-3); flex-wrap: wrap; }
+.quick-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: var(--s-3);
+  align-items: center;
+  margin-top: 10px;
+}
+.quick-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.quick-cells { display: flex; gap: 6px; flex-wrap: wrap; }
+.quick-cell {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 1px;
+  min-width: 52px; padding: 5px 9px;
+  background: var(--surface-2); border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.quick-cell-k { font-size: 11px; color: var(--text-3); }
+.quick-cell-v { font-size: 15px; font-weight: 700; }
+.quick-cell.is-zero .quick-cell-v { color: var(--text-3); font-weight: 500; }
+.quick-none { font-size: 13px; color: var(--text-3); align-self: center; }
+.quick-sum {
+  min-width: 36px; text-align: right;
+  font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+@media (max-width: 520px) {
+  .quick-row { grid-template-columns: 1fr auto; }
+  .quick-label { grid-column: 1 / -1; }
+}

@@ -589,6 +589,15 @@ const EN = {
   'sizes.neverSold': 'No sales recorded yet for any size',
   'item.byYear': 'Sold each year',
   'item.soldNone': 'none',
+  'tab.quickCheck': 'Quick check',
+  'quick.count': '{n} garments',
+  'quick.stock': 'In stock',
+  'quick.sold': 'Sold',
+  'quick.neverSold': 'nothing yet',
+  'quick.nothing': 'Nothing matches',
+  'quick.showAllYears': 'Show every year ({a}–{b})',
+  'quick.hideQuietYears': 'Hide years with no sales',
+  'stock.noFabric': 'No fabric recorded',
 };
 
 const ID = {
@@ -1158,6 +1167,15 @@ const ID = {
   'sizes.neverSold': 'Belum ada penjualan tercatat untuk ukuran mana pun',
   'item.byYear': 'Terjual tiap tahun',
   'item.soldNone': 'tidak ada',
+  'tab.quickCheck': 'Cek cepat',
+  'quick.count': '{n} model',
+  'quick.stock': 'Stok',
+  'quick.sold': 'Terjual',
+  'quick.neverSold': 'belum ada',
+  'quick.nothing': 'Tidak ada yang cocok',
+  'quick.showAllYears': 'Tampilkan semua tahun ({a}–{b})',
+  'quick.hideQuietYears': 'Sembunyikan tahun tanpa penjualan',
+  'stock.noFabric': 'Bahan tidak tercatat',
 };
 
 const DICTS = { en: EN, id: ID };

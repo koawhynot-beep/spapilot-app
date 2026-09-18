@@ -5,7 +5,7 @@ import {
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
   MoreHorizontal, Sun, Moon, Printer, Undo2, ClipboardCheck,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
-  Banknote, CreditCard, Truck, ClipboardList,
+  Banknote, CreditCard, Truck, ClipboardList, Eye,
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
@@ -14,6 +14,7 @@ import { Modal, SearchField } from './ui';
 import { tStatic } from './i18n';
 import { StockCheckView } from './stockcheck';
 import { TransferBuildView, TransferCheckView } from './transfers';
+import { QuickCheckView } from './quickcheck';
 import { parseStockSheet } from './sheetparse';
 import './App.css';
 
@@ -331,6 +332,7 @@ function MainApp({ user, shop, onSwitchAccess }) {
   const allTabs = [
     { id: 'sell',     label: t('tab.sell'),     icon: ScanLine,   staff: true },
     { id: 'stock',    label: t('tab.stock'),    icon: Package,    staff: true },
+    { id: 'quick',    label: t('tab.quickCheck'), icon: Eye,      staff: true },
     { id: 'check',    label: t('tab.check'),    icon: ClipboardCheck, staff: true },
     { id: 'transfers', label: t('tab.transfers'), icon: Truck },
     { id: 'transfercheck', label: t('tab.transferCheck'), icon: ClipboardList,
@@ -425,6 +427,9 @@ function MainApp({ user, shop, onSwitchAccess }) {
             onJumpHandled={() => setStockJump(null)}
           />
         )}
+        {tab === 'quick' && (
+          <QuickCheckView shopsParam={shopsParam} />
+        )}
         {tab === 'check' && (
           <StockCheckView staff={staff.data} shopsParam={shopsParam} />
         )}
@@ -503,63 +508,6 @@ function ShopSwitcher({ shops, value, onChange, allowAll, activeShopId, onPickAc
 // ═══════════════════════════════════════════════════════════
 // STOCK VIEW
 // ═══════════════════════════════════════════════════════════
-// One garment in all its sizes, what each sold in each year, and what is
-// on the rail now. Drawn the way the owner sketched it: the size once on the
-// left, the years across, the total, then stock. Every size of the garment
-// is shown whichever size was opened, so opening the M/L answers the S/M
-// question too.
-function SizesTable({ sku }) {
-  const t = useT();
-  const [data, setData] = useState(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!sku) return;
-    let gone = false;
-    api(`/api/stock/sizes?${new URLSearchParams({ sku }).toString()}`)
-      .then(d => { if (!gone) setData(d); })
-      .catch(() => { if (!gone) setFailed(true); });
-    return () => { gone = true; };
-  }, [sku]);
-
-  if (!sku) return null;
-  if (failed) return <div className="field-hint">{t('common.error')}</div>;
-  if (!data) return <div className="loading" style={{ padding: 8 }}>{t('common.loading')}</div>;
-
-  const years = data.years || [];
-  const sizes = data.sizes || [];
-  if (sizes.length === 0) return <div className="field-hint">{t('sizes.none')}</div>;
-  const anySold = sizes.some(z => z.total > 0);
-
-  return (
-    <div className="sizes-scroll">
-      <table className="sizes-table">
-        <thead>
-          <tr>
-            <th className="sizes-size">{t('sizes.size')}</th>
-            {anySold && years.map(y => <th key={y}>{t('sizes.sold').replace('{y}', String(y))}</th>)}
-            {anySold && <th className="sizes-total">{t('sizes.total')}</th>}
-            <th className="sizes-stock">{t('sizes.stockNow')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sizes.map(z => (
-            <tr key={z.size || '-'} className={z.skus.some(k => k.toUpperCase() === sku.toUpperCase()) ? 'is-this' : ''}>
-              <td className="sizes-size">{z.size || t('sizes.oneSize')}</td>
-              {anySold && z.byYear.map((n, i) => (
-                <td key={years[i]} className={n === 0 ? 'is-zero' : ''}>{n === 0 ? '–' : n}</td>
-              ))}
-              {anySold && <td className="sizes-total">{z.total}</td>}
-              <td className={'sizes-stock' + (z.stock === 0 ? ' is-zero' : '')}>{z.stock}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {!anySold && <div className="field-hint" style={{ marginTop: 6 }}>{t('sizes.neverSold')}</div>}
-    </div>
-  );
-}
-
 function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, jump, onJumpHandled }) {
   const t = useT();
   const toast = useToast();
@@ -586,7 +534,6 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [reorderOpen, setReorderOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [expandedId, setExpandedId] = useState(null);   // product with "Details" open
   const isOwner = user.role === 'owner';
   const perms = isOwner ? { canEditStock: true, canAddItems: true, canDeleteItems: true } : user.permissions || {};
   const isAll = selectedShopId === 'all';  // combined read-only view across all shops
@@ -1012,7 +959,6 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
         const itemGroup = groups.find(g => g.id === item.groupId);
         const isDragging = dragId === item.id;
         const isOver = overId === item.id && dragId !== null && dragId !== item.id;
-        const expanded = expandedId === item.id;
         // One line: STYLE · FABRIC · PRINT · COLOUR · SIZE · BRAND.
         const title = [item.category, item.fabric, item.print, item.color, item.size, item.brand]
           .filter(Boolean).join(' · ') || item.name;
@@ -1095,27 +1041,6 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
               )}
             </div>
 
-            <button
-              type="button"
-              className="details-btn"
-              onClick={() => setExpandedId(expanded ? null : item.id)}
-              aria-expanded={expanded}
-            >
-              {expanded ? t('common.hideDetails') : t('common.details')}
-              <ChevronRight
-                size={13}
-                style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.18s ease' }}
-              />
-            </button>
-
-            {expanded && (
-              <div className="details-body details-sizes">
-                {/* The owner's sketch: one line per size, the years along
-                    it, the total, and what is on the rail now. Nothing else —
-                    the name and code are already on the row above. */}
-                <SizesTable sku={item.sku} />
-              </div>
-            )}
           </div>
           </React.Fragment>
         );
