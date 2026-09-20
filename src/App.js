@@ -332,7 +332,7 @@ function MainApp({ user, shop, onSwitchAccess }) {
   const allTabs = [
     { id: 'sell',     label: t('tab.sell'),     icon: ScanLine,   staff: true },
     { id: 'stock',    label: t('tab.stock'),    icon: Package,    staff: true },
-    { id: 'quick',    label: t('tab.quickCheck'), icon: Eye,      staff: true },
+    { id: 'quick',    label: t('tab.quickCheck'), icon: Eye },
     { id: 'check',    label: t('tab.check'),    icon: ClipboardCheck, staff: true },
     { id: 'transfers', label: t('tab.transfers'), icon: Truck },
     { id: 'transfercheck', label: t('tab.transferCheck'), icon: ClipboardList,
@@ -427,7 +427,7 @@ function MainApp({ user, shop, onSwitchAccess }) {
             onJumpHandled={() => setStockJump(null)}
           />
         )}
-        {tab === 'quick' && (
+        {tab === 'quick' && isAdmin && (
           <QuickCheckView shopsParam={shopsParam} />
         )}
         {tab === 'check' && (
