@@ -597,6 +597,10 @@ const EN = {
   'quick.showAllYears': 'Show every year ({a}–{b})',
   'quick.hideQuietYears': 'Hide years with no sales',
   'stock.noFabric': 'No fabric recorded',
+  'quick.sortFabric': 'By fabric',
+  'quick.sortBest': 'Best sellers first',
+  'quick.sortWorst': 'Slowest first',
+  'quick.byYear': 'By year',
 };
 
 const ID = {
@@ -1174,6 +1178,10 @@ const ID = {
   'quick.showAllYears': 'Tampilkan semua tahun ({a}–{b})',
   'quick.hideQuietYears': 'Sembunyikan tahun tanpa penjualan',
   'stock.noFabric': 'Bahan tidak tercatat',
+  'quick.sortFabric': 'Per bahan',
+  'quick.sortBest': 'Terlaris dulu',
+  'quick.sortWorst': 'Paling lambat dulu',
+  'quick.byYear': 'Per tahun',
 };
 
 const DICTS = { en: EN, id: ID };

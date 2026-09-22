@@ -2395,6 +2395,10 @@ input[type="datetime-local"].input {
    with their sales. Both read left to right, both end in a total. */
 .quick-tools { display: flex; gap: var(--s-3); align-items: center; margin-bottom: var(--s-4); }
 .quick-tools .btn { white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.quick-tools .quick-sort { width: auto; flex: 0 0 auto; }
+.quick-row-years .quick-cell { opacity: 0.85; }
+.quick-row-years .quick-label { color: var(--muted); }
+.quick-rank { display: inline-block; min-width: 1.6em; margin-right: 6px; font-size: 0.8em; font-weight: 700; color: var(--muted); }
 .quick-card {
   background: var(--surface);
   border: 1px solid var(--line-soft);

@@ -22,6 +22,7 @@ export function QuickCheckView({ shopsParam }) {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [allYears, setAllYears] = useState(false);
+  const [sort, setSort] = useState('fabric');   // fabric | best | worst
 
   useEffect(() => {
     setData(null);
@@ -42,8 +43,15 @@ export function QuickCheckView({ shopsParam }) {
       || g.sizes.some(z => z.size.toLowerCase() === q));
   }, [data, search]);
 
-  // Grouped by fabric, the way she reads her stock.
+  // Grouped by fabric, the way she reads her stock — or, when she wants to
+  // know what moves, one flat list ranked by pieces sold over the ten years.
   const blocks = useMemo(() => {
+    if (sort !== 'fabric') {
+      const ranked = [...garments].sort((a, b) =>
+        (sort === 'best' ? b.total - a.total : a.total - b.total)
+        || a.name.localeCompare(b.name));
+      return [[null, ranked]];
+    }
     const by = new Map();
     for (const g of garments) {
       const k = g.fabric || '';
@@ -51,7 +59,7 @@ export function QuickCheckView({ shopsParam }) {
       by.get(k).push(g);
     }
     return [...by.entries()];
-  }, [garments]);
+  }, [garments, sort]);
 
   const years = data?.years || [];
 
@@ -77,6 +85,16 @@ export function QuickCheckView({ shopsParam }) {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        <select
+          className="input quick-sort"
+          value={sort}
+          onChange={e => setSort(e.target.value)}
+          aria-label={t('quick.sortFabric')}
+        >
+          <option value="fabric">{t('quick.sortFabric')}</option>
+          <option value="best">{t('quick.sortBest')}</option>
+          <option value="worst">{t('quick.sortWorst')}</option>
+        </select>
         <button
           type="button"
           className={'btn btn-sm ' + (allYears ? 'btn-primary' : 'btn-ghost')}
@@ -94,21 +112,26 @@ export function QuickCheckView({ shopsParam }) {
       )}
 
       {blocks.map(([fabric, list]) => (
-        <React.Fragment key={fabric || '-'}>
-          <div className="fabric-head">
-            <span className="fabric-head-name">{fabric ? fabric.toLowerCase() : t('stock.noFabric')}</span>
-            <span className="fabric-head-count">
-              {list.length === 1 ? t('stock.oneProduct') : t('stock.nProducts').replace('{n}', String(list.length))}
-            </span>
-          </div>
-          {list.map(g => {
+        <React.Fragment key={fabric === null ? '*' : (fabric || '-')}>
+          {fabric !== null && (
+            <div className="fabric-head">
+              <span className="fabric-head-name">{fabric ? fabric.toLowerCase() : t('stock.noFabric')}</span>
+              <span className="fabric-head-count">
+                {list.length === 1 ? t('stock.oneProduct') : t('stock.nProducts').replace('{n}', String(list.length))}
+              </span>
+            </div>
+          )}
+          {list.map((g, i) => {
             const shown = years
               .map((y, i) => ({ year: y, sold: g.byYear[i] }))
               .filter(x => allYears || x.sold !== 0);
             return (
               <div className="quick-card" key={g.key}>
                 <div className="quick-head">
-                  <div className="quick-name">{title(g)}</div>
+                  <div className="quick-name">
+                    {fabric === null && <span className="quick-rank">{i + 1}</span>}
+                    {title(g)}
+                  </div>
                   <div className="quick-meta">
                     {g.skus.length <= 3
                       ? g.skus.map(k => <span className="product-sku" key={k}>{k}</span>)
@@ -133,8 +156,23 @@ export function QuickCheckView({ shopsParam }) {
                   <span className="quick-sum">{g.stock}</span>
                 </div>
 
+                {/* What each size sold over the ten years, under the same
+                    size headings as the stock row, so the two read as a pair. */}
                 <div className="quick-row">
                   <span className="quick-label">{t('quick.sold')}</span>
+                  <div className="quick-cells">
+                    {g.sizes.map(z => (
+                      <span className={'quick-cell' + (z.sold === 0 ? ' is-zero' : '')} key={z.size || '-'}>
+                        <span className="quick-cell-k">{z.size || t('sizes.oneSize')}</span>
+                        <span className="quick-cell-v">{z.sold === 0 ? '–' : z.sold}</span>
+                      </span>
+                    ))}
+                  </div>
+                  <span className="quick-sum">{g.total}</span>
+                </div>
+
+                <div className="quick-row quick-row-years">
+                  <span className="quick-label">{t('quick.byYear')}</span>
                   <div className="quick-cells">
                     {shown.length === 0
                       ? <span className="quick-none">{t('quick.neverSold')}</span>
