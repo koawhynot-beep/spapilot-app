@@ -5,7 +5,7 @@ import {
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
   MoreHorizontal, Sun, Moon, Printer, Undo2, ClipboardCheck,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
-  Banknote, CreditCard, Truck, ClipboardList, Eye,
+  Banknote, CreditCard, Wallet, Truck, ClipboardList, Eye,
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
@@ -1646,6 +1646,9 @@ const ADDS_STOCK = new Set(['in', 'return']);
 const PAYMENT_METHODS = [
   { id: 'cash', icon: Banknote },
   { id: 'card', icon: CreditCard },
+  // One customer paying with both. Staff were ringing these up as two
+  // separate sales, which balanced the drawer but sold the garment twice.
+  { id: 'split', icon: Wallet },
 ];
 
 // Why a piece left the shop without being sold. Kept short because staff pick
@@ -1674,6 +1677,22 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   // It stays on the last method used within the session, which is visible on
   // screen, so a run of cash sales is still one tap each.
   const [payment, setPayment] = useState('');
+  // Part cash, part card: how much of this sale the customer is paying in
+  // cash. The card takes whatever is left, so only one of the two is ever
+  // typed — two boxes that have to add up to the total is arithmetic done
+  // at a counter with somebody waiting.
+  const [cashPart, setCashPart] = useState('');
+  // How much of that cash the pieces rung up so far have used. A sale is
+  // scanned a piece at a time, so the cash is spread across the lines as
+  // they go and this is what is left to spread.
+  //
+  // Kept in refs as well as in state: a burst of scans can be in the air at
+  // once, and each request has to see what the one before it actually took,
+  // not what was on screen when the barcode was read. The state is for the
+  // screen, the refs are for the arithmetic.
+  const [cashUsed, setCashUsed] = useState(0);
+  const cashPotRef = React.useRef(0);
+  const cashUsedRef = React.useRef(0);
   // Typed twice on purpose. The first box is what somebody meant, the second
   // is proof they meant it — a slipped key turning 10% into 100% is the
   // whole reason this is here, and one of those two boxes will catch it.
@@ -1681,6 +1700,15 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   // carrying it silently to the next is the mistake this is guarding against.
   const [discount, setDiscount] = useState('');
   const [discountAgain, setDiscountAgain] = useState('');
+
+  // Switching method starts the cash count over: whatever was rung up
+  // before the switch is already recorded the old way, and carrying the
+  // counter across would spend the customer's cash twice.
+  useEffect(() => {
+    setCashPart('');
+    setCashUsed(0);
+    cashUsedRef.current = 0;
+  }, [payment]);
 
   // Who is scanning. Remembered on this device across shifts.
   const [staffId, setStaffId] = useState(readStaffId);
@@ -1734,6 +1762,10 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     }, ...r].slice(0, 30));
     // Only actual sales go on a customer's receipt.
     if (d.mode === 'sell') {
+      if (d.cashApplied) {
+        cashUsedRef.current += d.cashApplied;
+        setCashUsed(cashUsedRef.current);
+      }
       const gross = Number(d.item.price) || 0;
       const pct = discountEntered ? discountNum : 0;
       setBasket(b => {
@@ -1766,11 +1798,41 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     payment: scanMode === 'sell' ? payment : '',
     discountPct: scanMode === 'sell' && discountEntered ? discountNum : 0,
     staffId: staffId || undefined,
+    // Only on a part-cash sale, and only ever the amount still to be
+    // covered: the server takes what this line is worth out of it and says
+    // how much it used, so the pieces divide the customer's cash between
+    // them and the rest of the sale lands on the card.
+    ...(scanMode === 'sell' && payment === 'split'
+      ? { cashRemaining: Math.max(0, cashPotRef.current - cashUsedRef.current) }
+      : {}),
   });
 
-  // Nothing is sold until it is known how it was paid for. Only selling: a
-  // delivery and a write-off have no customer.
-  const needsPayment = scanMode === 'sell' && !payment;
+  // A part-cash sale has one pot of cash to divide between the pieces, so
+  // its scans go one at a time: two requests sent together would both read
+  // the same amount left and both claim it. Everything else keeps firing in
+  // parallel, which is what makes a burst of barcodes feel instant.
+  const splitTurn = React.useRef(Promise.resolve());
+  const postScan = (buildBody) => {
+    const send = () => api(`/api/shops/${shopId}/scan`, { method: 'POST', body: buildBody() });
+    if (!(scanMode === 'sell' && payment === 'split')) return send();
+    const next = splitTurn.current.then(send, send);
+    // The queue must survive a failed scan, or one bad barcode would stop
+    // every piece after it from being rung up at all.
+    splitTurn.current = next.then(() => {}, () => {});
+    return next;
+  };
+
+  // The cash half, as typed. Zero is not a split — it is a card sale — so
+  // it does not count as an answer.
+  const cashPartNum = cashPart.trim() === '' ? NaN : Number(cashPart);
+  const cashPartValid = Number.isFinite(cashPartNum) && cashPartNum > 0;
+  cashPotRef.current = cashPartValid ? cashPartNum : 0;
+
+  // Nothing is sold until it is known how it was paid for, and a part-cash
+  // sale is not known until the cash half is. Only selling: a delivery and a
+  // write-off have no customer.
+  const needsPayment = scanMode === 'sell'
+    && (!payment || (payment === 'split' && !cashPartValid));
 
   // Blank means no discount, which is the normal sale and asks nothing of
   // anyone. Only once a number is in the first box does the second have to
@@ -1845,7 +1907,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     setMsg(null);
     focusInput();
     try {
-      const d = await api(`/api/shops/${shopId}/scan`, { method: 'POST', body: scanBody({ code: c }, 1) });
+      const d = await postScan(() => scanBody({ code: c }, 1));
       record(d, d.label);
       onChanged?.();
     } catch (err) {
@@ -1862,10 +1924,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     if (!picked || !shopId) return;
     setBusy(true); setMsg(null);
     try {
-      const d = await api(`/api/shops/${shopId}/scan`, {
-        method: 'POST',
-        body: scanBody({ itemId: picked.id }, sellQty),
-      });
+      const d = await postScan(() => scanBody({ itemId: picked.id }, sellQty));
       record(d, d.label);
       onChanged?.();
       setPicked(null); setLookup(''); setResults([]); setSellQty(1);
@@ -1894,6 +1953,9 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       shop: shopName,
       who: staffName,
       payment,
+      // What was actually handed over each way, so the slip the customer
+      // takes home says so rather than just "split".
+      cash: payment === 'split' ? Math.min(cashUsed, basketTotal) : null,
       at: new Date(),
       no: `${Date.now()}`.slice(-8),
     });
@@ -1905,6 +1967,11 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     const t = setTimeout(() => {
       window.print();
       setBasket([]);
+      // The next customer's cash is their own. The method stays, because a
+      // run of cash sales should not be a tap each; the amount cannot.
+      setCashPart('');
+      setCashUsed(0);
+      cashUsedRef.current = 0;
       setReceipt(null);
       focusInput();
     }, 60);
@@ -2006,7 +2073,32 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                 </button>
               ))}
             </div>
-            {needsPayment && <div className="field-hint">{t('sell.pickPayment')}</div>}
+            {payment === 'split' && (
+              <>
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={cashPart}
+                  onChange={e => setCashPart(e.target.value)}
+                  aria-label={t('sell.cashPart')}
+                />
+                <div className="field-hint">
+                  {basketTotal > 0
+                    ? t('sell.splitSoFar')
+                        .replace('{cash}', idr(Math.min(cashUsed, basketTotal)))
+                        .replace('{card}', idr(Math.max(0, basketTotal - cashUsed)))
+                    : t('sell.cashPartHint')}
+                </div>
+              </>
+            )}
+            {needsPayment && (
+              <div className="field-hint">
+                {t(payment === 'split' ? 'sell.needCashPart' : 'sell.pickPayment')}
+              </div>
+            )}
           </div>
         )}
 
@@ -2242,13 +2334,34 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                 <span>{t('common.total')}</span>
                 <strong>{idr(basketTotal)}</strong>
               </div>
+              {/* Read out at the counter, so the customer hands over the
+                  right note and the card is charged the rest. */}
+              {payment === 'split' && (
+                <div className="basket-split">
+                  <span>
+                    <Banknote size={13} /> {t('sell.pay.cash')} {idr(Math.min(cashUsed, basketTotal))}
+                  </span>
+                  <span>
+                    <CreditCard size={13} /> {t('sell.pay.card')} {idr(Math.max(0, basketTotal - cashUsed))}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <div className="basket-actions">
             <button type="button" className="btn btn-primary btn-large" onClick={printReceipt}>
               <Printer size={19} /> Print receipt
             </button>
-            <button type="button" className="btn btn-ghost" onClick={() => setBasket([])}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                setBasket([]);
+                setCashPart('');
+                setCashUsed(0);
+                cashUsedRef.current = 0;
+              }}
+            >
               <X size={16} /> Start a new sale
             </button>
           </div>
@@ -2313,6 +2426,13 @@ function Receipt({ data }) {
         <div>{t('sell.receiptNo').replace('{n}', data.no)}</div>
         {data.who && <div>{t('sell.servedBy').replace('{who}', data.who)}</div>}
         {data.payment && <div>{t('sell.paidWith')}: {t(`sell.pay.${data.payment}`)}</div>}
+        {data.cash != null && (
+          <div>
+            {t('sell.pay.cash')} {data.cash.toLocaleString('en-US')}
+            {' · '}
+            {t('sell.pay.card')} {Math.max(0, data.total - data.cash).toLocaleString('en-US')}
+          </div>
+        )}
       </div>
       <div className="receipt-rule" />
       {data.lines.map(l => (

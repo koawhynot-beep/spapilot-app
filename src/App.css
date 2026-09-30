@@ -2017,6 +2017,15 @@ input[type="datetime-local"].input {
 }
 .pay-pill.is-cash { background: var(--good-soft); color: var(--good); border-color: transparent; }
 .pay-pill.is-card { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
+/* Part cash, part card: its own colour, so a glance down the list tells the
+   three apart without reading them. */
+.pay-pill.is-split { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.pay-split { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.basket-split {
+  display: flex; justify-content: space-between; gap: var(--s-3);
+  padding: 6px 0 2px; font-size: 13px; color: var(--muted);
+}
+.basket-split span { display: inline-flex; align-items: center; gap: 5px; }
 
 /* ── Discount, typed twice ────────────────────────────── */
 .pct-wrap { position: relative; }

@@ -6,7 +6,7 @@
 // order it happened, so the drawer can be balanced at close. History is the
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard } from 'lucide-react';
+import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard, Wallet } from 'lucide-react';
 import { Modal, SearchField } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
@@ -100,9 +100,19 @@ const SaleRow = ({ r, showDate, showShop, onEdit }) => {
     {r.payment && (
       <div className="sale-pay">
         <span className={`pay-pill is-${r.payment}`}>
-          {r.payment === 'cash' ? <Banknote size={12} /> : <CreditCard size={12} />}
-          {t(r.payment === 'cash' ? 'sale.paidCash' : 'sale.paidCard')}
+          {r.payment === 'card' ? <CreditCard size={12} /> : <Banknote size={12} />}
+          {t(r.payment === 'cash' ? 'sale.paidCash'
+            : r.payment === 'card' ? 'sale.paidCard' : 'sale.paidSplit')}
         </span>
+        {/* A part-cash row says which way the money went, because "split"
+            on its own tells whoever counts the drawer nothing. */}
+        {r.payment === 'split' && (
+          <span className="pay-split">
+            {idr(Math.min(r.cashAmount || 0, Math.abs(r.value)))}
+            {' + '}
+            {idr(Math.max(0, Math.abs(r.value) - (r.cashAmount || 0)))}
+          </span>
+        )}
       </div>
     )}
     <div className="sale-who">{r.staffName}</div>
@@ -183,6 +193,10 @@ export function TodayView({ isAdmin, shopsParam = '' }) {
         <StatTile value={totals.units ?? 0} label={t('today.piecesSold')} />
         <StatTile value={idr(totals.revenue)} label={t('today.revenue')} tone="good" money />
         <StatTile value={totals.transactions ?? 0} label={t('today.transactions')} />
+        {/* What to count at close, and what to expect on the statement.
+            Part-cash sales land in both, each for its own half. */}
+        <StatTile value={idr(totals.cash)} label={t('today.inDrawer')} money />
+        <StatTile value={idr(totals.card)} label={t('today.onCard')} money />
         {/* Margin is the owner's number, not the till's. */}
         {isAdmin && <StatTile value={idr(totals.margin)} label={t('today.margin')} money />}
       </div>
@@ -417,6 +431,8 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
   // recorded before this screen existed still means.
   const [price, setPrice] = useState(sale.unitPrice === null ? '' : String(sale.unitPrice));
   const [pay, setPay] = useState(sale.payment || '');
+  // The cash half of a part-cash sale, blank on every other kind.
+  const [cash, setCash] = useState(sale.cashAmount == null ? '' : String(sale.cashAmount));
   const [disc, setDisc] = useState(sale.discountPct ? String(sale.discountPct) : '');
   // datetime-local wants "YYYY-MM-DDTHH:mm" in local time, which is exactly
   // what toISOString does not give you.
@@ -449,6 +465,7 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
       body.unitPrice = trimmed === '' ? null : Number(trimmed);
       if (when) body.occurredAt = new Date(when).toISOString();
       body.payment = pay;
+      if (pay === 'split') body.cashAmount = cash.trim() === '' ? 0 : Number(cash);
       body.discountPct = disc.trim() === '' ? 0 : Number(disc);
       const staffId = readStaffId();
       if (staffId) body.staffId = staffId;
@@ -475,6 +492,13 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
 
   const isReturn = sale.units < 0;
   const shelf = picked ? Number(picked.price) || 0 : sale.price;
+  // What one piece is charged after the discount, and what the row comes to
+  // — the figure the cash and the card have to add back up to.
+  const netEach = Math.round(
+    (String(price).trim() === '' ? shelf : Number(price) || 0)
+    * (1 - (disc.trim() === '' ? 0 : Number(disc) || 0) / 100)
+  );
+  const charged = netEach * Math.max(1, Number(units) || 1);
 
   return (
     <Modal title={isReturn ? t('edit.titleReturn') : t('edit.titleSale')} onClose={onClose}>
@@ -584,12 +608,7 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
       </div>
 
       <div className="discount-preview" style={{ marginBottom: 16 }}>
-        <strong>
-          {t('edit.charged').replace('{p}', idr(Math.round(
-            (String(price).trim() === '' ? shelf : Number(price) || 0)
-            * (1 - (disc.trim() === '' ? 0 : Number(disc) || 0) / 100)
-          )))}
-        </strong>
+        <strong>{t('edit.charged').replace('{p}', idr(netEach))}</strong>
       </div>
 
       <div className="field">
@@ -604,7 +623,31 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
           <button type="button" className={pay === 'card' ? 'is-active' : ''} onClick={() => setPay('card')}>
             <CreditCard size={15} /> {t('sell.pay.card')}
           </button>
+          <button type="button" className={pay === 'split' ? 'is-active' : ''} onClick={() => setPay('split')}>
+            <Wallet size={15} /> {t('sell.pay.split')}
+          </button>
         </div>
+        {pay === 'split' && (
+          <>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              inputMode="numeric"
+              placeholder="0"
+              value={cash}
+              onChange={e => setCash(e.target.value)}
+              aria-label={t('edit.cashPart')}
+            />
+            {/* The card half is never typed: it is the rest of the row, so
+                the two cannot be saved disagreeing with the total. */}
+            <div className="field-hint">
+              {t('sell.splitSoFar')
+                .replace('{cash}', idr(Math.min(Number(cash) || 0, charged)))
+                .replace('{card}', idr(Math.max(0, charged - (Number(cash) || 0))))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="field">

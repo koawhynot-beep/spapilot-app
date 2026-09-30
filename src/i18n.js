@@ -446,7 +446,7 @@ const EN = {
   'sell.paidWith': 'Paid with',
   'sell.pay.cash': 'Cash',
   'sell.pay.card': 'Card',
-  'sell.pickPayment': 'Pick cash or card before selling',
+  'sell.pickPayment': 'Pick how it was paid before selling',
   'sell.receiptNo': 'No. {n}',
   'sell.servedBy': 'Served by {who}',
   'sale.paidCash': 'Cash',
@@ -601,6 +601,15 @@ const EN = {
   'quick.sortBest': 'Best sellers first',
   'quick.sortWorst': 'Slowest first',
   'quick.byYear': 'By year',
+  'sell.pay.split': 'Cash + card',
+  'sell.cashPart': 'How much in cash',
+  'sell.cashPartHint': 'Type the cash the customer is handing over. The card takes the rest.',
+  'sell.needCashPart': 'Type how much is being paid in cash',
+  'sell.splitSoFar': 'So far: {cash} cash · {card} card',
+  'sale.paidSplit': 'Cash + card',
+  'today.inDrawer': 'In the drawer',
+  'today.onCard': 'On the card',
+  'edit.cashPart': 'Of that, in cash',
 };
 
 const ID = {
@@ -1027,7 +1036,7 @@ const ID = {
   'sell.paidWith': 'Bayar dengan',
   'sell.pay.cash': 'Tunai',
   'sell.pay.card': 'Kartu',
-  'sell.pickPayment': 'Pilih tunai atau kartu sebelum menjual',
+  'sell.pickPayment': 'Pilih cara bayar sebelum menjual',
   'sell.receiptNo': 'No. {n}',
   'sell.servedBy': 'Dilayani oleh {who}',
   'sale.paidCash': 'Tunai',
@@ -1182,6 +1191,15 @@ const ID = {
   'quick.sortBest': 'Terlaris dulu',
   'quick.sortWorst': 'Paling lambat dulu',
   'quick.byYear': 'Per tahun',
+  'sell.pay.split': 'Tunai + kartu',
+  'sell.cashPart': 'Berapa yang tunai',
+  'sell.cashPartHint': 'Ketik uang tunai yang diserahkan pelanggan. Sisanya lewat kartu.',
+  'sell.needCashPart': 'Ketik berapa yang dibayar tunai',
+  'sell.splitSoFar': 'Sejauh ini: {cash} tunai · {card} kartu',
+  'sale.paidSplit': 'Tunai + kartu',
+  'today.inDrawer': 'Di laci',
+  'today.onCard': 'Lewat kartu',
+  'edit.cashPart': 'Yang tunai',
 };
 
 const DICTS = { en: EN, id: ID };
