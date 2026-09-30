@@ -563,7 +563,7 @@ const EN = {
   'patterns.perDay': '{n} pieces a day on average',
   'patterns.onDays': 'over {n} {day}s',
   'patterns.notEnough': 'Not enough days of real trade yet to say which weekday sells best — {n} so far, 14 needed.',
-  'patterns.sheetNote': 'Sales loaded from the old sheet carry no real day, so they are left out of the weekday figures.',
+  'patterns.dayNote': 'These day-by-day figures count only what was rung up in the app.',
   'weekday.1': 'Monday',
   'weekday.2': 'Tuesday',
   'weekday.3': 'Wednesday',
@@ -610,6 +610,10 @@ const EN = {
   'today.inDrawer': 'In the drawer',
   'today.onCard': 'On the card',
   'edit.cashPart': 'Of that, in cash',
+  'patterns.year': 'Year',
+  'patterns.yearPeriod': 'Period above',
+  'patterns.yearAll': 'Every year',
+  'patterns.ledgerNote': 'Best and worst sellers also count the shop\'s own sales book from 2025 and 2026. Nothing else in the app does.',
 };
 
 const ID = {
@@ -1153,7 +1157,7 @@ const ID = {
   'patterns.perDay': 'rata-rata {n} potong per hari',
   'patterns.onDays': 'dari {n} hari {day}',
   'patterns.notEnough': 'Belum cukup hari perdagangan nyata untuk menilai hari terbaik — baru {n}, perlu 14.',
-  'patterns.sheetNote': 'Penjualan dari lembar lama tidak punya tanggal asli, jadi tidak dihitung dalam angka per hari.',
+  'patterns.dayNote': 'Angka per hari ini hanya menghitung penjualan yang dicatat di aplikasi.',
   'weekday.1': 'Senin',
   'weekday.2': 'Selasa',
   'weekday.3': 'Rabu',
@@ -1200,6 +1204,10 @@ const ID = {
   'today.inDrawer': 'Di laci',
   'today.onCard': 'Lewat kartu',
   'edit.cashPart': 'Yang tunai',
+  'patterns.year': 'Tahun',
+  'patterns.yearPeriod': 'Periode di atas',
+  'patterns.yearAll': 'Semua tahun',
+  'patterns.ledgerNote': 'Terlaris dan paling lambat juga menghitung buku penjualan toko tahun 2025 dan 2026. Bagian lain aplikasi tidak.',
 };
 
 const DICTS = { en: EN, id: ID };

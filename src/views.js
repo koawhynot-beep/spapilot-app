@@ -1130,8 +1130,22 @@ function SellersPane({ qs }) {
   // How long the lists are. Twenty by default; type any number up to 200.
   const [limit, setLimit] = useState(20);
   const [typed, setTyped] = useState('20');
+  // Which year the lists cover. '' means the period chosen at the top of the
+  // page, which is what this always did. A year replaces that period rather
+  // than narrowing it — asking for 2025 inside "the last 30 days" would
+  // always come back empty, and an empty answer to a fair question reads as
+  // a broken screen.
+  const [year, setYear] = useState('');
+  const scoped = useMemo(() => {
+    const q = new URLSearchParams(qs);
+    if (!year) return qs;
+    q.delete('from');
+    q.delete('to');
+    if (year !== 'all') q.set('year', year);
+    return q.toString();
+  }, [qs, year]);
   const { data: d, error, loading } = useLoad(
-    `/api/analytics/summary?${qs}&limit=${limit}`, [qs, limit]);
+    `/api/analytics/summary?${scoped}&limit=${limit}`, [scoped, limit]);
 
   const commit = () => {
     const n = Math.min(200, Math.max(1, parseInt(typed, 10) || 20));
@@ -1198,7 +1212,7 @@ function SellersPane({ qs }) {
               ))}
             </div>
           </div>
-          <div className="field-hint" style={{ marginTop: 8 }}>{t('patterns.sheetNote')}</div>
+          <div className="field-hint" style={{ marginTop: 8 }}>{t('patterns.dayNote')}</div>
         </>
       )}
 
@@ -1224,7 +1238,24 @@ function SellersPane({ qs }) {
             </button>
           ))}
         </div>
+        {/* Which year. Offered from the years there is actually something to
+            show, so the list can never point at an empty one. */}
+        <span className="scope-picker-label">{t('patterns.year')}</span>
+        <select
+          className="select select-inline"
+          value={year}
+          onChange={e => setYear(e.target.value)}
+          aria-label={t('patterns.year')}
+        >
+          <option value="">{t('patterns.yearPeriod')}</option>
+          <option value="all">{t('patterns.yearAll')}</option>
+          {(d.years || []).map(y => <option key={y} value={String(y)}>{y}</option>)}
+        </select>
       </form>
+
+      {/* The lists below count the shop's own book as well as the app; the
+          figures above it do not. Said here rather than left to be noticed. */}
+      <div className="field-hint" style={{ marginTop: 10 }}>{t('patterns.ledgerNote')}</div>
 
       <Rank title={t('history.bestByUnits')} rows={d.bestByUnits} metric="units" />
       <Rank title={t('history.bestByRevenue')} rows={d.bestByRevenue} metric="revenue" />
