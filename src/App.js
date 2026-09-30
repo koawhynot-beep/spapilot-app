@@ -5,7 +5,7 @@ import {
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
   MoreHorizontal, Sun, Moon, Printer, Undo2, ClipboardCheck,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
-  Banknote, CreditCard, Wallet, Truck, ClipboardList, Eye,
+  Banknote, CreditCard, Wallet, Keyboard, Truck, ClipboardList, Eye,
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
@@ -2085,19 +2085,19 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                   onChange={e => setCashPart(e.target.value)}
                   aria-label={t('sell.cashPart')}
                 />
-                <div className="field-hint">
-                  {basketTotal > 0
-                    ? t('sell.splitSoFar')
-                        .replace('{cash}', idr(Math.min(cashUsed, basketTotal)))
-                        .replace('{card}', idr(Math.max(0, basketTotal - cashUsed)))
-                    : t('sell.cashPartHint')}
+                <div className={'field-hint' + (cashPartValid ? '' : ' is-wrong')}>
+                  {!cashPartValid
+                    ? t('sell.needCashPart')
+                    : basketTotal > 0
+                      ? t('sell.splitSoFar')
+                          .replace('{cash}', idr(Math.min(cashUsed, basketTotal)))
+                          .replace('{card}', idr(Math.max(0, basketTotal - cashUsed)))
+                      : t('sell.cashPartHint')}
                 </div>
               </>
             )}
-            {needsPayment && (
-              <div className="field-hint">
-                {t(payment === 'split' ? 'sell.needCashPart' : 'sell.pickPayment')}
-              </div>
+            {needsPayment && payment !== 'split' && (
+              <div className="field-hint">{t('sell.pickPayment')}</div>
             )}
           </div>
         )}
@@ -2167,23 +2167,27 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
           </div>
         )}
 
+        {/* The first box takes the code off the tag. A barcode scanner is a
+            keyboard that types very fast, so one plugged in still works here
+            — but the label says typing, because that is what staff do all
+            day and "scan barcode" read like a scanner was required. */}
         <div className="segmented segmented-wide" role="group" aria-label={t('sell.howToFind')} style={{ marginBottom: 20 }}>
           <button type="button" className={mode === 'scan' ? 'is-active' : ''} onClick={() => setMode('scan')}>
-            <ScanLine size={16} /> {t('sell.scanBarcode')}
+            <Keyboard size={16} /> {t('sell.enterCode')}
           </button>
           <button type="button" className={mode === 'manual' ? 'is-active' : ''} onClick={() => setMode('manual')}>
-            <Search size={16} /> {t('sell.typeItIn')}
+            <Search size={16} /> {t('sell.searchByName')}
           </button>
         </div>
 
         {mode === 'scan' && (
           <form onSubmit={submit}>
             <div className="field">
-              <label>{t('sell.scanBarcode')} — {t(`sell.hint.${scanMode}`).toLowerCase()}</label>
+              <label>{t('sell.enterCode')} — {t(`sell.hint.${scanMode}`).toLowerCase()}</label>
               <input
                 ref={inputRef}
                 className="input scan-input"
-                placeholder={t('sell.waitingForScan')}
+                placeholder={t('sell.typeCodeHere')}
                 value={code}
                 onChange={e => onScanType(e.target.value)}
                 autoFocus
@@ -2192,7 +2196,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
               />
             </div>
             <button className="btn btn-primary btn-block btn-large" disabled={!code.trim() || needsPayment || needsDiscountConfirm}>
-              <ScanLine size={19} /> {t(`sell.verb.${scanMode}`)} {t('sell.one')}
+              <Keyboard size={19} /> {t(`sell.verb.${scanMode}`)} {t('sell.one')}
               {inFlight > 0 && <span className="inflight-dot">{inFlight}</span>}
             </button>
           </form>
