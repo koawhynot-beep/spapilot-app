@@ -1301,7 +1301,13 @@ function Rank({ title, rows, metric }) {
               <div className="rank-index">{i + 1}</div>
               <div className="rank-main">
                 <div className="rank-name">{r.name}</div>
-                <div className="rank-sub">{r.sku}{r.color ? ` · ${r.color}` : ''}</div>
+                {/* Fabric first after the code: it is how she thinks about
+                    stock, and its absence was the whole complaint. */}
+                <div className="rank-sub">
+                  {r.sku}
+                  {r.fabric ? ` · ${r.fabric}` : ''}
+                  {r.color ? ` · ${r.color}` : ''}
+                </div>
               </div>
               <div className="rank-stat">
                 <div className="rank-stat-num">
