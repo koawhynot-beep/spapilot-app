@@ -7,7 +7,7 @@
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard, Wallet } from 'lucide-react';
-import { Modal, SearchField } from './ui';
+import { Modal, SearchField, FilterBar, ByYear } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
 
@@ -263,6 +263,7 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('recent');
   const [pane, setPane] = useState('log');
+  const [filters, setFilters] = useState({ style: '', fabric: '', color: '', size: '' });
 
   const panes = useMemo(
     () => (isAdmin
@@ -280,8 +281,12 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
     if (search.trim()) q.q = search.trim();
     if (sort !== 'recent') q.sort = sort;
     if (shopsParam) q.shops = shopsParam;
+    // Style, fabric, colour and size go to the server, which can ask them of
+    // the garment each sale points at. Every pane on this page is built from
+    // the same query string, so one choice narrows all of them at once.
+    for (const k of ['style', 'fabric', 'color', 'size']) if (filters[k]) q[k] = filters[k];
     return new URLSearchParams(q).toString();
-  }, [range, staffId, search, sort, shopsParam]);
+  }, [range, staffId, search, sort, shopsParam, filters]);
 
   // Only worth naming the shop on each row when more than one is in view.
   const showShop = shops.length > 1 && !shopsParam;
@@ -316,8 +321,10 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
         placeholder={t('history.searchPlaceholder')}
         value={search}
         onChange={e => setSearch(e.target.value)}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 12 }}
       />
+
+      <FilterBar shopsParam={shopsParam} value={filters} onChange={setFilters} />
 
       {/* What sold, and separately where the stock went. Staff get both —
           they are the ones who scanned it — but not the rankings, the
@@ -1316,6 +1323,8 @@ function Rank({ title, rows, metric }) {
                 <div className="rank-stat-label">
                   {metric === 'revenue' ? t('common.value') : t('common.pieces')}
                 </div>
+                {/* Which years those pieces went in, under the total. */}
+                <ByYear rows={r.byYear} />
               </div>
             </div>
           ))}

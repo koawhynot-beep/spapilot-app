@@ -10,7 +10,7 @@ import {
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
 import { HistoryView } from './views';
-import { Modal, SearchField } from './ui';
+import { Modal, SearchField, ByYear } from './ui';
 import { tStatic } from './i18n';
 import { StockCheckView } from './stockcheck';
 import { TransferBuildView, TransferCheckView } from './transfers';
@@ -995,7 +995,10 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
               </div>
 
               {isAll ? (
-                <div className="qty-value">{item.qty}</div>
+                <div className="qty-stack">
+                  <div className="qty-value">{item.qty}</div>
+                  <ByYear rows={item.byYear} />
+                </div>
               ) : (
                 <div className="qty-group">
                   <button className="qty-btn" disabled={!perms.canEditStock || item.qty === 0} onClick={() => updateQty(item, -1)} aria-label={t('stock.decrease')}>
@@ -1005,6 +1008,9 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
                   <button className="qty-btn" disabled={!perms.canEditStock} onClick={() => updateQty(item, 1)} aria-label={t('stock.increase')}>
                     <Plus size={16} />
                   </button>
+                  {/* What this one has sold, year by year, under the count
+                      that is on the shelf right now. */}
+                  <ByYear rows={item.byYear} className="by-year-wide" />
                 </div>
               )}
 

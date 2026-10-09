@@ -13,6 +13,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Eye } from 'lucide-react';
 import { useT } from './i18n';
 import { api, idr } from './api';
+import { FilterBar } from './ui';
 
 const title = (g) => [g.style || g.name, g.fabric, g.color].filter(Boolean).join(' · ');
 
@@ -23,6 +24,7 @@ export function QuickCheckView({ shopsParam }) {
   const [search, setSearch] = useState('');
   const [allYears, setAllYears] = useState(false);
   const [sort, setSort] = useState('fabric');   // fabric | best | worst
+  const [filters, setFilters] = useState({ style: '', fabric: '', color: '', size: '' });
 
   useEffect(() => {
     setData(null);
@@ -36,12 +38,20 @@ export function QuickCheckView({ shopsParam }) {
   const garments = useMemo(() => {
     const all = data?.garments || [];
     const q = search.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter(g =>
+    // The filters narrow the cards; a size filter narrows them to garments
+    // that come in that size rather than hiding the other sizes on the card,
+    // because half a card would not add up to the total printed on it.
+    const picked = all.filter(g =>
+      (!filters.style || g.style === filters.style)
+      && (!filters.fabric || g.fabric === filters.fabric)
+      && (!filters.color || g.color === filters.color)
+      && (!filters.size || g.sizes.some(z => z.size === filters.size)));
+    if (!q) return picked;
+    return picked.filter(g =>
       title(g).toLowerCase().includes(q)
       || g.skus.some(k => k.toLowerCase().includes(q))
       || g.sizes.some(z => z.size.toLowerCase() === q));
-  }, [data, search]);
+  }, [data, search, filters]);
 
   // Grouped by fabric, the way she reads her stock — or, when she wants to
   // know what moves, one flat list ranked by pieces sold over the ten years.
@@ -106,6 +116,10 @@ export function QuickCheckView({ shopsParam }) {
             .replace('{a}', String(years[0])).replace('{b}', String(years[years.length - 1]))}
         </button>
       </div>
+
+      {/* The same four filters as the stock list, in the same place, folded
+          away until they are wanted. */}
+      <FilterBar shopsParam={shopsParam} value={filters} onChange={setFilters} />
 
       {garments.length === 0 && (
         <div className="empty"><h3>{t('quick.nothing')}</h3></div>

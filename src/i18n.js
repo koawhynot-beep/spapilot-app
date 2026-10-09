@@ -614,6 +614,8 @@ const EN = {
   'patterns.yearPeriod': 'Period above',
   'patterns.yearAll': 'Every year',
   'patterns.ledgerNote': 'Best and worst sellers also count the shop\'s own sales book from 2025 and 2026. Nothing else in the app does.',
+  'common.inYear': '{n} in {y}',
+  'stock.clearFilters': 'Clear all',
 };
 
 const ID = {
@@ -1208,6 +1210,8 @@ const ID = {
   'patterns.yearPeriod': 'Periode di atas',
   'patterns.yearAll': 'Semua tahun',
   'patterns.ledgerNote': 'Terlaris dan paling lambat juga menghitung buku penjualan toko tahun 2025 dan 2026. Bagian lain aplikasi tidak.',
+  'common.inYear': '{n} di {y}',
+  'stock.clearFilters': 'Hapus semua',
 };
 
 const DICTS = { en: EN, id: ID };
