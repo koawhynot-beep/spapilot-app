@@ -146,6 +146,22 @@ export function FilterBar({ shopsParam = '', value, onChange, children }) {
   );
 }
 
+// ── Where it sold ─────────────────────────────────────────
+// Which shop a garment moves in. Three shops carry much the same rail, and
+// a piece that walks out of one and sits in another is the thing worth
+// seeing — a single total hides exactly that.
+export function ByShop({ rows, className = '' }) {
+  const sold = (rows || []).filter(r => r.sold);
+  if (sold.length === 0) return null;
+  return (
+    <div className={`by-shop ${className}`}>
+      {sold.map(r => (
+        <span key={r.shop}><b>{r.sold}</b> {r.shop}</span>
+      ))}
+    </div>
+  );
+}
+
 // ── What it sold, year by year ────────────────────────────
 // Under the total, never instead of it. Twenty-four pieces means one thing
 // if they went in a month and another if they trickled over two years, and

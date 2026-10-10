@@ -385,8 +385,10 @@ function MainApp({ user, shop, onSwitchAccess }) {
             shops={shopList}
             value={shopSel}
             onChange={setShopSel}
-            // Sell and Stock act on one shop, so 'all' is not offered there.
-            allowAll={tab !== 'sell' && tab !== 'stock'}
+            // Selling acts on one shop, so 'all' is not offered there. The
+            // stock list can be read across every shop at once — it simply
+            // turns read-only, because a count belongs to one rail.
+            allowAll={tab !== 'sell'}
             activeShopId={activeShopId}
             onPickActive={(id) => setShopSel(String(id))}
           />

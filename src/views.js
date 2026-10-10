@@ -7,7 +7,7 @@
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard, Wallet } from 'lucide-react';
-import { Modal, SearchField, FilterBar, ByYear } from './ui';
+import { Modal, SearchField, FilterBar, ByYear, ByShop } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
 
@@ -1323,8 +1323,9 @@ function Rank({ title, rows, metric }) {
                 <div className="rank-stat-label">
                   {metric === 'revenue' ? t('common.value') : t('common.pieces')}
                 </div>
-                {/* Which years those pieces went in, under the total. */}
+                {/* Which years those pieces went in, and which shops. */}
                 <ByYear rows={r.byYear} />
+                <ByShop rows={r.byShop} />
               </div>
             </div>
           ))}

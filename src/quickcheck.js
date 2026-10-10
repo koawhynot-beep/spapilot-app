@@ -13,7 +13,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Eye } from 'lucide-react';
 import { useT } from './i18n';
 import { api, idr } from './api';
-import { FilterBar } from './ui';
+import { FilterBar, ByShop } from './ui';
 
 const title = (g) => [g.style || g.name, g.fabric, g.color].filter(Boolean).join(' · ');
 
@@ -199,6 +199,16 @@ export function QuickCheckView({ shopsParam }) {
                   </div>
                   <span className="quick-sum">{g.total}</span>
                 </div>
+
+                {/* And which shop it moves in. Three shops carry much the
+                    same rail; a piece that walks out of one and sits in
+                    another is exactly what a single total hides. */}
+                {(g.byShop || []).length > 0 && (
+                  <div className="quick-row quick-row-shops">
+                    <span className="quick-label">{t('quick.byShop')}</span>
+                    <ByShop rows={g.byShop} className="by-shop-row" />
+                  </div>
+                )}
               </div>
             );
           })}
