@@ -75,10 +75,6 @@ export function QuickCheckView({ shopsParam }) {
   }, [garments, sort]);
 
   const years = data?.years || [];
-  // The per-shop rows only mean something when more than one shop is on
-  // screen. With a single shop selected every cell would repeat the total
-  // beside it, which is noise on a card meant to be read at a glance.
-  const manyShops = (data?.shops || []).length > 1;
 
   if (error) return <div className="error-banner">{error}</div>;
   if (!data) return <div className="loading">{t('common.loading')}</div>;
@@ -145,9 +141,6 @@ export function QuickCheckView({ shopsParam }) {
             </div>
           )}
           {list.map((g, i) => {
-            const shown = years
-              .map((y, i) => ({ year: y, sold: g.byYear[i] }))
-              .filter(x => allYears || x.sold !== 0);
             return (
               <div className="quick-card" key={g.key}>
                 <div className="quick-head">
@@ -163,83 +156,48 @@ export function QuickCheckView({ shopsParam }) {
                   </div>
                 </div>
 
-                {/* Every size along one row, with its count. Zero is shown as
-                    zero — a size that is out is worth seeing next to one that
-                    is not. */}
-                <div className="quick-row">
-                  <span className="quick-label">{t('quick.stock')}</span>
-                  <div className="quick-cells">
-                    {g.sizes.map(z => (
-                      <span className={'quick-cell' + (z.qty === 0 ? ' is-zero' : '')} key={z.size || '-'}>
-                        <span className="quick-cell-k">{z.size || t('sizes.oneSize')}</span>
-                        <span className="quick-cell-v">{z.qty}</span>
-                      </span>
-                    ))}
+                {/* A line per shop, read across: what is on that shop's
+                    rail, then what it has sold, then the two totals. The
+                    shops run down the card and the questions run across it,
+                    which is the way it is asked out loud — "Goldust, what
+                    have we got, and what has gone?" */}
+                {(g.perShop || []).map(line => {
+                  const soldYears = years
+                    .map((y, n) => ({ year: y, sold: line.byYear[n] }))
+                    .filter(x => allYears || x.sold !== 0);
+                  return (
+                    <div className="qc-line" key={line.shop}>
+                      <span className="qc-shop">{line.shop}</span>
 
-                    {/* And which shop has them, on the same line as the
-                        count — "one in stock" and "where is it" are one
-                        question asked at the counter, not two. Every shop
-                        every time, zero included: a shop left off the row
-                        would read as not having been asked. */}
-                    {manyShops && (g.inShops || []).length > 0 && <span className="quick-gap" />}
-                    {manyShops && (g.inShops || []).map(x => (
-                      <span className={'quick-cell is-shop' + (x.qty === 0 ? ' is-zero' : '')} key={x.shop}>
-                        <span className="quick-cell-k">{x.shop}</span>
-                        <span className="quick-cell-v">{x.qty}</span>
-                      </span>
-                    ))}
-                  </div>
-                  <span className="quick-sum">{g.stock}</span>
-                </div>
+                      <div className="qc-box">
+                        <span className="qc-box-label">{t('quick.boxStock')}</span>
+                        {line.sizes.length === 0
+                          ? <span className="qc-none">{t('quick.noneHere')}</span>
+                          : line.sizes.map(z => (
+                              <span className={'qc-pair' + (z.qty === 0 ? ' is-zero' : '')} key={z.size || '-'}>
+                                <b>{z.qty}</b> {z.size || t('sizes.oneSize')}
+                              </span>
+                            ))}
+                      </div>
 
-                {/* What each size sold over the ten years, under the same
-                    size headings as the stock row, so the two read as a pair. */}
-                <div className="quick-row">
-                  <span className="quick-label">{t('quick.sold')}</span>
-                  <div className="quick-cells">
-                    {g.sizes.map(z => (
-                      <span className={'quick-cell' + (z.sold === 0 ? ' is-zero' : '')} key={z.size || '-'}>
-                        <span className="quick-cell-k">{z.size || t('sizes.oneSize')}</span>
-                        <span className="quick-cell-v">{z.sold === 0 ? '–' : z.sold}</span>
-                      </span>
-                    ))}
-                  </div>
-                  <span className="quick-sum">{g.total}</span>
-                </div>
+                      <div className="qc-box">
+                        <span className="qc-box-label">{t('quick.sold')}</span>
+                        {soldYears.length === 0
+                          ? <span className="qc-none">{t('quick.neverSold')}</span>
+                          : soldYears.map(x => (
+                              <span className={'qc-pair' + (x.sold === 0 ? ' is-zero' : '')} key={x.year}>
+                                <b>{x.sold}</b> {x.year}
+                              </span>
+                            ))}
+                      </div>
 
-                <div className="quick-row quick-row-years">
-                  <span className="quick-label">{t('quick.byYear')}</span>
-                  <div className="quick-cells">
-                    {shown.length === 0
-                      ? <span className="quick-none">{t('quick.neverSold')}</span>
-                      : shown.map(x => (
-                          <span className={'quick-cell' + (x.sold === 0 ? ' is-zero' : '')} key={x.year}>
-                            <span className="quick-cell-k">{x.year}</span>
-                            <span className="quick-cell-v">{x.sold === 0 ? '–' : x.sold}</span>
-                          </span>
-                        ))}
-                  </div>
-                  <span className="quick-sum">{g.total}</span>
-                </div>
-
-                {/* And which shop it moves in. Three shops carry much the
-                    same rail; a piece that walks out of one and sits in
-                    another is exactly what a single total hides. A shop that
-                    has never sold it says so, rather than going missing. */}
-                {manyShops && g.total > 0 && (g.byShop || []).length > 0 && (
-                  <div className="quick-row quick-row-shops">
-                    <span className="quick-label">{t('quick.byShop')}</span>
-                    <div className="quick-cells">
-                      {g.byShop.map(x => (
-                        <span className={'quick-cell' + (x.sold === 0 ? ' is-zero' : '')} key={x.shop}>
-                          <span className="quick-cell-k">{x.shop}</span>
-                          <span className="quick-cell-v">{x.sold === 0 ? '\u2013' : x.sold}</span>
-                        </span>
-                      ))}
+                      <div className="qc-totals">
+                        <span><b>{line.stock}</b> {t('quick.totStock')}</span>
+                        <span><b>{line.sold}</b> {t('quick.totSold')}</span>
+                      </div>
                     </div>
-                    <span className="quick-sum">{g.total}</span>
-                  </div>
-                )}
+                  );
+                })}
               </div>
             );
           })}
