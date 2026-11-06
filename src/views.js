@@ -387,6 +387,10 @@ function SalesLog({ qs, showShop, isAdmin }) {
       <div className="stat-grid">
         <StatTile value={totals.units ?? 0} label={t('history.netPieces')} />
         <StatTile value={idr(totals.revenue)} label={t('history.netRevenue')} tone="good" money />
+        {/* How that revenue came in. Part-cash sales land in both, each for
+            its own half, so the two add back up to the figure beside them. */}
+        <StatTile value={idr(totals.cash)} label={t('today.inDrawer')} money />
+        <StatTile value={idr(totals.card)} label={t('today.onCard')} money />
         <StatTile value={total} label={t('history.transactions')} />
       </div>
 
