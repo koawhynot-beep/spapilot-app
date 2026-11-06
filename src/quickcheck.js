@@ -13,7 +13,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Eye } from 'lucide-react';
 import { useT } from './i18n';
 import { api, idr } from './api';
-import { FilterBar, ByShop } from './ui';
+import { FilterBar } from './ui';
 
 const title = (g) => [g.style || g.name, g.fabric, g.color].filter(Boolean).join(' · ');
 
@@ -175,6 +175,27 @@ export function QuickCheckView({ shopsParam }) {
                   <span className="quick-sum">{g.stock}</span>
                 </div>
 
+                {/* And which shop has them. Every shop every time, zero
+                    included: "Rose Gold 0" is the answer to the question
+                    being asked at the counter, and a shop left off the row
+                    reads as not having been asked. */}
+                {(g.inShops || []).length > 0 && (
+                  <div className="quick-row quick-row-shops">
+                    <span className="quick-label">{t('quick.atShop')}</span>
+                    <div className="quick-cells">
+                      {g.inShops.map(x => (
+                        <span className={'quick-cell' + (x.qty === 0 ? ' is-zero' : '')} key={x.shop}>
+                          <span className="quick-cell-k">{x.shop}</span>
+                          <span className="quick-cell-v">{x.qty}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <span className="quick-sum">
+                      {g.inShops.reduce((n, x) => n + x.qty, 0)}
+                    </span>
+                  </div>
+                )}
+
                 {/* What each size sold over the ten years, under the same
                     size headings as the stock row, so the two read as a pair. */}
                 <div className="quick-row">
@@ -207,11 +228,20 @@ export function QuickCheckView({ shopsParam }) {
 
                 {/* And which shop it moves in. Three shops carry much the
                     same rail; a piece that walks out of one and sits in
-                    another is exactly what a single total hides. */}
+                    another is exactly what a single total hides. A shop that
+                    has never sold it says so, rather than going missing. */}
                 {(g.byShop || []).length > 0 && (
                   <div className="quick-row quick-row-shops">
                     <span className="quick-label">{t('quick.byShop')}</span>
-                    <ByShop rows={g.byShop} className="by-shop-row" />
+                    <div className="quick-cells">
+                      {g.byShop.map(x => (
+                        <span className={'quick-cell' + (x.sold === 0 ? ' is-zero' : '')} key={x.shop}>
+                          <span className="quick-cell-k">{x.shop}</span>
+                          <span className="quick-cell-v">{x.sold === 0 ? '\u2013' : x.sold}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <span className="quick-sum">{g.total}</span>
                   </div>
                 )}
               </div>

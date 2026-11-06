@@ -90,9 +90,13 @@
   --surface-3: #b29e85;
   --row-hover: #c9b9a3;
 
-  --text: #241f18;
-  --text-2: #4f4639;
-  --text-3: #6d6354;
+  /* Near-black throughout. The field is a mid brown, so even pure black
+     only reaches about five to one against it — there is no room for a
+     polite grey, and a grey is exactly what mum could not read. The faint
+     tones stay apart by weight and size instead of by lightness. */
+  --text: #201b14;
+  --text-2: #2c261d;
+  --text-3: #3d352a;
 
   /* Espresso, as in daylight: a pale button is invisible on paper. */
   --primary: #3b3127;
@@ -2032,29 +2036,29 @@ input[type="datetime-local"].input {
    number first, because that is what the eye is looking for. */
 .by-shop {
   display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 10px;
-  margin-top: 3px; font-size: 11px; line-height: 1.35; color: var(--muted);
+  margin-top: 3px; font-size: 11px; line-height: 1.35; color: var(--text-3);
 }
 .by-shop b { color: var(--text-2); font-weight: 600; }
 .by-shop-row { justify-content: flex-start; margin-top: 0; font-size: 12px; }
-.quick-row-shops .quick-label { color: var(--muted); }
+.quick-row-shops .quick-label { color: var(--text-3); }
 /* What a garment sold, year by year — small, under whatever total it
    belongs to, and never wide enough to push the number off the row. */
 .by-year {
   display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
-  margin-top: 3px; font-size: 11px; line-height: 1.35; color: var(--muted);
+  margin-top: 3px; font-size: 11px; line-height: 1.35; color: var(--text-3);
   white-space: nowrap;
 }
 .by-year-wide { align-items: center; }
 .qty-stack { display: flex; flex-direction: column; align-items: flex-end; }
 .rank-stat .by-year { align-items: flex-end; }
-.pay-bank { margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
-.stat-note { margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--muted); }
-.pay-pill.is-book { background: var(--surface-3, rgba(255,255,255,0.06)); color: var(--muted); border-color: transparent; }
+.pay-bank { margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--text-3); letter-spacing: 0.02em; }
+.stat-note { margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--text-3); }
+.pay-pill.is-book { background: var(--surface-3, rgba(255,255,255,0.06)); color: var(--text-3); border-color: transparent; }
 .pay-pill.is-split { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
-.pay-split { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.pay-split { display: block; margin-top: 2px; font-size: 11px; color: var(--text-3); white-space: nowrap; }
 .basket-split {
   display: flex; justify-content: space-between; gap: var(--s-3);
-  padding: 6px 0 2px; font-size: 13px; color: var(--muted);
+  padding: 6px 0 2px; font-size: 13px; color: var(--text-3);
 }
 .basket-split span { display: inline-flex; align-items: center; gap: 5px; }
 
@@ -2307,7 +2311,7 @@ input[type="datetime-local"].input {
   border-radius: 14px;
   padding: var(--s-4);
   margin-bottom: var(--s-5);
-  background: var(--surface);
+  background: var(--card);
 }
 .transfer-head {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -2437,10 +2441,10 @@ input[type="datetime-local"].input {
 .quick-tools .btn { white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
 .quick-tools .quick-sort { width: auto; flex: 0 0 auto; }
 .quick-row-years .quick-cell { opacity: 0.85; }
-.quick-row-years .quick-label { color: var(--muted); }
-.quick-rank { display: inline-block; min-width: 1.6em; margin-right: 6px; font-size: 0.8em; font-weight: 700; color: var(--muted); }
+.quick-row-years .quick-label { color: var(--text-3); }
+.quick-rank { display: inline-block; min-width: 1.6em; margin-right: 6px; font-size: 0.8em; font-weight: 700; color: var(--text-3); }
 .quick-card {
-  background: var(--surface);
+  background: var(--card);
   border: 1px solid var(--line-soft);
   border-radius: var(--r-lg, 14px);
   padding: var(--s-4) var(--s-5);
