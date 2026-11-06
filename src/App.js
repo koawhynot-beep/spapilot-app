@@ -1651,6 +1651,10 @@ const ADDS_STOCK = new Set(['in', 'return']);
 
 // How the customer paid. Ids, not labels, so what gets stored does not change
 // when the language does.
+// The card machines on the counter. Picked, not typed: each settles into
+// its own statement, and three spellings of one bank is three reconciliations.
+const BANKS = ['BNI', 'BCA', 'PAYPAL'];
+
 const PAYMENT_METHODS = [
   { id: 'cash', icon: Banknote },
   { id: 'card', icon: CreditCard },
@@ -1690,6 +1694,10 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   // typed — two boxes that have to add up to the total is arithmetic done
   // at a counter with somebody waiting.
   const [cashPart, setCashPart] = useState('');
+  // Which machine the card went through. Only a card has one; it stays on
+  // the last one used, because a shop tends to use the same terminal all
+  // morning and re-picking it every sale is a tap nobody needs.
+  const [bank, setBank] = useState('');
   // How much of that cash the pieces rung up so far have used. A sale is
   // scanned a piece at a time, so the cash is spread across the lines as
   // they go and this is what is left to spread.
@@ -1716,6 +1724,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     setCashPart('');
     setCashUsed(0);
     cashUsedRef.current = 0;
+    if (payment === 'cash') setBank('');
   }, [payment]);
 
   // Who is scanning. Remembered on this device across shifts.
@@ -1813,6 +1822,9 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     ...(scanMode === 'sell' && payment === 'split'
       ? { cashRemaining: Math.max(0, cashPotRef.current - cashUsedRef.current) }
       : {}),
+    ...(scanMode === 'sell' && (payment === 'card' || payment === 'split')
+      ? { bank }
+      : {}),
   });
 
   // A part-cash sale has one pot of cash to divide between the pieces, so
@@ -1840,7 +1852,8 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   // sale is not known until the cash half is. Only selling: a delivery and a
   // write-off have no customer.
   const needsPayment = scanMode === 'sell'
-    && (!payment || (payment === 'split' && !cashPartValid));
+    && (!payment || (payment === 'split' && !cashPartValid)
+        || ((payment === 'card' || payment === 'split') && !bank));
 
   // Blank means no discount, which is the normal sale and asks nothing of
   // anyone. Only once a number is in the first box does the second have to
@@ -1961,6 +1974,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
       shop: shopName,
       who: staffName,
       payment,
+      bank: (payment === 'card' || payment === 'split') ? bank : '',
       // What was actually handed over each way, so the slip the customer
       // takes home says so rather than just "split".
       cash: payment === 'split' ? Math.min(cashUsed, basketTotal) : null,
@@ -2104,7 +2118,26 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
                 </div>
               </>
             )}
-            {needsPayment && payment !== 'split' && (
+            {(payment === 'card' || payment === 'split') && (
+              <>
+                <div className="segmented segmented-wide" role="group" aria-label={t('sell.whichBank')}>
+                  {BANKS.map(b => (
+                    <button
+                      key={b}
+                      type="button"
+                      className={bank === b ? 'is-active' : ''}
+                      onClick={() => setBank(b)}
+                    >
+                      {b === 'PAYPAL' ? 'PayPal' : b}
+                    </button>
+                  ))}
+                </div>
+                <div className={'field-hint' + (bank ? '' : ' is-wrong')}>
+                  {bank ? t('sell.bankChosen').replace('{b}', bank) : t('sell.pickBank')}
+                </div>
+              </>
+            )}
+            {needsPayment && payment !== 'split' && !((payment === 'card') && !bank) && (
               <div className="field-hint">{t('sell.pickPayment')}</div>
             )}
           </div>
@@ -2438,6 +2471,7 @@ function Receipt({ data }) {
         <div>{t('sell.receiptNo').replace('{n}', data.no)}</div>
         {data.who && <div>{t('sell.servedBy').replace('{who}', data.who)}</div>}
         {data.payment && <div>{t('sell.paidWith')}: {t(`sell.pay.${data.payment}`)}</div>}
+        {data.bank && <div>{t('sell.whichBank')}: {data.bank === 'PAYPAL' ? 'PayPal' : data.bank}</div>}
         {data.cash != null && (
           <div>
             {t('sell.pay.cash')} {data.cash.toLocaleString('en-US')}

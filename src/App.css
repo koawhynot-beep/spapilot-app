@@ -2038,6 +2038,8 @@ input[type="datetime-local"].input {
 .by-year-wide { align-items: center; }
 .qty-stack { display: flex; flex-direction: column; align-items: flex-end; }
 .rank-stat .by-year { align-items: flex-end; }
+.pay-bank { margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
+.stat-note { margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--muted); }
 .pay-pill.is-book { background: var(--surface-3, rgba(255,255,255,0.06)); color: var(--muted); border-color: transparent; }
 .pay-pill.is-split { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
 .pay-split { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); white-space: nowrap; }

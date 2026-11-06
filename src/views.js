@@ -116,6 +116,9 @@ const SaleRow = ({ r, showDate, showShop, onEdit: onEditProp }) => {
           {t(r.payment === 'cash' ? 'sale.paidCash'
             : r.payment === 'card' ? 'sale.paidCard' : 'sale.paidSplit')}
         </span>
+        {/* Which machine took it. Each bank settles separately, so "card"
+            on its own leaves the statements to be matched by hand. */}
+        {r.bank && <span className="pay-bank">{r.bank === 'PAYPAL' ? 'PayPal' : r.bank}</span>}
         {/* A part-cash row says which way the money went, because "split"
             on its own tells whoever counts the drawer nothing. */}
         {r.payment === 'split' && (
@@ -154,7 +157,7 @@ const Empty = ({ icon: Icon, title, hint }) => (
 // Reuses the app's own stat-card typography rather than a private class, so
 // these read the same as every other figure in the app. Money is set a size
 // down: "IDR 4,200,000" at the full 30px crowds the card edge to edge.
-function StatTile({ value, label, tone, money }) {
+function StatTile({ value, label, tone, money, note }) {
   return (
     <div className={`stat-card ${tone ? 'tone-' + tone : ''}`}>
       <div className={`stat-num ${money ? 'is-money' : ''}`}>
@@ -164,6 +167,9 @@ function StatTile({ value, label, tone, money }) {
         {tone && <span className="stat-dot" aria-hidden="true" />}
         {label}
       </div>
+      {/* What the figure is made of — the banks behind a card total. Under
+          the label, quietly, because it answers a second question. */}
+      {note && <div className="stat-note">{note}</div>}
     </div>
   );
 }
@@ -390,7 +396,14 @@ function SalesLog({ qs, showShop, isAdmin }) {
         {/* How that revenue came in. Part-cash sales land in both, each for
             its own half, so the two add back up to the figure beside them. */}
         <StatTile value={idr(totals.cash)} label={t('today.inDrawer')} money />
-        <StatTile value={idr(totals.card)} label={t('today.onCard')} money />
+        <StatTile
+          value={idr(totals.card)}
+          label={t('today.onCard')}
+          money
+          note={(totals.byBank || [])
+            .map(b => `${b.bank === 'PAYPAL' ? 'PayPal' : (b.bank || t('sale.bankUnknown'))} ${idr(b.amount)}`)
+            .join(' · ')}
+        />
         <StatTile value={total} label={t('history.transactions')} />
       </div>
 
@@ -456,6 +469,7 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
   const [pay, setPay] = useState(sale.payment || '');
   // The cash half of a part-cash sale, blank on every other kind.
   const [cash, setCash] = useState(sale.cashAmount == null ? '' : String(sale.cashAmount));
+  const [bank, setBank] = useState(sale.bank || '');
   const [disc, setDisc] = useState(sale.discountPct ? String(sale.discountPct) : '');
   // datetime-local wants "YYYY-MM-DDTHH:mm" in local time, which is exactly
   // what toISOString does not give you.
@@ -489,6 +503,7 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
       if (when) body.occurredAt = new Date(when).toISOString();
       body.payment = pay;
       if (pay === 'split') body.cashAmount = cash.trim() === '' ? 0 : Number(cash);
+      if (pay === 'card' || pay === 'split') body.bank = bank;
       body.discountPct = disc.trim() === '' ? 0 : Number(disc);
       const staffId = readStaffId();
       if (staffId) body.staffId = staffId;
@@ -650,6 +665,17 @@ function SaleEditModal({ sale, onClose, onSaved, onDeleted, canDelete }) {
             <Wallet size={15} /> {t('sell.pay.split')}
           </button>
         </div>
+        {(pay === 'card' || pay === 'split') && (
+          <div className="segmented segmented-wide" style={{ marginTop: 8 }}
+               role="group" aria-label={t('sell.whichBank')}>
+            {['BNI', 'BCA', 'PAYPAL'].map(b => (
+              <button key={b} type="button" className={bank === b ? 'is-active' : ''}
+                      onClick={() => setBank(b)}>
+                {b === 'PAYPAL' ? 'PayPal' : b}
+              </button>
+            ))}
+          </div>
+        )}
         {pay === 'split' && (
           <>
             <input

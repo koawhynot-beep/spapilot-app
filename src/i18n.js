@@ -618,6 +618,10 @@ const EN = {
   'quick.byShop': 'By shop',
   'sale.fromBook': 'Shop book',
   'sale.fromBookWhy': 'Out of the shop\'s own sales book, from before the app. It cannot be corrected here.',
+  'sell.whichBank': 'Which machine',
+  'sell.pickBank': 'Pick which machine took the card',
+  'sell.bankChosen': 'Card through {b}',
+  'sale.bankUnknown': 'Not recorded',
 };
 
 const ID = {
@@ -1216,6 +1220,10 @@ const ID = {
   'quick.byShop': 'Per toko',
   'sale.fromBook': 'Buku toko',
   'sale.fromBookWhy': 'Dari buku penjualan toko, sebelum ada aplikasi. Tidak bisa diubah di sini.',
+  'sell.whichBank': 'Mesin mana',
+  'sell.pickBank': 'Pilih mesin yang dipakai',
+  'sell.bankChosen': 'Kartu lewat {b}',
+  'sale.bankUnknown': 'Tidak dicatat',
 };
 
 const DICTS = { en: EN, id: ID };
