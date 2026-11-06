@@ -21,7 +21,7 @@ const esc = (s) => String(s == null ? '' : s)
 
 // Groups are printed with their heading; an ungrouped list comes through as a
 // single group with no heading.
-export function buildChecklistHtml({ title, subtitle, groups, columns = 1, labels, checkedBy = '' }) {
+export function buildChecklistHtml({ title, subtitle, groups, columns = 2, labels, checkedBy = '' }) {
   const L = {
     qty: 'Qty', counted: 'Counted', checkedBy: 'Checked by', date: 'Date',
     page: 'Page', items: 'items', pieces: 'pieces', ...(labels || {}),
@@ -74,13 +74,21 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 1, label
   /* Balanced on screen so the preview looks like the sheet; auto on paper,
      which is what fills one page-column at a time instead of stretching the
      whole list to a single unpaginated height. */
-  /* One column by default, because the list is alphabetical and two
-     columns put A beside H: the eye follows the page down, not down and
-     then back up to the top of a second column. Two lines fit the width
-     that frees up, so the sheet does not run to twice the paper — the name
-     and the detail sit side by side rather than stacked. */
-  .cols { column-count: ${columns}; column-gap: 7mm; column-fill: balance; }
-  @media print { .cols { column-fill: auto; } }
+  /* Two abreast, filled across and then down: first name on the left,
+     second on the right, third on the next row. Newspaper columns put A
+     beside H — you would read the whole left side, then climb back to the
+     top for the right — whereas this keeps both columns at the same letter
+     at the same height, which is how the sheet is read when it is being
+     carried round the rail.
+
+     The list is a grid rather than CSS columns for exactly that reason:
+     grid fills row by row, columns fill one side at a time. */
+  .cols { }
+  .list {
+    display: grid;
+    grid-template-columns: repeat(${columns}, minmax(0, 1fr));
+    column-gap: 7mm;
+  }
 
   /* A heading stranded at the foot of a column helps nobody. */
   .grp {
@@ -98,8 +106,9 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 1, label
     padding: 0.9mm 0; border-bottom: 0.4pt solid #ddd;
     break-inside: avoid; page-break-inside: avoid;
   }
-  .row .text { display: flex; align-items: baseline; gap: 2.5mm; min-width: 0; }
-  .row .dt { white-space: nowrap; }
+  /* Half the width, so the code and colour drop under the name again. */
+  .row .text { min-width: 0; }
+  .row .nm, .row .dt { display: block; }
   /* The tick box. A real drawn square prints reliably; a form control does
      not — browsers render unchecked inputs inconsistently on paper. */
   .box {
