@@ -141,6 +141,10 @@ export function QuickCheckView({ shopsParam }) {
             </div>
           )}
           {list.map((g, i) => {
+            // Every size this garment comes in, which is the set each line
+            // is laid out against, and the year we are in.
+            const sizes = g.sizes.map(z => z.size);
+            const thisYear = years[years.length - 1];
             return (
               <div className="quick-card" key={g.key}>
                 <div className="quick-head">
@@ -156,57 +160,85 @@ export function QuickCheckView({ shopsParam }) {
                   </div>
                 </div>
 
-                {/* A line per shop, read across: what is on that shop's
-                    rail, then what it has sold, then the two totals. The
-                    shops run down the card and the questions run across it,
-                    which is the way it is asked out loud — "Goldust, what
-                    have we got, and what has gone?" */}
+                {/* A line per shop, read across: what that shop has on
+                    the rail, then what it has sold. The shops run down the
+                    card and the questions run across it, which is the way
+                    it is asked out loud — "Goldust, what have we got, and
+                    what has gone?"
+
+                    Every size appears on every line, at zero where there
+                    are none. A size that is missing and a size that is out
+                    look the same on a list, and only one of them is worth
+                    walking to the rail for. */}
                 {(g.perShop || []).map(line => {
-                  // This year, unless she asks for the lot. The question
-                  // the card answers at the counter is what is moving now;
-                  // the switch at the top opens the back years.
-                  const thisYear = years[years.length - 1];
-                  const soldYears = (line.soldYears || [])
-                    .filter(x => allYears ? x.sold !== 0 : x.year === thisYear && x.sold !== 0);
+                  const held = new Map(line.sizes.map(z => [z.size, z.qty]));
+                  // This year, unless she asks for the lot. What is moving
+                  // now is the question asked at the counter; the switch at
+                  // the top opens the back years.
+                  const shownYears = (line.soldYears || [])
+                    .filter(x => allYears ? x.sold !== 0 : x.year === thisYear);
                   return (
                     <div className="qc-line" key={line.shop}>
                       <span className="qc-shop">{line.shop}</span>
 
                       <div className="qc-box">
                         <span className="qc-box-label">{t('quick.boxStock')}</span>
-                        {line.sizes.length === 0
-                          ? <span className="qc-none">{t('quick.noneHere')}</span>
-                          : line.sizes.map(z => (
-                              <span className={'qc-pair' + (z.qty === 0 ? ' is-zero' : '')} key={z.size || '-'}>
-                                <b>{z.qty}</b> {z.size || t('sizes.oneSize')}
-                              </span>
-                            ))}
+                        {sizes.map(size => (
+                          <span className={'qc-pair' + (held.get(size) ? '' : ' is-zero')} key={size || '-'}>
+                            <b>{held.get(size) || 0}</b> {size || t('sizes.oneSize')}
+                          </span>
+                        ))}
                       </div>
 
-                      {/* A year at a time, and inside the year the sizes
-                          that went. "Seventeen sold" and "seventeen S/M in
-                          2026" are different facts, and only the second
-                          one says what to reorder. */}
                       <div className="qc-box qc-box-sold">
                         <span className="qc-box-label">{t('quick.sold')}</span>
-                        {soldYears.length === 0
-                          ? <span className="qc-none">{t('quick.neverSold')}</span>
-                          : soldYears.map(x => (
-                              <span className={'qc-year' + (x.sold === 0 ? ' is-zero' : '')} key={x.year}>
-                                <span className="qc-year-k">{x.year}</span>
-                                {x.sizes.length === 0
-                                  ? <span className="qc-pair"><b>{x.sold}</b></span>
-                                  : x.sizes.map(z => (
-                                      <span className="qc-pair" key={z.size || '-'}>
-                                        <b>{z.sold}</b> {z.size || t('sizes.oneSize')}
-                                      </span>
-                                    ))}
-                              </span>
-                            ))}
+                        {shownYears.map(x => {
+                          const went = new Map(x.sizes.map(z => [z.size, z.sold]));
+                          return (
+                            <span className="qc-year" key={x.year}>
+                              {allYears && <span className="qc-year-k">{x.year}</span>}
+                              {sizes.map(size => (
+                                <span className={'qc-pair' + (went.get(size) ? '' : ' is-zero')} key={size || '-'}>
+                                  <b>{went.get(size) || 0}</b> {size || t('sizes.oneSize')}
+                                </span>
+                              ))}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   );
                 })}
+
+                {/* And the card's own line. The shops above answer "where
+                    is it"; this answers "how many have we got, and how is
+                    it selling" — the stock added up size by size, and each
+                    year's sales kept apart, because two years added
+                    together say nothing about either. */}
+                <div className="qc-line qc-line-total">
+                  <span className="qc-shop">{t('quick.total')}</span>
+
+                  <div className="qc-box">
+                    <span className="qc-box-label">{t('quick.boxStock')}</span>
+                    {g.sizes.map(z => (
+                      <span className={'qc-pair' + (z.qty === 0 ? ' is-zero' : '')} key={z.size || '-'}>
+                        <b>{z.qty}</b> {z.size || t('sizes.oneSize')}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="qc-box qc-box-sold">
+                    <span className="qc-box-label">{t('quick.sold')}</span>
+                    {years.map((year, n) => ({ year, sold: g.byYear[n] }))
+                      .filter(x => allYears || x.sold !== 0 || x.year === thisYear)
+                      .map(x => (
+                        <span className={'qc-year' + (x.sold === 0 ? ' is-zero' : '')} key={x.year}>
+                          <span className="qc-year-k">{x.year}</span>
+                          <span className="qc-pair"><b>{x.sold}</b></span>
+                        </span>
+                      ))}
+                  </div>
+                </div>
               </div>
             );
           })}
