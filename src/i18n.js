@@ -616,6 +616,8 @@ const EN = {
   'common.inYear': '{n} in {y}',
   'stock.clearFilters': 'Clear all',
   'quick.byShop': 'By shop',
+  'sale.fromBook': 'Shop book',
+  'sale.fromBookWhy': 'Out of the shop\'s own sales book, from before the app. It cannot be corrected here.',
 };
 
 const ID = {
@@ -1212,6 +1214,8 @@ const ID = {
   'common.inYear': '{n} di {y}',
   'stock.clearFilters': 'Hapus semua',
   'quick.byShop': 'Per toko',
+  'sale.fromBook': 'Buku toko',
+  'sale.fromBookWhy': 'Dari buku penjualan toko, sebelum ada aplikasi. Tidak bisa diubah di sini.',
 };
 
 const DICTS = { en: EN, id: ID };
