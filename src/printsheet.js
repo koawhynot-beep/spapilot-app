@@ -21,7 +21,7 @@ const esc = (s) => String(s == null ? '' : s)
 
 // Groups are printed with their heading; an ungrouped list comes through as a
 // single group with no heading.
-export function buildChecklistHtml({ title, subtitle, groups, columns = 2, labels }) {
+export function buildChecklistHtml({ title, subtitle, groups, columns = 2, labels, checkedBy = '' }) {
   const L = {
     qty: 'Qty', counted: 'Counted', checkedBy: 'Checked by', date: 'Date',
     page: 'Page', items: 'items', pieces: 'pieces', ...(labels || {}),
@@ -136,7 +136,7 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 2, label
       <h1>${esc(title)}</h1>
       <div class="sub">${esc(subtitle)} &middot; ${totalItems} ${esc(L.items)} &middot; ${totalPieces} ${esc(L.pieces)}</div>
       <div class="sign">
-        <span><b>${esc(L.checkedBy)}</b></span>
+        <span><b>${esc(L.checkedBy)}</b> ${esc(checkedBy)}</span>
         <span><b>${esc(L.date)}</b></span>
       </div>
     </header>

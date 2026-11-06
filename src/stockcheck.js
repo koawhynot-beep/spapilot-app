@@ -100,46 +100,26 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
       .filter(Boolean).join(' ').toLowerCase().includes(q));
     if (!forPrint.length) return;
 
-    const ordered = sortBy === 'qty-asc'
-      ? [...forPrint].sort((a, b) => a.qty - b.qty || a.name.localeCompare(b.name))
-      : sortBy === 'qty-desc'
-        ? [...forPrint].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name))
-        : sortBy === 'az'
-          ? [...forPrint].sort(byName)
-          : [...forPrint].sort(alphabetical);
-
-    let printGroups;
-    if (sortBy === 'fabric') {
-      printGroups = [];
-      let cur = null;
-      for (const it of ordered) {
-        const key = it.fabric || t('check.otherFabric');
-        if (!cur || cur.key !== key) { cur = { key, items: [] }; printGroups.push(cur); }
-        // The heading above already says the fabric, and the names repeat it
-        // ("AGUA SHIRT" / "AGUA SHIRT BALTIC AMBER M/L"), which wraps most
-        // lines onto two and roughly doubles the paper. Only an exact
-        // leading match is removed, so nothing else in the name is touched.
-        const short = it.fabric && it.name.toUpperCase().startsWith(it.fabric.toUpperCase())
-          ? it.name.slice(it.fabric.length).trim()
-          : it.name;
-        cur.items.push({ ...it, name: short || it.name });
-      }
-    } else {
-      printGroups = [{ key: null, items: ordered }];
-    }
-
+    // Always A to Z, whatever the screen is sorted by. Paper is read with a
+    // finger: you look for the next name, and a sheet grouped by fabric
+    // means knowing which fabric a garment is before you can find it. One
+    // flat alphabet, no headings.
+    const ordered = [...forPrint].sort(byName);
     const shopNames = [...new Set(ordered.map(x => x.shopName).filter(Boolean))];
     // One sheet can cover three shops, and then the same code appears once
     // per shop with nothing on the line to tell them apart. The shop goes on
     // the line in that case, and only in that case.
-    const withShop = shopNames.length > 1
-      ? printGroups
-      : printGroups.map(g => ({ ...g, items: g.items.map(({ shopName, ...it }) => it) }));
+    const lines = shopNames.length > 1
+      ? ordered
+      : ordered.map(({ shopName, ...it }) => it);
+
+    const who = staff.find(x => String(x.id) === String(staffId));
     const ok = openChecklist({
       title: t('check.printTitle'),
       subtitle: [shopNames.join(', '), new Date().toLocaleDateString()]
         .filter(Boolean).join(' · '),
-      groups: withShop,
+      groups: [{ key: null, items: lines }],
+      checkedBy: who ? who.name : '',
       labels: {
         qty: t('check.printQty'),
         counted: t('check.printCounted'),
