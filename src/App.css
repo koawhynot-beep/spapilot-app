@@ -2462,7 +2462,11 @@ input[type="datetime-local"].input {
    than its neighbours looks like it means something, and none of them do. */
 .qc-line {
   display: grid;
-  grid-template-columns: 92px minmax(200px, auto) minmax(0, 1fr);
+  /* The stock column is a fixed share of the card, not as wide as whatever
+     happens to be in it. Sized to its contents, the boundary between stock
+     and sold moved card by card and the whole page zig-zagged down the
+     middle; a share keeps every card cut in the same place. */
+  grid-template-columns: 92px minmax(0, 34%) minmax(0, 1fr);
   gap: var(--s-3);
   align-items: stretch;
   margin-top: 8px;
