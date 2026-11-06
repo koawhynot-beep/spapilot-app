@@ -327,13 +327,6 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
           <option value="">{t('history.anyStaff')}</option>
           {staff.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
         </select>
-        {/* Grouping by fabric answers a different question from "what happened
-            lately" — what the linen has been doing, all of it together. */}
-        <select className="select select-inline" value={sort} onChange={e => setSort(e.target.value)}
-                aria-label={t('history.sortLabel')}>
-          <option value="recent">{t('history.sortRecent')}</option>
-          <option value="fabric">{t('history.sortFabric')}</option>
-        </select>
       </div>
 
       <input
@@ -344,7 +337,21 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
         style={{ marginBottom: 12 }}
       />
 
-      <FilterBar shopsParam={shopsParam} value={filters} onChange={setFilters} />
+      {/* The order sits with the filters: both are "how do I want to look at
+          this", and two separate controls for that was one too many. */}
+      <FilterBar
+        shopsParam={shopsParam}
+        value={filters}
+        onChange={setFilters}
+        sort={sort}
+        onSort={setSort}
+        sortOptions={[
+          { value: 'recent', label: 'history.sortRecent' },
+          { value: 'oldest', label: 'history.sortOldest' },
+          { value: 'name', label: 'history.sortName' },
+          { value: 'fabric', label: 'history.sortFabric' },
+        ]}
+      />
 
       {/* What sold, and separately where the stock went. Staff get both —
           they are the ones who scanned it — but not the rankings, the

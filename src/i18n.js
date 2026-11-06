@@ -638,6 +638,10 @@ const EN = {
   'month.10': 'October',
   'month.11': 'November',
   'month.12': 'December',
+  'history.sortOldest': 'Oldest first',
+  'history.sortName': 'A to Z',
+  'quick.sortName': 'A to Z',
+  'stock.nothingToFilter': 'Nothing to filter by yet — add some stock first.',
 };
 
 const ID = {
@@ -1256,6 +1260,10 @@ const ID = {
   'month.10': 'Oktober',
   'month.11': 'November',
   'month.12': 'Desember',
+  'history.sortOldest': 'Terlama dulu',
+  'history.sortName': 'A sampai Z',
+  'quick.sortName': 'A sampai Z',
+  'stock.nothingToFilter': 'Belum ada yang bisa difilter — tambahkan stok dulu.',
 };
 
 const DICTS = { en: EN, id: ID };

@@ -70,7 +70,8 @@ export function SearchField({ value, onChange, placeholder }) {
 // It carries no state of its own beyond being open: the screen owns the
 // chosen values, because only the screen knows whether they filter rows it
 // already holds or go back to the server as a query.
-export function FilterBar({ shopsParam = '', value, onChange, children }) {
+export function FilterBar({ shopsParam = '', value, onChange, children,
+                            sort, onSort, sortOptions }) {
   const t = useT();
   const [facets, setFacets] = useState(null);
   const [open, setOpen] = useState(false);
@@ -94,7 +95,13 @@ export function FilterBar({ shopsParam = '', value, onChange, children }) {
     ['size', 'sizes', 'stock.size', 'stock.allSizes'],
   ];
   const active = FIELDS.filter(([k]) => value[k]).length;
-  if (!facets) return null;
+  const choices = FIELDS.filter(([, list]) => (facets?.[list] || []).length > 0);
+  const sorts = sortOptions || [];
+  // A shop with nothing on its shelves has no fabrics or colours to offer,
+  // and an empty panel that opens onto nothing reads as a broken button.
+  // With a sort to offer there is still a reason to open it; with neither,
+  // the bar does not appear at all.
+  if (choices.length === 0 && sorts.length === 0) return null;
 
   return (
     <>
@@ -114,8 +121,19 @@ export function FilterBar({ shopsParam = '', value, onChange, children }) {
 
       {open && (
         <div className="filter-panel">
+          {sorts.length > 0 && (
+            <div className="field">
+              <label>{t('history.sortLabel')}</label>
+              <select className="select" value={sort} onChange={e => onSort(e.target.value)}>
+                {sorts.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
+              </select>
+            </div>
+          )}
+          {choices.length === 0 && (
+            <div className="field-hint">{t('stock.nothingToFilter')}</div>
+          )}
           {FIELDS.map(([key, list, label, all]) => (
-            (facets[list] || []).length > 0 && (
+            (facets?.[list] || []).length > 0 && (
               <div className="field" key={key}>
                 <label>{t(label)}</label>
                 <select

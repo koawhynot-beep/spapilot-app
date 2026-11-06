@@ -56,6 +56,9 @@ export function QuickCheckView({ shopsParam }) {
   // Grouped by fabric, the way she reads her stock — or, when she wants to
   // know what moves, one flat list ranked by pieces sold over the ten years.
   const blocks = useMemo(() => {
+    if (sort === 'name') {
+      return [[null, [...garments].sort((a, b) => title(a).localeCompare(title(b)))]];
+    }
     if (sort !== 'fabric') {
       const ranked = [...garments].sort((a, b) =>
         (sort === 'best' ? b.total - a.total : a.total - b.total)
@@ -95,16 +98,6 @@ export function QuickCheckView({ shopsParam }) {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select
-          className="input quick-sort"
-          value={sort}
-          onChange={e => setSort(e.target.value)}
-          aria-label={t('quick.sortFabric')}
-        >
-          <option value="fabric">{t('quick.sortFabric')}</option>
-          <option value="best">{t('quick.sortBest')}</option>
-          <option value="worst">{t('quick.sortWorst')}</option>
-        </select>
         <button
           type="button"
           className={'btn btn-sm ' + (allYears ? 'btn-primary' : 'btn-ghost')}
@@ -119,7 +112,19 @@ export function QuickCheckView({ shopsParam }) {
 
       {/* The same four filters as the stock list, in the same place, folded
           away until they are wanted. */}
-      <FilterBar shopsParam={shopsParam} value={filters} onChange={setFilters} />
+      <FilterBar
+        shopsParam={shopsParam}
+        value={filters}
+        onChange={setFilters}
+        sort={sort}
+        onSort={setSort}
+        sortOptions={[
+          { value: 'fabric', label: 'quick.sortFabric' },
+          { value: 'name', label: 'quick.sortName' },
+          { value: 'best', label: 'quick.sortBest' },
+          { value: 'worst', label: 'quick.sortWorst' },
+        ]}
+      />
 
       {garments.length === 0 && (
         <div className="empty"><h3>{t('quick.nothing')}</h3></div>
