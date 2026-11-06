@@ -2454,13 +2454,15 @@ input[type="datetime-local"].input {
 .quick-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
 .quick-meta { display: flex; gap: var(--s-3); font-size: 12.5px; color: var(--text-3); flex-wrap: wrap; }
 /* One line per shop, read left to right: the shop, what is on its rail,
-   what it has sold, and the two totals. Each question is one rectangle, so
-   the eye reads a block rather than counting cells; everything inside a
-   block is the same colour, because a cell that is darker than its
-   neighbours looks like it means something, and none of them do. */
+   then what it has sold. Two rectangles, each carrying its own total at the
+   far end rather than in a column of its own — the width was standing empty
+   and the totals had been pushed off the edge of a phone.
+
+   Everything inside a rectangle is the same colour, because a cell darker
+   than its neighbours looks like it means something, and none of them do. */
 .qc-line {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: 92px minmax(200px, auto) minmax(0, 1fr);
   gap: var(--s-3);
   align-items: stretch;
   margin-top: 8px;
@@ -2484,20 +2486,25 @@ input[type="datetime-local"].input {
   margin-right: 2px;
 }
 .qc-pair b { font-size: 15px; font-weight: 700; }
-.qc-pair.is-zero { color: var(--text-3); }
-.qc-none { font-size: 13px; color: var(--text-3); }
-.qc-totals {
-  display: flex; flex-direction: column; justify-content: center; gap: 2px;
-  text-align: right; white-space: nowrap;
-  font-size: 11.5px; color: var(--text-3);
-  font-variant-numeric: tabular-nums;
+.qc-pair.is-zero, .qc-year.is-zero { color: var(--text-3); }
+/* A year and the sizes that went in it travel together, so a wrap never
+   leaves "2 M/L" sitting under the wrong year. */
+.qc-year { display: inline-flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+.qc-year-k {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--text-2);
+  padding: 1px 6px; border-radius: 999px; background: var(--surface-2);
 }
-.qc-totals b { font-size: 17px; font-weight: 700; color: var(--text); margin-right: 3px; }
-@media (max-width: 680px) {
-  .qc-line { grid-template-columns: 1fr auto; }
-  .qc-shop { grid-column: 1 / -1; }
-  .qc-box { grid-column: 1 / -1; }
-  .qc-totals { grid-column: 1 / -1; flex-direction: row; justify-content: flex-end; gap: var(--s-4); }
+.qc-none { font-size: 13px; color: var(--text-3); }
+/* The total sits at the far end of its own box, where the eye lands last. */
+.qc-tot {
+  margin-left: auto; padding-left: var(--s-4);
+  font-size: 11.5px; color: var(--text-3); white-space: nowrap;
+}
+.qc-tot b { font-size: 15px; font-weight: 700; color: var(--text); margin-right: 3px; }
+@media (max-width: 760px) {
+  .qc-line { grid-template-columns: 1fr; gap: 6px; }
+  .qc-shop { margin-top: 4px; }
 }
 
 .quick-row {

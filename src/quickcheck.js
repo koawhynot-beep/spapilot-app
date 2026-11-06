@@ -162,8 +162,7 @@ export function QuickCheckView({ shopsParam }) {
                     which is the way it is asked out loud — "Goldust, what
                     have we got, and what has gone?" */}
                 {(g.perShop || []).map(line => {
-                  const soldYears = years
-                    .map((y, n) => ({ year: y, sold: line.byYear[n] }))
+                  const soldYears = (line.soldYears || [])
                     .filter(x => allYears || x.sold !== 0);
                   return (
                     <div className="qc-line" key={line.shop}>
@@ -178,22 +177,30 @@ export function QuickCheckView({ shopsParam }) {
                                 <b>{z.qty}</b> {z.size || t('sizes.oneSize')}
                               </span>
                             ))}
+                        <span className="qc-tot"><b>{line.stock}</b> {t('quick.totStock')}</span>
                       </div>
 
-                      <div className="qc-box">
+                      {/* A year at a time, and inside the year the sizes
+                          that went. "Seventeen sold" and "seventeen S/M in
+                          2026" are different facts, and only the second
+                          one says what to reorder. */}
+                      <div className="qc-box qc-box-sold">
                         <span className="qc-box-label">{t('quick.sold')}</span>
                         {soldYears.length === 0
                           ? <span className="qc-none">{t('quick.neverSold')}</span>
                           : soldYears.map(x => (
-                              <span className={'qc-pair' + (x.sold === 0 ? ' is-zero' : '')} key={x.year}>
-                                <b>{x.sold}</b> {x.year}
+                              <span className={'qc-year' + (x.sold === 0 ? ' is-zero' : '')} key={x.year}>
+                                <span className="qc-year-k">{x.year}</span>
+                                {x.sizes.length === 0
+                                  ? <span className="qc-pair"><b>{x.sold}</b></span>
+                                  : x.sizes.map(z => (
+                                      <span className="qc-pair" key={z.size || '-'}>
+                                        <b>{z.sold}</b> {z.size || t('sizes.oneSize')}
+                                      </span>
+                                    ))}
                               </span>
                             ))}
-                      </div>
-
-                      <div className="qc-totals">
-                        <span><b>{line.stock}</b> {t('quick.totStock')}</span>
-                        <span><b>{line.sold}</b> {t('quick.totSold')}</span>
+                        <span className="qc-tot"><b>{line.sold}</b> {t('quick.totSold')}</span>
                       </div>
                     </div>
                   );
