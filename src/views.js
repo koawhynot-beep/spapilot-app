@@ -1260,9 +1260,6 @@ function SellersPane({ qs }) {
         </select>
       </form>
 
-      {/* The lists below count the shop's own book as well as the app; the
-          figures above it do not. Said here rather than left to be noticed. */}
-      <div className="field-hint" style={{ marginTop: 10 }}>{t('patterns.ledgerNote')}</div>
 
       <Rank title={t('history.bestByUnits')} rows={d.bestByUnits} metric="units" />
       <Rank title={t('history.bestByRevenue')} rows={d.bestByRevenue} metric="revenue" />
