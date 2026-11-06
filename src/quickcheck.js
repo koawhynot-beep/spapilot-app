@@ -145,6 +145,18 @@ export function QuickCheckView({ shopsParam }) {
             // is laid out against, and the year we are in.
             const sizes = g.sizes.map(z => z.size);
             const thisYear = years[years.length - 1];
+            // What the lines above add up to: the same years they show,
+            // added across the shops, size by size. A total that counted
+            // years the card is not showing would not match its own card.
+            const soldTotal = new Map(sizes.map(size => [size, 0]));
+            for (const line of g.perShop || []) {
+              for (const x of line.soldYears || []) {
+                if (!allYears && x.year !== thisYear) continue;
+                for (const z of x.sizes) {
+                  soldTotal.set(z.size, (soldTotal.get(z.size) || 0) + z.sold);
+                }
+              }
+            }
             return (
               <div className="quick-card" key={g.key}>
                 <div className="quick-head">
@@ -229,14 +241,11 @@ export function QuickCheckView({ shopsParam }) {
 
                   <div className="qc-box qc-box-sold">
                     <span className="qc-box-label">{t('quick.sold')}</span>
-                    {years.map((year, n) => ({ year, sold: g.byYear[n] }))
-                      .filter(x => allYears || x.sold !== 0 || x.year === thisYear)
-                      .map(x => (
-                        <span className={'qc-year' + (x.sold === 0 ? ' is-zero' : '')} key={x.year}>
-                          <span className="qc-year-k">{x.year}</span>
-                          <span className="qc-pair"><b>{x.sold}</b></span>
-                        </span>
-                      ))}
+                    {sizes.map(size => (
+                      <span className={'qc-pair' + (soldTotal.get(size) ? '' : ' is-zero')} key={size || '-'}>
+                        <b>{soldTotal.get(size) || 0}</b> {size || t('sizes.oneSize')}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
