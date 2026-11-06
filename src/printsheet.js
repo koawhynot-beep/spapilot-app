@@ -21,7 +21,7 @@ const esc = (s) => String(s == null ? '' : s)
 
 // Groups are printed with their heading; an ungrouped list comes through as a
 // single group with no heading.
-export function buildChecklistHtml({ title, subtitle, groups, columns = 2, labels, checkedBy = '' }) {
+export function buildChecklistHtml({ title, subtitle, groups, columns = 1, labels, checkedBy = '' }) {
   const L = {
     qty: 'Qty', counted: 'Counted', checkedBy: 'Checked by', date: 'Date',
     page: 'Page', items: 'items', pieces: 'pieces', ...(labels || {}),
@@ -74,6 +74,11 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 2, label
   /* Balanced on screen so the preview looks like the sheet; auto on paper,
      which is what fills one page-column at a time instead of stretching the
      whole list to a single unpaginated height. */
+  /* One column by default, because the list is alphabetical and two
+     columns put A beside H: the eye follows the page down, not down and
+     then back up to the top of a second column. Two lines fit the width
+     that frees up, so the sheet does not run to twice the paper — the name
+     and the detail sit side by side rather than stacked. */
   .cols { column-count: ${columns}; column-gap: 7mm; column-fill: balance; }
   @media print { .cols { column-fill: auto; } }
 
@@ -89,10 +94,12 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 2, label
 
   .list { list-style: none; margin: 0; padding: 0; }
   .row {
-    display: flex; align-items: flex-start; gap: 1.8mm;
-    padding: 1.1mm 0; border-bottom: 0.4pt solid #ddd;
+    display: flex; align-items: baseline; gap: 1.8mm;
+    padding: 0.9mm 0; border-bottom: 0.4pt solid #ddd;
     break-inside: avoid; page-break-inside: avoid;
   }
+  .row .text { display: flex; align-items: baseline; gap: 2.5mm; min-width: 0; }
+  .row .dt { white-space: nowrap; }
   /* The tick box. A real drawn square prints reliably; a form control does
      not — browsers render unchecked inputs inconsistently on paper. */
   .box {
@@ -104,8 +111,8 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 2, label
     font-weight: 700; font-size: 9.5pt; font-variant-numeric: tabular-nums;
   }
   .text { flex: 1 1 auto; min-width: 0; }
-  .nm { display: block; font-size: 9pt; line-height: 1.25; }
-  .dt { display: block; font-size: 7.5pt; color: #555; line-height: 1.2; }
+  .nm { font-size: 9pt; line-height: 1.25; }
+  .dt { font-size: 7.5pt; color: #555; line-height: 1.2; }
   /* Where the person writes what they actually found. */
   .blank {
     flex: 0 0 auto; width: 9mm; height: 3.6mm; margin-top: 0.4mm;
