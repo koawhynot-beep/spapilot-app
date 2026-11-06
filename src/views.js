@@ -6,7 +6,7 @@
 // order it happened, so the drawer can be balanced at close. History is the
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard, Wallet, BookOpen } from 'lucide-react';
+import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard, Wallet } from 'lucide-react';
 import { Modal, SearchField, FilterBar, ByYear, ByShop } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
@@ -68,12 +68,8 @@ function useLoad(path, deps) {
 // The whole row is the control when it can be corrected: an edit button on
 // every line is a lot of furniture on a list this dense, and the row is a
 // bigger target on a phone than a pencil icon would be.
-const SaleRow = ({ r, showDate, showShop, onEdit: onEditProp }) => {
+const SaleRow = ({ r, showDate, showShop, onEdit }) => {
   const t = useT();
-  // A line out of the shop's own book has no movement behind it, so there is
-  // nothing to correct: the row stays a row rather than offering an edit
-  // that could only fail.
-  const onEdit = r.fromBook ? undefined : onEditProp;
   // A real button, not a div with a role. Safari on iPad does not reliably
   // deliver clicks from non-interactive elements to React's delegated
   // listener at the root, so the tap did nothing on an iPad while working
@@ -101,14 +97,6 @@ const SaleRow = ({ r, showDate, showShop, onEdit: onEditProp }) => {
     {/* How it was paid for, next to what was sold. Sales taken before this
         was recorded simply have nothing here — an empty cell is honest,
         where a dash or a default would read as a fact. */}
-    {r.fromBook && (
-      <div className="sale-pay">
-        <span className="pay-pill is-book" title={t('sale.fromBookWhy')}>
-          <BookOpen size={12} />
-          {t('sale.fromBook')}
-        </span>
-      </div>
-    )}
     {r.payment && (
       <div className="sale-pay">
         <span className={`pay-pill is-${r.payment}`}>
