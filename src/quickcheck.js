@@ -175,30 +175,22 @@ export function QuickCheckView({ shopsParam }) {
                         <span className="quick-cell-v">{z.qty}</span>
                       </span>
                     ))}
+
+                    {/* And which shop has them, on the same line as the
+                        count — "one in stock" and "where is it" are one
+                        question asked at the counter, not two. Every shop
+                        every time, zero included: a shop left off the row
+                        would read as not having been asked. */}
+                    {manyShops && (g.inShops || []).length > 0 && <span className="quick-gap" />}
+                    {manyShops && (g.inShops || []).map(x => (
+                      <span className={'quick-cell is-shop' + (x.qty === 0 ? ' is-zero' : '')} key={x.shop}>
+                        <span className="quick-cell-k">{x.shop}</span>
+                        <span className="quick-cell-v">{x.qty}</span>
+                      </span>
+                    ))}
                   </div>
                   <span className="quick-sum">{g.stock}</span>
                 </div>
-
-                {/* And which shop has them. Every shop every time, zero
-                    included: "Rose Gold 0" is the answer to the question
-                    being asked at the counter, and a shop left off the row
-                    reads as not having been asked. */}
-                {manyShops && (g.inShops || []).length > 0 && (
-                  <div className="quick-row quick-row-shops">
-                    <span className="quick-label">{t('quick.atShop')}</span>
-                    <div className="quick-cells">
-                      {g.inShops.map(x => (
-                        <span className={'quick-cell' + (x.qty === 0 ? ' is-zero' : '')} key={x.shop}>
-                          <span className="quick-cell-k">{x.shop}</span>
-                          <span className="quick-cell-v">{x.qty}</span>
-                        </span>
-                      ))}
-                    </div>
-                    <span className="quick-sum">
-                      {g.inShops.reduce((n, x) => n + x.qty, 0)}
-                    </span>
-                  </div>
-                )}
 
                 {/* What each size sold over the ten years, under the same
                     size headings as the stock row, so the two read as a pair. */}
@@ -234,7 +226,7 @@ export function QuickCheckView({ shopsParam }) {
                     same rail; a piece that walks out of one and sits in
                     another is exactly what a single total hides. A shop that
                     has never sold it says so, rather than going missing. */}
-                {manyShops && (g.byShop || []).length > 0 && (
+                {manyShops && g.total > 0 && (g.byShop || []).length > 0 && (
                   <div className="quick-row quick-row-shops">
                     <span className="quick-label">{t('quick.byShop')}</span>
                     <div className="quick-cells">
