@@ -75,6 +75,10 @@ export function QuickCheckView({ shopsParam }) {
   }, [garments, sort]);
 
   const years = data?.years || [];
+  // The per-shop rows only mean something when more than one shop is on
+  // screen. With a single shop selected every cell would repeat the total
+  // beside it, which is noise on a card meant to be read at a glance.
+  const manyShops = (data?.shops || []).length > 1;
 
   if (error) return <div className="error-banner">{error}</div>;
   if (!data) return <div className="loading">{t('common.loading')}</div>;
@@ -179,7 +183,7 @@ export function QuickCheckView({ shopsParam }) {
                     included: "Rose Gold 0" is the answer to the question
                     being asked at the counter, and a shop left off the row
                     reads as not having been asked. */}
-                {(g.inShops || []).length > 0 && (
+                {manyShops && (g.inShops || []).length > 0 && (
                   <div className="quick-row quick-row-shops">
                     <span className="quick-label">{t('quick.atShop')}</span>
                     <div className="quick-cells">
@@ -230,7 +234,7 @@ export function QuickCheckView({ shopsParam }) {
                     same rail; a piece that walks out of one and sits in
                     another is exactly what a single total hides. A shop that
                     has never sold it says so, rather than going missing. */}
-                {(g.byShop || []).length > 0 && (
+                {manyShops && (g.byShop || []).length > 0 && (
                   <div className="quick-row quick-row-shops">
                     <span className="quick-label">{t('quick.byShop')}</span>
                     <div className="quick-cells">
