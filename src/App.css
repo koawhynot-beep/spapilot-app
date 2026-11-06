@@ -70,58 +70,58 @@
   --s-7: 48px;
 }
 
-/* ── Dark: warm charcoal ───────────────────────────────────────
-   Browns rather than blue-blacks, so it reads as the same brand at
-   night. Status colours are lightened here — the deep light-mode
-   versions are unreadable on a dark surface. index.html sets
+/* ── Dark: french beige ────────────────────────────────────────
+   Not a night mode any more. The shop asked for a warmer, heavier room
+   than daylight's paper — french beige under sand-coloured cards — and
+   since the field is light the ink stays dark throughout. index.html sets
    data-theme before paint, so there is no flash of the wrong theme. */
 :root[data-theme='dark'] {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* The field stays dark; the cards sit well clear of it. A panel only an
-     eyelash lighter than its background reads as one flat sheet, which is
-     exactly the complaint — on a phone in shop light the edges disappear.
-     So the cards are lifted into warm sand, several steps up from the field
-     rather than one, and the hairlines are lifted with them. */
-  --bg: #16130f;
-  --card: #3b332a;
-  --surface-2: #4a4136;
-  --surface-3: #574d40;
-  --row-hover: #463d32;
+  /* French beige under warm sand. The old charcoal field gave the cards
+     almost nothing to stand against at arm's length, which is the whole
+     complaint; a mid-brown field with paper-coloured cards on it is the
+     same step a shop window makes, and it holds up in daylight.
+     Because the field is light now, the ink is dark everywhere — on the
+     cards and over the field alike — so nothing has to be stated twice. */
+  --bg: #a67b5b;
+  --card: #d2c2ac;
+  --surface-2: #c3b198;
+  --surface-3: #b29e85;
+  --row-hover: #c9b9a3;
 
-  --text: #f7f3ec;
-  --text-2: #d3c9b8;
-  --text-3: #b3a996;
+  --text: #241f18;
+  --text-2: #4f4639;
+  --text-3: #6d6354;
 
-  /* Inverted: a pale button on a dark field, with dark ink on top. */
-  --primary: #f2e9db;
-  --primary-dark: #e0d5c2;
-  --primary-soft: #4a4136;
-  --on-primary: #1c1813;
-  --focus-ring: rgba(233, 224, 209, 0.18);
-  --on-primary-veil: rgba(28, 24, 19, 0.16);
+  /* Espresso, as in daylight: a pale button is invisible on paper. */
+  --primary: #3b3127;
+  --primary-dark: #241d15;
+  --primary-soft: #c3b198;
+  --on-primary: #fdfaf3;
+  --focus-ring: rgba(59, 49, 39, 0.22);
+  --on-primary-veil: rgba(253, 250, 243, 0.24);
 
-  --good: #8fc29f;
-  --good-soft: #2e4336;
-  --warn: #e0b76c;
-  --warn-soft: #463923;
-  --bad: #eb9b90;
-  --bad-soft: #4a332e;
-  --on-bad: #1c1813;
+  --good: #3d6b4f;
+  --good-soft: #dde8e0;
+  --warn: #7d5a1c;
+  --warn-soft: #ecdfc7;
+  --bad: #94443c;
+  --bad-soft: #eddbd4;
+  --on-bad: #fffefb;
 
-  /* Lifted with the cards: a hairline the colour of the old background is
-     invisible once the card around it is this much lighter. */
-  --line: #574d40;
-  --line-soft: #4a4136;
+  --line: #b4a089;
+  --line-soft: #c6b6a0;
 
-  /* Shadows barely register on dark, so they go deeper and the
-     hairlines above carry more of the separation. */
-  --overlay: rgba(0, 0, 0, 0.62);
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.28);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.58), 0 2px 8px rgba(0, 0, 0, 0.36);
+  /* Deeper than daylight's, because they fall on a mid tone rather than on
+     near-white: this is what lifts a card off the field. */
+  --overlay: rgba(32, 22, 14, 0.5);
+  --shadow-xs: 0 1px 2px rgba(45, 31, 19, 0.16);
+  --shadow-sm: 0 1px 3px rgba(45, 31, 19, 0.2), 0 1px 2px rgba(45, 31, 19, 0.14);
+  --shadow-md: 0 4px 16px rgba(45, 31, 19, 0.24), 0 1px 3px rgba(45, 31, 19, 0.16);
+  --shadow-lg: 0 12px 32px rgba(45, 31, 19, 0.3), 0 2px 8px rgba(45, 31, 19, 0.2);
 }
+
 
 /* ── Typography scale ─────────────────────────────────────── */
 h1, h2, h3 { color: var(--text); letter-spacing: -0.02em; }
