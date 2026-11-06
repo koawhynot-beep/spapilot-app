@@ -78,34 +78,41 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
+  /* The field stays dark; the cards sit well clear of it. A panel only an
+     eyelash lighter than its background reads as one flat sheet, which is
+     exactly the complaint — on a phone in shop light the edges disappear.
+     So the cards are lifted into warm sand, several steps up from the field
+     rather than one, and the hairlines are lifted with them. */
   --bg: #16130f;
-  --card: #211d17;
-  --surface-2: #2c2720;
-  --surface-3: #383129;
-  --row-hover: #282219;
+  --card: #3b332a;
+  --surface-2: #4a4136;
+  --surface-3: #574d40;
+  --row-hover: #463d32;
 
-  --text: #f0ebe2;
-  --text-2: #b5ab9b;
-  --text-3: #948b7d;
+  --text: #f7f3ec;
+  --text-2: #d3c9b8;
+  --text-3: #b3a996;
 
   /* Inverted: a pale button on a dark field, with dark ink on top. */
-  --primary: #e9e0d1;
-  --primary-dark: #d6cbb8;
-  --primary-soft: #2c2720;
+  --primary: #f2e9db;
+  --primary-dark: #e0d5c2;
+  --primary-soft: #4a4136;
   --on-primary: #1c1813;
   --focus-ring: rgba(233, 224, 209, 0.18);
   --on-primary-veil: rgba(28, 24, 19, 0.16);
 
-  --good: #7fb08f;
-  --good-soft: #1f2a22;
-  --warn: #d3a85f;
-  --warn-soft: #2c2417;
-  --bad: #dd8b80;
-  --bad-soft: #2f1f1c;
+  --good: #8fc29f;
+  --good-soft: #2e4336;
+  --warn: #e0b76c;
+  --warn-soft: #463923;
+  --bad: #eb9b90;
+  --bad-soft: #4a332e;
   --on-bad: #1c1813;
 
-  --line: #332d25;
-  --line-soft: #29241d;
+  /* Lifted with the cards: a hairline the colour of the old background is
+     invisible once the card around it is this much lighter. */
+  --line: #574d40;
+  --line-soft: #4a4136;
 
   /* Shadows barely register on dark, so they go deeper and the
      hairlines above carry more of the separation. */

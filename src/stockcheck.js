@@ -10,6 +10,17 @@ import { useT } from './i18n';
 import { api } from './api';
 import { openChecklist } from './printsheet';
 
+// A–Z, the way a list is read off paper. Whoever walks the rail works down
+// the sheet looking for the next name, so the names have to be in an order a
+// person can predict — the order the database happens to return rows in is
+// not one. Fabric first (that is how the rail is arranged), then the garment,
+// then the colour and size, so the near-identical lines sit together.
+const alphabetical = (a, b) =>
+  (a.fabric || '').localeCompare(b.fabric || '') ||
+  (a.name || '').localeCompare(b.name || '') ||
+  (a.color || '').localeCompare(b.color || '') ||
+  (a.size || '').localeCompare(b.size || '');
+
 const READ_STAFF = () => {
   try { return localStorage.getItem('mitrasamadi_staff') || ''; } catch { return ''; }
 };
@@ -53,7 +64,7 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
     // already loaded, so reordering it is instant and costs no round trip.
     if (sortBy === 'qty-asc') return [...out].sort((a, b) => a.qty - b.qty || a.name.localeCompare(b.name));
     if (sortBy === 'qty-desc') return [...out].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
-    return out;
+    return [...out].sort(alphabetical);
   }, [items, search, hideChecked, sortBy]);
 
   // Grouped by fabric, the way the rail is actually arranged — walking the
@@ -87,7 +98,7 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
       ? [...forPrint].sort((a, b) => a.qty - b.qty || a.name.localeCompare(b.name))
       : sortBy === 'qty-desc'
         ? [...forPrint].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name))
-        : forPrint;
+        : [...forPrint].sort(alphabetical);
 
     let printGroups;
     if (sortBy === 'fabric') {
