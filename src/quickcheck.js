@@ -162,8 +162,12 @@ export function QuickCheckView({ shopsParam }) {
                     which is the way it is asked out loud — "Goldust, what
                     have we got, and what has gone?" */}
                 {(g.perShop || []).map(line => {
+                  // This year, unless she asks for the lot. The question
+                  // the card answers at the counter is what is moving now;
+                  // the switch at the top opens the back years.
+                  const thisYear = years[years.length - 1];
                   const soldYears = (line.soldYears || [])
-                    .filter(x => allYears || x.sold !== 0);
+                    .filter(x => allYears ? x.sold !== 0 : x.year === thisYear && x.sold !== 0);
                   return (
                     <div className="qc-line" key={line.shop}>
                       <span className="qc-shop">{line.shop}</span>
@@ -177,7 +181,6 @@ export function QuickCheckView({ shopsParam }) {
                                 <b>{z.qty}</b> {z.size || t('sizes.oneSize')}
                               </span>
                             ))}
-                        <span className="qc-tot"><b>{line.stock}</b> {t('quick.totStock')}</span>
                       </div>
 
                       {/* A year at a time, and inside the year the sizes
@@ -200,7 +203,6 @@ export function QuickCheckView({ shopsParam }) {
                                     ))}
                               </span>
                             ))}
-                        <span className="qc-tot"><b>{line.sold}</b> {t('quick.totSold')}</span>
                       </div>
                     </div>
                   );
