@@ -15,6 +15,11 @@ import { openChecklist } from './printsheet';
 // person can predict — the order the database happens to return rows in is
 // not one. Fabric first (that is how the rail is arranged), then the garment,
 // then the colour and size, so the near-identical lines sit together.
+const byName = (a, b) =>
+  (a.name || '').localeCompare(b.name || '') ||
+  (a.color || '').localeCompare(b.color || '') ||
+  (a.size || '').localeCompare(b.size || '');
+
 const alphabetical = (a, b) =>
   (a.fabric || '').localeCompare(b.fabric || '') ||
   (a.name || '').localeCompare(b.name || '') ||
@@ -64,6 +69,7 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
     // already loaded, so reordering it is instant and costs no round trip.
     if (sortBy === 'qty-asc') return [...out].sort((a, b) => a.qty - b.qty || a.name.localeCompare(b.name));
     if (sortBy === 'qty-desc') return [...out].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
+    if (sortBy === 'az') return [...out].sort(byName);
     return [...out].sort(alphabetical);
   }, [items, search, hideChecked, sortBy]);
 
@@ -98,7 +104,9 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
       ? [...forPrint].sort((a, b) => a.qty - b.qty || a.name.localeCompare(b.name))
       : sortBy === 'qty-desc'
         ? [...forPrint].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name))
-        : [...forPrint].sort(alphabetical);
+        : sortBy === 'az'
+          ? [...forPrint].sort(byName)
+          : [...forPrint].sort(alphabetical);
 
     let printGroups;
     if (sortBy === 'fabric') {
@@ -121,11 +129,17 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
     }
 
     const shopNames = [...new Set(ordered.map(x => x.shopName).filter(Boolean))];
+    // One sheet can cover three shops, and then the same code appears once
+    // per shop with nothing on the line to tell them apart. The shop goes on
+    // the line in that case, and only in that case.
+    const withShop = shopNames.length > 1
+      ? printGroups
+      : printGroups.map(g => ({ ...g, items: g.items.map(({ shopName, ...it }) => it) }));
     const ok = openChecklist({
       title: t('check.printTitle'),
       subtitle: [shopNames.join(', '), new Date().toLocaleDateString()]
         .filter(Boolean).join(' · '),
-      groups: printGroups,
+      groups: withShop,
       labels: {
         qty: t('check.printQty'),
         counted: t('check.printCounted'),
@@ -241,6 +255,7 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
           aria-label={t('check.sort')}
         >
           <option value="fabric">{t('check.sortFabric')}</option>
+          <option value="az">{t('check.sortAZ')}</option>
           <option value="qty-asc">{t('check.sortFewest')}</option>
           <option value="qty-desc">{t('check.sortMost')}</option>
         </select>

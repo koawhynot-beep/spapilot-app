@@ -35,7 +35,7 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 2, label
 
   const line = (it) => {
     // Everything that identifies the garment on the rail, minus the blanks.
-    const detail = [it.sku, it.color, it.size].filter(Boolean).join(' · ');
+    const detail = [it.sku, it.color, it.size, it.shopName].filter(Boolean).join(' · ');
     return `<li class="row">
       <span class="box"></span>
       <span class="qty">${esc(it.qty)}</span>
