@@ -231,7 +231,9 @@ export function TodayView({ isAdmin, shopsParam = '' }) {
             {/* Correcting today's sales belongs here as much as in History:
                 this is the screen the counter already has open, and a
                 mistyped sale is noticed within the minute. */}
-            {items.map(r => <SaleRow key={r.id} r={r} onEdit={setEditing} />)}
+            {/* Correcting a sale is the owner's to do; staff can see the
+                till roll but not rewrite it. */}
+            {items.map(r => <SaleRow key={r.id} r={r} onEdit={isAdmin ? setEditing : undefined} />)}
           </div>
         </div>
       )}
@@ -355,6 +357,10 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
         ))}
       </div>
 
+      {/* The filed report. Admin only, and per shop: it is a document about
+          one shop's takings, not a mixture. */}
+      {isAdmin && <ReportExport shopsParam={shopsParam} />}
+
       {pane === 'log' && <SalesLog qs={qs} showShop={showShop} isAdmin={isAdmin} />}
       {pane === 'periods' && <PeriodsPane qs={qs} showShop={showShop} />}
       {pane === 'stock' && <StockMovesPane qs={qs} showShop={showShop} isAdmin={isAdmin} />}
@@ -409,7 +415,11 @@ function SalesLog({ qs, showShop, isAdmin }) {
 
       {error && <div className="error-banner">{error}</div>}
 
-      {isAdmin && <ExportButton href={`/api/sales/history.csv?${qs}`} label={t('history.exportSales')} />}
+      {isAdmin && (
+        <div style={{ marginTop: 12 }}>
+          <ExportButton href={`/api/sales/history.csv?${qs}`} label={t('history.exportSales')} />
+        </div>
+      )}
 
       {loading && rows.length === 0 && <div className="loading">{t('common.loading')}</div>}
       {!loading && !error && rows.length === 0 && (
@@ -420,7 +430,8 @@ function SalesLog({ qs, showShop, isAdmin }) {
         <div className="panel" style={{ marginTop: 12 }}>
           <div className="panel-body">
             {rows.map(r => (
-              <SaleRow key={r.id} r={r} showDate showShop={showShop} onEdit={setEditing} />
+              <SaleRow key={r.id} r={r} showDate showShop={showShop}
+                       onEdit={isAdmin ? setEditing : undefined} />
             ))}
           </div>
         </div>
@@ -1085,11 +1096,55 @@ function ExportButton({ href, label }) {
   };
   return (
     <>
-      <button className="btn btn-ghost btn-sm" onClick={go} disabled={busy} style={{ marginTop: 12 }}>
+      <button className="btn btn-ghost btn-sm" onClick={go} disabled={busy}>
         <Download size={15} /> {busy ? '…' : label}
       </button>
       {err && <div className="error-banner" style={{ marginTop: 8 }}>{err}</div>}
     </>
+  );
+}
+
+// ── The report the shop files ─────────────────────────────
+// A month or a year, downloaded as a spreadsheet laid out the way the shop
+// already writes its report by hand. Monthly is what gets filed, so it is
+// the default and the month defaults to the one just gone — the report you
+// reach for is almost never the one for the month you are still in.
+function ReportExport({ shopsParam }) {
+  const t = useT();
+  const now = new Date();
+  const [period, setPeriod] = useState('month');
+  // Last month, which is what gets filed; in January that is December.
+  const [year, setYear] = useState(now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() === 0 ? 12 : now.getMonth());
+
+  const years = [];
+  for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) years.push(y);
+  const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+  const q = new URLSearchParams({ period, year: String(year) });
+  if (period === 'month') q.set('month', String(month));
+  if (shopsParam) q.set('shops', shopsParam);
+
+  return (
+    <div className="scope-picker" style={{ marginTop: 12 }}>
+      <span className="scope-picker-label">{t('report.title')}</span>
+      <select className="select select-inline" value={period} onChange={e => setPeriod(e.target.value)}
+              aria-label={t('report.title')}>
+        <option value="month">{t('report.monthly')}</option>
+        <option value="year">{t('report.yearly')}</option>
+      </select>
+      {period === 'month' && (
+        <select className="select select-inline" value={month}
+                onChange={e => setMonth(Number(e.target.value))} aria-label={t('report.monthly')}>
+          {months.map(m => <option key={m} value={m}>{t('month.' + m)}</option>)}
+        </select>
+      )}
+      <select className="select select-inline" value={year}
+              onChange={e => setYear(Number(e.target.value))} aria-label={t('report.yearly')}>
+        {years.map(y => <option key={y} value={y}>{y}</option>)}
+      </select>
+      <ExportButton href={`/api/sales/export.xlsx?${q.toString()}`} label={t('report.download')} />
+    </div>
   );
 }
 

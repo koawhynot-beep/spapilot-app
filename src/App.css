@@ -1954,14 +1954,16 @@ button.stat-card.is-active { box-shadow: 0 0 0 2px var(--primary), var(--shadow-
 .sale-row.is-clickable:focus-visible {
   outline: 2px solid var(--primary); outline-offset: -2px;
 }
-/* Only shows on hover: a pencil on all 366 rows is noise, but with no hint
-   at all nobody discovers the row is clickable. */
+/* Always there, faint, and brighter under the pointer. It used to appear
+   on hover alone, which on the shop's tablets meant never: there is no
+   hover on a touch screen, so nobody found out a row could be corrected. */
 .sale-edit-hint {
   margin-left: 6px; vertical-align: -2px; color: var(--text-3);
-  opacity: 0; transition: opacity .12s;
+  opacity: 0.45; transition: opacity .12s;
 }
 .sale-row.is-clickable:hover .sale-edit-hint,
-.sale-row.is-clickable:focus-visible .sale-edit-hint { opacity: 1; }
+.sale-row.is-clickable:focus-visible .sale-edit-hint,
+.move-row.is-clickable:hover .sale-edit-hint { opacity: 1; }
 
 .detail-grid { margin-bottom: var(--s-4); }
 
