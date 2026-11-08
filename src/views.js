@@ -266,7 +266,9 @@ function rangeToQuery(id) {
 
 export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true }) {
   const t = useT();
-  const [range, setRange] = useState('30d');
+  // A year, not a month. Every visit began by changing it, which is the
+  // screen telling you what its default should have been.
+  const [range, setRange] = useState('12m');
   const [staffId, setStaffId] = useState('');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('recent');
@@ -1235,6 +1237,9 @@ function SellersPane({ qs }) {
   // always come back empty, and an empty answer to a fair question reads as
   // a broken screen.
   const [year, setYear] = useState('');
+  // Best or worst, chosen at the top rather than found by scrolling. They
+  // answer opposite questions and are never read at the same time.
+  const [ranking, setRanking] = useState('best');
   const scoped = useMemo(() => {
     const q = new URLSearchParams(qs);
     if (!year) return qs;
@@ -1264,9 +1269,6 @@ function SellersPane({ qs }) {
   const worst = days[days.length - 1];
   const peak = Math.max(1, ...days.map(x => x.perDay));
   const fmt1 = (n) => (Math.round(n * 10) / 10).toString();
-
-  const trend = d.trend || [];
-  const trendPeak = Math.max(1, ...trend.map(m => m.revenue));
 
   return (
     <>
@@ -1350,34 +1352,22 @@ function SellersPane({ qs }) {
           <option value="all">{t('patterns.yearAll')}</option>
           {(d.years || []).map(y => <option key={y} value={String(y)}>{y}</option>)}
         </select>
+        <div className="segmented segmented-sm">
+          {[['best', 'history.bestByUnits'], ['worst', 'history.worstSellers']].map(([id, label]) => (
+            <button key={id} type="button" className={ranking === id ? 'is-active' : ''}
+                    onClick={() => setRanking(id)}>
+              {t(label)}
+            </button>
+          ))}
+        </div>
       </form>
 
+      <Rank
+        title={t(ranking === 'best' ? 'history.bestByUnits' : 'history.worstSellers')}
+        rows={ranking === 'best' ? d.bestByUnits : d.worstByUnits}
+        metric="units"
+      />
 
-      <Rank title={t('history.bestByUnits')} rows={d.bestByUnits} metric="units" />
-      <Rank title={t('history.bestByRevenue')} rows={d.bestByRevenue} metric="revenue" />
-      <Rank title={t('history.worstSellers')} rows={d.worstByUnits} metric="units" />
-
-      <div className="section-head" style={{ marginTop: 26 }}>
-        <h2 className="section-title">{t('history.trend')}</h2>
-      </div>
-      {trend.length === 0 ? (
-        <Empty icon={TrendingUp} title={t('history.nothing')} />
-      ) : (
-        <div className="panel">
-          <div className="panel-body">
-            {trend.map(m => (
-              <div className="trend-row" key={m.month}>
-                <div className="trend-month">{m.month}</div>
-                <div className="trend-bar-track">
-                  <div className="trend-bar" style={{ width: `${Math.max(2, (m.revenue / trendPeak) * 100)}%` }} />
-                </div>
-                <div className="trend-units">{m.units}</div>
-                <div className="trend-value">{idr(m.revenue)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </>
   );
 }
