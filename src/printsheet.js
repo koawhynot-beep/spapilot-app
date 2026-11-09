@@ -21,7 +21,7 @@ const esc = (s) => String(s == null ? '' : s)
 
 // Groups are printed with their heading; an ungrouped list comes through as a
 // single group with no heading.
-export function buildChecklistHtml({ title, subtitle, groups, columns = 2, labels, checkedBy = '' }) {
+export function buildChecklistHtml({ title, subtitle, groups, columns = 1, labels, checkedBy = '' }) {
   const L = {
     qty: 'Qty', counted: 'Counted', checkedBy: 'Checked by', date: 'Date',
     page: 'Page', items: 'items', pieces: 'pieces', ...(labels || {}),
@@ -74,15 +74,11 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 2, label
   /* Balanced on screen so the preview looks like the sheet; auto on paper,
      which is what fills one page-column at a time instead of stretching the
      whole list to a single unpaginated height. */
-  /* Two abreast, filled across and then down: first name on the left,
-     second on the right, third on the next row. Newspaper columns put A
-     beside H — you would read the whole left side, then climb back to the
-     top for the right — whereas this keeps both columns at the same letter
-     at the same height, which is how the sheet is read when it is being
-     carried round the rail.
-
-     The list is a grid rather than CSS columns for exactly that reason:
-     grid fills row by row, columns fill one side at a time. */
+  /* One name per line, straight down. Two abreast halved the paper but the
+     person counting kept losing their place across the gap, and a checklist
+     that has to be re-found after every garment costs more than the paper
+     does. The grid stays — it is still what fills row by row — it is simply
+     one column wide. */
   .cols { }
   .list {
     display: grid;
@@ -106,9 +102,9 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 2, label
     padding: 0.9mm 0; border-bottom: 0.4pt solid #ddd;
     break-inside: avoid; page-break-inside: avoid;
   }
-  /* Half the width, so the code and colour drop under the name again. */
-  .row .text { min-width: 0; }
-  .row .nm, .row .dt { display: block; }
+  /* The whole width to itself, so the code and colour sit beside the name
+     rather than under it: one line per garment, half the paper. */
+  .row .text { display: flex; align-items: baseline; gap: 3mm; min-width: 0; }
   /* The tick box. A real drawn square prints reliably; a form control does
      not — browsers render unchecked inputs inconsistently on paper. */
   .box {
