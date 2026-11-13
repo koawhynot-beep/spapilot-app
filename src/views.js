@@ -7,7 +7,7 @@
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard, Wallet } from 'lucide-react';
-import { Modal, SearchField, FilterBar, ByYear, ByShop } from './ui';
+import { Modal, SearchField, FilterBar, ByYear, ByShop, KindChip } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
 import { reasonLabel } from './reasons';
@@ -349,17 +349,12 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
       {/* What sold, and separately where the stock went. Staff get both —
           they are the ones who scanned it — but not the rankings, the
           commission figures or the exports. */}
-      <div className="scope-picker" style={{ marginBottom: 12 }}>
-        <button type="button" className={`scope-chip ${kind === 'cosmetics' ? 'is-active' : ''}`}
-                aria-pressed={kind === 'cosmetics'} disabled={switchingKind}
-                onClick={() => onPickKind && onPickKind(kind === 'cosmetics' ? 'clothing' : 'cosmetics')}>
-          {t('mode.cosmetics')}
-        </button>
+      <KindChip kind={kind} busy={switchingKind} onPick={onPickKind}>
         <button type="button" className={`scope-chip ${showMoves ? 'is-active' : ''}`}
                 aria-pressed={showMoves} onClick={() => setShowMoves(v => !v)}>
           {t('history.pane.stock')}
         </button>
-      </div>
+      </KindChip>
 
       {!showMoves && (
       <div className="segmented segmented-wide" style={{ marginBottom: 18 }}>

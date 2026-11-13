@@ -199,3 +199,21 @@ export function ByYear({ rows, className = '' }) {
     </div>
   );
 }
+
+
+// The Cosmetics button that sits under the filters on Stock, Quick check,
+// Stock check and History. Lit while cosmetics is showing; tapping it again
+// goes back to clothing.
+export function KindChip({ kind, busy, onPick, children }) {
+  const t = useT();
+  return (
+    <div className="scope-picker" style={{ marginBottom: 12 }}>
+      <button type="button" className={`scope-chip ${kind === 'cosmetics' ? 'is-active' : ''}`}
+              aria-pressed={kind === 'cosmetics'} disabled={busy}
+              onClick={() => onPick(kind === 'cosmetics' ? 'clothing' : 'cosmetics')}>
+        {t('mode.cosmetics')}
+      </button>
+      {children}
+    </div>
+  );
+}

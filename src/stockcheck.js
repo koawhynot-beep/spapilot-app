@@ -7,6 +7,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ClipboardCheck, Check, RotateCcw, AlertTriangle, Printer } from 'lucide-react';
 import { useT } from './i18n';
+import { KindChip } from './ui';
 import { api } from './api';
 import { openChecklist } from './printsheet';
 
@@ -30,7 +31,7 @@ const READ_STAFF = () => {
   try { return localStorage.getItem('mitrasamadi_staff') || ''; } catch { return ''; }
 };
 
-export function StockCheckView({ staff = [], shopsParam = '' }) {
+export function StockCheckView({ staff = [], shopsParam = '', kind, switchingKind, onPickKind }) {
   const t = useT();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -194,6 +195,8 @@ export function StockCheckView({ staff = [], shopsParam = '' }) {
           <span className="section-meta">{checked} / {total}</span>
         )}
       </div>
+
+      <KindChip kind={kind} busy={switchingKind} onPick={onPickKind} />
 
       {error && <div className="error-banner">{error}</div>}
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, Component } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Component } from 'react';
 import {
   Package, Store, Plus, Trash2, Edit2,
   RefreshCw, Check, X, AlertTriangle, Copy, Settings,
@@ -11,7 +11,7 @@ import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
 import { HistoryView, StaffView } from './views';
 import { joinReason, OTHER_REASON_MAX } from './reasons';
-import { Modal, SearchField, ByYear } from './ui';
+import { Modal, SearchField, ByYear, KindChip } from './ui';
 import { tStatic } from './i18n';
 import { StockCheckView } from './stockcheck';
 import { TransferBuildView, TransferCheckView } from './transfers';
@@ -255,37 +255,28 @@ function StatCard({ value, label, tone, active, onClick }) {
   );
 }
 
-function KindSwitch({ kind, busy, onPick }) {
-  const t = useT();
-  return (
-    <div className="segmented segmented-wide kind-switch" role="group" aria-label={t('mode.label')}>
-      {['clothing', 'cosmetics'].map(m => (
-        <button
-          key={m}
-          type="button"
-          className={kind === m ? 'is-active' : ''}
-          aria-pressed={kind === m}
-          disabled={busy}
-          onClick={() => onPick(m)}
-        >{t(`mode.${m}`)}</button>
-      ))}
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════════════════════
 // MAIN APP (post-auth)
 // ═══════════════════════════════════════════════════════════
+// Switching between clothing and cosmetics remounts the whole app, so nothing
+// from one leaks into the other. This is what it hands across: which tab you
+// were on and which shop (by name, since the two sets have their own ids), so
+// the switch keeps you where you were instead of dropping you on Stock.
+const carry = { tab: null, shopName: null };
+
 function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }) {
   const t = useT();
   const toast = useToast();
   const [switchingMode, setSwitchingMode] = useState(false);
+  const viewRef = useRef({ tab: null, shopName: null });
   // Clothing and cosmetics are two separate sets of shops, stock and sales
   // under one login. Switching asks the server for a token for the other one
   // and the whole app remounts on it, so nothing from one leaks into the other.
   const pickMode = async (mode) => {
     if (mode === kind || switchingMode) return;
     setSwitchingMode(true);
+    carry.tab = viewRef.current.tab;
+    carry.shopName = viewRef.current.shopName;
     try {
       const d = await api('/api/auth/mode', { method: 'POST', body: { mode } });
       setToken(d.token);
@@ -299,7 +290,11 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
   // that is the whole job; admin opens on Stock, which is where the owner
   // starts her day.
   const isAdmin = user.accessRole !== 'staff';
-  const [tab, setTab] = useState(isAdmin ? 'stock' : 'sell');
+  const [tab, setTab] = useState(() => {
+    const back = carry.tab;
+    carry.tab = null;
+    return back || (isAdmin ? 'stock' : 'sell');
+  });
   const [showSettings, setShowSettings] = useState(false);
   // Set when Overview's "Restock" jumps to the Stock tab pre-filtered to one SKU.
   const [stockJump, setStockJump] = useState(null);
@@ -370,6 +365,18 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
     if (!tabs.find(x => x.id === tab)) setTab(tabs[0].id);
   }, [tabs, tab]);
 
+  viewRef.current = {
+    tab,
+    shopName: shopSel === 'all' ? null : (shopList.find(x => String(x.id) === String(shopSel))?.name || null),
+  };
+  // Back from the other set: reopen the shop that was showing, matched by name.
+  useEffect(() => {
+    if (!carry.shopName || !shopList.length) return;
+    const same = shopList.find(x => x.name === carry.shopName);
+    carry.shopName = null;
+    if (same) setShopSel(String(same.id));
+  }, [shopList]);
+
   const scopeLabel = isAdmin
     ? (shopSel === 'all'
         ? t('shop.allShops')
@@ -413,10 +420,6 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
           ))}
         </nav>
 
-        {/* Clothing or cosmetics: two separate sets of stock under one login.
-            Above the shop picker and on every tab, staff included. */}
-        <KindSwitch kind={kind} busy={switchingMode} onPick={pickMode} />
-
         {/* One picker, above everything, so the shop in view is never in
             doubt. Hidden for staff, who have nothing to choose. */}
         {/* The transfer screens carry their own From and To, and the
@@ -446,6 +449,7 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
         )}
         {tab === 'stock' && (
           <StockView
+            kind={kind} switchingKind={switchingMode} onPickKind={pickMode}
             shops={shopList}
             selectedShopId={activeShopId}
             onSelectShop={(id) => setShopSel(String(id))}
@@ -457,10 +461,10 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
           />
         )}
         {tab === 'quick' && isAdmin && (
-          <QuickCheckView shopsParam={shopsParam} />
+          <QuickCheckView shopsParam={shopsParam} kind={kind} switchingKind={switchingMode} onPickKind={pickMode} />
         )}
         {tab === 'check' && (
-          <StockCheckView staff={staff.data} shopsParam={shopsParam} />
+          <StockCheckView staff={staff.data} shopsParam={shopsParam} kind={kind} switchingKind={switchingMode} onPickKind={pickMode} />
         )}
         {tab === 'transfers' && isAdmin && (
           <TransferBuildView shops={shopList} onMade={reloadTransfers} />
@@ -536,7 +540,7 @@ function ShopSwitcher({ shops, value, onChange, allowAll, activeShopId, onPickAc
 // ═══════════════════════════════════════════════════════════
 // STOCK VIEW
 // ═══════════════════════════════════════════════════════════
-function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, jump, onJumpHandled }) {
+function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, jump, onJumpHandled, kind, switchingKind, onPickKind }) {
   const t = useT();
   const toast = useToast();
   const [items, setItems] = useState([]);
@@ -897,6 +901,8 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           )}
         </div>
       )}
+
+      <KindChip kind={kind} busy={switchingKind} onPick={onPickKind} />
 
       {/* The three numbers that matter — and the primary way to slice the list.
           The scope note matters: per-shop counts are naturally larger than the

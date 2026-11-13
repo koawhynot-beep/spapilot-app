@@ -13,11 +13,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Eye } from 'lucide-react';
 import { useT } from './i18n';
 import { api, idr } from './api';
-import { FilterBar } from './ui';
+import { FilterBar, KindChip } from './ui';
 
 const title = (g) => [g.style || g.name, g.fabric, g.color].filter(Boolean).join(' · ');
 
-export function QuickCheckView({ shopsParam }) {
+export function QuickCheckView({ shopsParam, kind, switchingKind, onPickKind }) {
   const t = useT();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -125,6 +125,8 @@ export function QuickCheckView({ shopsParam }) {
           { value: 'worst', label: 'quick.sortWorst' },
         ]}
       />
+
+      <KindChip kind={kind} busy={switchingKind} onPick={onPickKind} />
 
       {garments.length === 0 && (
         <div className="empty"><h3>{t('quick.nothing')}</h3></div>
