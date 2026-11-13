@@ -451,7 +451,11 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
           <StockView
             kind={kind} switchingKind={switchingMode} onPickKind={pickMode}
             shops={shopList}
-            selectedShopId={activeShopId}
+            // All shops reads every shop together (read-only). It used to be
+            // handed the first shop instead, so All shops showed Goldust's
+            // list and anything held only in Office or Rose Gold — all of the
+            // cosmetics — was missing from it.
+            selectedShopId={isAdmin && shopSel === 'all' ? 'all' : activeShopId}
             onSelectShop={(id) => setShopSel(String(id))}
             user={user}
             isAdmin={isAdmin}
