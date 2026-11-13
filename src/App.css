@@ -2549,3 +2549,17 @@ input[type="datetime-local"].input {
    top seller, at a glance. */
 .staff-bar { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 6px 0 4px; }
 .staff-bar > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+
+/* A staff row opens to show every sale. The head stays put and the list scrolls
+   inside its own box, so Close never goes out of reach. */
+.comm-row.is-clickable { cursor: pointer; }
+.comm-row.is-clickable:hover { background: var(--row-hover); }
+.comm-chevron { color: var(--text-3); flex-shrink: 0; transition: transform 0.15s ease; }
+.comm-row.is-open .comm-chevron { transform: rotate(180deg); }
+.staff-drill { border-bottom: 1px solid var(--line-soft); background: var(--surface-2); }
+.staff-drill-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  padding: 8px var(--s-5); font-size: 13px; font-weight: 600; color: var(--text-2);
+  border-bottom: 1px solid var(--line-soft);
+}
+.staff-drill-body { max-height: min(60vh, 520px); overflow-y: auto; background: var(--card); }

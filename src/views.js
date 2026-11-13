@@ -6,7 +6,7 @@
 // order it happened, so the drawer can be balanced at close. History is the
 // business view: two years, filtered, ranked, exported.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard, Wallet } from 'lucide-react';
+import { Calendar, History, TrendingUp, Users, ChevronDown, X, Download, RefreshCw, Pencil, Check, Trash2, PackagePlus, PackageMinus, Banknote, CreditCard, Wallet } from 'lucide-react';
 import { Modal, SearchField, FilterBar, ByYear, ByShop, KindChip } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
@@ -1357,6 +1357,8 @@ export function StaffView({ shopsParam = '' }) {
   const t = useT();
   const [range, setRange] = useState('12m');
   const [showAll, setShowAll] = useState(false);
+  // Whose sales are open. One at a time, so the page stays short.
+  const [openName, setOpenName] = useState(null);
 
   const qs = useMemo(() => {
     const q = { ...rangeToQuery(range) };
@@ -1409,8 +1411,14 @@ export function StaffView({ shopsParam = '' }) {
 
           <div className="panel" style={{ marginTop: 12 }}>
             <div className="panel-body">
-              {shown.map((p, i) => (
-                <div className="comm-row" key={(p.staffId || 'n') + '-' + p.name}>
+              {shown.map((p, i) => {
+                const open = openName === p.name;
+                return (
+                <React.Fragment key={(p.staffId || 'n') + '-' + p.name}>
+                <div className={`comm-row is-clickable ${open ? 'is-open' : ''}`}
+                     role="button" tabIndex={0} aria-expanded={open}
+                     onClick={() => setOpenName(open ? null : p.name)}
+                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenName(open ? null : p.name); } }}>
                   <div className="rank-index">{i + 1}</div>
                   <div className="comm-main">
                     <div className="rank-name">
@@ -1439,8 +1447,15 @@ export function StaffView({ shopsParam = '' }) {
                     {p.returned > 0 && <div className="comm-deduction">− {idr(p.returned)}</div>}
                   </div>
                   <div className="comm-owed">{idr(p.commission)}</div>
+                  <ChevronDown size={18} className="comm-chevron" aria-hidden="true" />
                 </div>
-              ))}
+                {open && (
+                  <StaffSales name={p.name} qs={qs} showShop={!shopsParam}
+                              onClose={() => setOpenName(null)} />
+                )}
+                </React.Fragment>
+                );
+              })}
             </div>
           </div>
 
@@ -1460,5 +1475,52 @@ export function StaffView({ shopsParam = '' }) {
         </>
       )}
     </>
+  );
+}
+
+// Everything one person sold in the period on screen, newest first, drawn with
+// the same row the History tab uses. The header stays put while the list
+// scrolls inside its own box, so Close is always in reach and the page itself
+// does not grow by hundreds of rows.
+function StaffSales({ name, qs, showShop, onClose }) {
+  const t = useT();
+  const [rows, setRows] = useState([]);
+  const [offset, setOffset] = useState(0);
+  const query = `${qs}&seller=${encodeURIComponent(name)}`;
+
+  useEffect(() => { setOffset(0); setRows([]); }, [query]);
+  const { data, error, loading } = useLoad(
+    `/api/sales/history?${query}&limit=${PAGE}&offset=${offset}`,
+    [query, offset]
+  );
+  useEffect(() => {
+    if (!data) return;
+    const items = Array.isArray(data.items) ? data.items : [];
+    setRows(prev => (offset === 0 ? items : [...prev, ...items]));
+  }, [data, offset]);
+
+  const total = data?.total || 0;
+
+  return (
+    <div className="staff-drill">
+      <div className="staff-drill-head">
+        <span>{t('staff.salesCount').replace('{n}', String(total))}</span>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+          <X size={15} /> {t('common.close')}
+        </button>
+      </div>
+      <div className="staff-drill-body">
+        {error && <div className="error-banner">{error}</div>}
+        {loading && rows.length === 0 && <div className="loading">{t('common.loading')}</div>}
+        {!loading && !error && rows.length === 0 && <Empty icon={History} title={t('history.nothing')} />}
+        {rows.map(r => <SaleRow key={r.id} r={r} showDate showShop={showShop} />)}
+        {rows.length > 0 && rows.length < total && (
+          <button className="btn btn-secondary btn-block" style={{ margin: '10px 0' }}
+                  disabled={loading} onClick={() => setOffset(o => o + PAGE)}>
+            {loading ? t('common.loading') : `${t('history.showMore')} (${rows.length} / ${total})`}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
