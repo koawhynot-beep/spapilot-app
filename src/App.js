@@ -2740,7 +2740,7 @@ function SettingsModal({ onClose, onManageStaff, isAdmin, shopName, onSwitchAcce
     return <AuditModal onClose={() => setShowAudit(false)} />;
   }
   if (showReset) {
-    return <ResetStockModal onClose={() => setShowReset(false)} onDone={onReset} />;
+    return <ResetStockModal onClose={() => setShowReset(false)} onDone={onReset} shops={shops} />;
   }
   if (showShops) {
     return <ShopsModal onClose={() => setShowShops(false)} onChanged={onReset} />;
@@ -3134,7 +3134,7 @@ function ImportStockModal({ shops, onClose, onDone }) {
 // — a confirmation dialog nobody can recover from is not a safeguard.
 const RESET_PHRASE = 'DELETE ALL STOCK';
 
-function ResetStockModal({ onClose, onDone }) {
+function ResetStockModal({ onClose, onDone, shops = [] }) {
   const t = useT();
   const toast = useToast();
   const [counts, setCounts] = useState(null);
@@ -3143,12 +3143,15 @@ function ResetStockModal({ onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [done, setDone] = useState(null);
+  // '' is every shop, as it always was; naming one clears just that shop.
+  const [shopId, setShopId] = useState('');
 
   useEffect(() => {
-    api('/api/admin/data-counts')
+    setCounts(null);
+    api(`/api/admin/data-counts${shopId ? `?shopId=${shopId}` : ''}`)
       .then(setCounts)
       .catch(e => setErr(e.message));
-  }, []);
+  }, [shopId]);
 
   const takeBackup = async () => {
     setBusy(true); setErr(null);
@@ -3163,7 +3166,9 @@ function ResetStockModal({ onClose, onDone }) {
   const wipe = async () => {
     setBusy(true); setErr(null);
     try {
-      const d = await api('/api/admin/reset-stock', { method: 'POST', body: { confirm: phrase } });
+      const d = shopId
+        ? await api('/api/admin/reset-shop-stock', { method: 'POST', body: { confirm: phrase, shopId: Number(shopId) } })
+        : await api('/api/admin/reset-stock', { method: 'POST', body: { confirm: phrase } });
       setDone(d.removed);
       onDone();
     } catch (e) { setErr(e.message || 'Could not reset'); }
@@ -3180,6 +3185,9 @@ function ResetStockModal({ onClose, onDone }) {
           <div><div className="detail-k">{t('reset.products')}</div><div className="detail-v">{done.items}</div></div>
           <div><div className="detail-k">{t('reset.movements')}</div><div className="detail-v">{done.movements}</div></div>
           <div><div className="detail-k">{t('reset.groups')}</div><div className="detail-v">{done.groups}</div></div>
+          {done.sales !== undefined && (
+            <div><div className="detail-k">{t('reset.sales')}</div><div className="detail-v">{done.sales}</div></div>
+          )}
         </div>
         <button className="btn btn-primary btn-block" style={{ marginTop: 18 }} onClick={onClose}>
           {t('common.close')}
@@ -3192,6 +3200,15 @@ function ResetStockModal({ onClose, onDone }) {
     <Modal title={t('reset.title')} onClose={onClose}>
       <div className="danger-note">{t('reset.warning')}</div>
 
+      <div className="field">
+        <label>{t('reset.whichShop')}</label>
+        <select className="select" value={shopId} onChange={e => { setShopId(e.target.value); setPhrase(''); }}
+                disabled={busy}>
+          <option value="">{t('reset.everyShop')}</option>
+          {shops.map(sh => <option key={sh.id} value={sh.id}>{sh.name}</option>)}
+        </select>
+      </div>
+
       {!counts && !err && <div className="loading">{t('common.loading')}</div>}
 
       {counts && (
@@ -3201,6 +3218,9 @@ function ResetStockModal({ onClose, onDone }) {
             <div><div className="detail-k">{t('reset.products')}</div><div className="detail-v">{counts.items.toLocaleString()}</div></div>
             <div><div className="detail-k">{t('reset.movements')}</div><div className="detail-v">{counts.movements.toLocaleString()}</div></div>
             <div><div className="detail-k">{t('reset.groups')}</div><div className="detail-v">{counts.groups.toLocaleString()}</div></div>
+            {shopId && (
+              <div><div className="detail-k">{t('reset.sales')}</div><div className="detail-v">{(counts.sales || 0).toLocaleString()}</div></div>
+            )}
           </div>
 
           <div className="field" style={{ marginTop: 16 }}><label>{t('reset.willKeep')}</label></div>
