@@ -257,8 +257,25 @@ function StatCard({ value, label, tone, active, onClick }) {
 // ═══════════════════════════════════════════════════════════
 // MAIN APP (post-auth)
 // ═══════════════════════════════════════════════════════════
-function MainApp({ user, shop, onSwitchAccess }) {
+function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }) {
   const t = useT();
+  const toast = useToast();
+  const [switchingMode, setSwitchingMode] = useState(false);
+  // Clothing and cosmetics are two separate sets of shops, stock and sales
+  // under one login. Switching asks the server for a token for the other one
+  // and the whole app remounts on it, so nothing from one leaks into the other.
+  const pickMode = async (mode) => {
+    if (mode === kind || switchingMode) return;
+    setSwitchingMode(true);
+    try {
+      const d = await api('/api/auth/mode', { method: 'POST', body: { mode } });
+      setToken(d.token);
+      onSwitchMode(d.user, d.business, d.shop || null);
+    } catch (e) {
+      toast(e.message || t('mode.failed'));
+      setSwitchingMode(false);
+    }
+  };
   // Staff work the till; admin runs the business. Staff open on Sell because
   // that is the whole job; admin opens on Stock, which is where the owner
   // starts her day.
@@ -350,13 +367,26 @@ function MainApp({ user, shop, onSwitchAccess }) {
             question. */}
         <div>
           <h1>{scopeLabel || t('shop.allShops')}</h1>
-          {!isAdmin && (
+          {(!isAdmin || kind === 'cosmetics') && (
             <div className="topbar-sub">
-              <span className="topbar-scope">{t('scope.staff')}</span>
+              {kind === 'cosmetics' && <span className="topbar-scope">{t('mode.cosmetics')}</span>}
+              {!isAdmin && <span className="topbar-scope">{t('scope.staff')}</span>}
             </div>
           )}
         </div>
         <div className="topbar-actions">
+          <div className="segmented segmented-sm mode-switch" role="group" aria-label={t('mode.label')}>
+            {['clothing', 'cosmetics'].map(m => (
+              <button
+                key={m}
+                type="button"
+                className={kind === m ? 'is-active' : ''}
+                aria-pressed={kind === m}
+                disabled={switchingMode}
+                onClick={() => pickMode(m)}
+              >{t(`mode.${m}`)}</button>
+            ))}
+          </div>
           <ThemeToggle />
           <button className="topbar-btn" onClick={() => setShowSettings(true)} aria-label={t('settings.title')}>
             <Settings size={19} />
@@ -3297,18 +3327,19 @@ function AccessGate({ onAuthed }) {
 function AppInner() {
   const [user, setUser] = useState(null);
   const [shop, setShop] = useState(null);
+  const [kind, setKind] = useState('clothing');
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const token = getToken();
     if (!token) { setChecking(false); return; }
     api('/api/auth/me')
-      .then(d => { setUser(d.user); setShop(d.shop || null); setChecking(false); })
+      .then(d => { setUser(d.user); setShop(d.shop || null); setKind(d.business?.kind || 'clothing'); setChecking(false); })
       .catch(() => { setToken(null); setChecking(false); });
   }, []);
 
   useEffect(() => {
-    const handler = () => { setUser(null); setShop(null); };
+    const handler = () => { setUser(null); setShop(null); setKind('clothing'); };
     window.addEventListener('app:unauth', handler);
     return () => window.removeEventListener('app:unauth', handler);
   }, []);
@@ -3325,17 +3356,19 @@ function AppInner() {
 
   // The only way in: enter an access code. Which code decides what you reach.
   if (!user) {
-    return <AccessGate onAuthed={(u, _biz, sh) => { setUser(u); setShop(sh); }} />;
+    return <AccessGate onAuthed={(u, biz, sh) => { setUser(u); setShop(sh); setKind(biz?.kind || 'clothing'); }} />;
   }
 
   return (
     <MainApp
       // Remounts when the access level changes, so no view keeps data the
       // new code is not allowed to see.
-      key={user.accessRole}
+      key={`${user.accessRole}-${kind}`}
       user={user}
       shop={shop}
-      onSwitchAccess={(u, _biz, sh) => { setUser(u); setShop(sh); }}
+      kind={kind}
+      onSwitchAccess={(u, biz, sh) => { setUser(u); setShop(sh); setKind(biz?.kind || 'clothing'); }}
+      onSwitchMode={(u, biz, sh) => { setUser(u); setShop(sh); setKind(biz?.kind || 'clothing'); }}
     />
   );
 }

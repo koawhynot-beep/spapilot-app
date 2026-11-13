@@ -18,6 +18,10 @@ const EN = {
   'tab.check': 'Stock check',
   'tab.history': 'History',
   'scope.staff': 'staff',
+  'mode.label': 'Which stock',
+  'mode.clothing': 'Clothing',
+  'mode.cosmetics': 'Cosmetics',
+  'mode.failed': 'The switch failed. Try again.',
   'shop.allShops': 'All shops',
   'shop.pick': 'Which shop',
 
@@ -653,6 +657,10 @@ const ID = {
   'tab.check': 'Cek stok',
   'tab.history': 'Riwayat',
   'scope.staff': 'staf',
+  'mode.label': 'Stok yang mana',
+  'mode.clothing': 'Pakaian',
+  'mode.cosmetics': 'Kosmetik',
+  'mode.failed': 'Gagal beralih. Coba lagi.',
   'shop.allShops': 'Semua toko',
   'shop.pick': 'Toko mana',
 
