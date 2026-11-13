@@ -16,3 +16,12 @@ Two repositories: this one (`spapilot-app`, React front end) and `spapilot-backe
   **never deletes**. Codes missing from the sheet keep their old quantity.
 - Check the preview totals against the sheet before confirming.
 - Never put real stock or sales data into this public repository.
+
+## The live app
+- Live address: https://spapilot-app.onrender.com (hosted on Render; the server is the `spapilot-backend` repository).
+- Shops: Goldust, Office, Rose Gold.
+- Admin tools (including Import) are behind the settings (gear) icon at the top right, once logged in as admin.
+- The owner logs in to the live app in Chrome. Claude cannot type passwords or access codes, so ask the owner to log in first.
+- Never write the admin code or any password in this repository. It is public.
+- Both repositories are on GitHub under koawhynot-beep. Pushing normally redeploys to Render; check the Render dashboard if it does not.
+- Office stock comes from the workbook's ALL STOCK sheet. When asked to import, find the file in ~/Downloads (name contains "MITRA SAMADI") and verify the preview totals before confirming.
