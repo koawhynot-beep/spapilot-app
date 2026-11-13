@@ -790,23 +790,11 @@ const ORDINAL = (n) => {
   return `${n}${s}`;
 };
 
-function PeriodsPane({ qs, showShop }) {
+// Year, month, week and day chips, each showing what sold in it. Shared by the
+// History "By date" view and the Staff tab, so a date is picked the same way in
+// both. Pressing a lit chip turns it off.
+function DatePickers({ data, at, onToggle }) {
   const t = useT();
-  const [at, setAt] = useState({ year: null, month: null, week: null, day: null });
-
-  const params = useMemo(() => {
-    const p = new URLSearchParams(qs);
-    for (const k of ['year', 'month', 'week', 'day']) if (at[k]) p.set(k, String(at[k]));
-    return p.toString();
-  }, [qs, at]);
-
-  const { data, error, loading } = useLoad(`/api/sales/periods?${params}`, [params]);
-
-  // Clicking the chip that is already on turns it off, which is the only way
-  // back out of a choice without hunting for a Clear button.
-  const toggle = (level, key) => setAt(prev => ({ ...prev, [level]: prev[level] === key ? null : key }));
-  const anyPicked = Boolean(at.year || at.month || at.week || at.day);
-
   const label = (level, key) => {
     if (level === 'year') return String(key);
     if (level === 'month') return t('month.' + MONTHS[key - 1].toLowerCase());
@@ -834,15 +822,8 @@ function PeriodsPane({ qs, showShop }) {
     ['day', 'drill.pickDay', data?.days],
   ];
 
-  const totals = data?.totals;
 
   return (
-    <>
-      {error && <div className="error-banner">{error}</div>}
-      {loading && !data && <div className="loading">{t('common.loading')}</div>}
-
-      {data && (
-        <>
           <div className="pickers">
             {rows.map(([level, prompt, buckets]) => (
               <div className="picker" key={level}>
@@ -855,7 +836,7 @@ function PeriodsPane({ qs, showShop }) {
                           type="button"
                           key={b.key}
                           className={'chip' + (at[level] === b.key ? ' is-on' : '')}
-                          onClick={() => toggle(level, b.key)}
+                          onClick={() => onToggle(level, b.key)}
                           title={`${b.units} · ${idr(b.revenue)}`}
                         >
                           <span className="chip-name">{label(level, b.key)}</span>
@@ -866,6 +847,36 @@ function PeriodsPane({ qs, showShop }) {
               </div>
             ))}
           </div>
+  );
+}
+
+function PeriodsPane({ qs, showShop }) {
+  const t = useT();
+  const [at, setAt] = useState({ year: null, month: null, week: null, day: null });
+
+  const params = useMemo(() => {
+    const p = new URLSearchParams(qs);
+    for (const k of ['year', 'month', 'week', 'day']) if (at[k]) p.set(k, String(at[k]));
+    return p.toString();
+  }, [qs, at]);
+
+  const { data, error, loading } = useLoad(`/api/sales/periods?${params}`, [params]);
+
+  // Clicking the chip that is already on turns it off, which is the only way
+  // back out of a choice without hunting for a Clear button.
+  const toggle = (level, key) => setAt(prev => ({ ...prev, [level]: prev[level] === key ? null : key }));
+  const anyPicked = Boolean(at.year || at.month || at.week || at.day);
+
+  const totals = data?.totals;
+
+  return (
+    <>
+      {error && <div className="error-banner">{error}</div>}
+      {loading && !data && <div className="loading">{t('common.loading')}</div>}
+
+      {data && (
+        <>
+          <DatePickers data={data} at={at} onToggle={toggle} />
 
           <div className="picked-total">
             <div className="picked-total-k">
@@ -1365,7 +1376,18 @@ export function StaffView({ shopsParam = '' }) {
     if (shopsParam) q.shops = shopsParam;
     return new URLSearchParams(q).toString();
   }, [range, shopsParam]);
-  const { data, error, loading } = useLoad(`/api/staff/summary?${qs}`, [qs]);
+  // "By date": the same year / month / week / day chips as History, folded
+  // into a dropdown beside the period. Narrows the period, never widens it.
+  const [dateOpen, setDateOpen] = useState(false);
+  const [at, setAt] = useState({ year: null, month: null, week: null, day: null });
+  const toggleAt = (level, key) => setAt(prev => ({ ...prev, [level]: prev[level] === key ? null : key }));
+  const picked = ['year', 'month', 'week', 'day'].filter(k => at[k]);
+  const params = useMemo(() => {
+    const p = new URLSearchParams(qs);
+    for (const k of picked) p.set(k, String(at[k]));
+    return p.toString();
+  }, [qs, at]);  // eslint-disable-line react-hooks/exhaustive-deps
+  const { data, error, loading } = useLoad(`/api/staff/summary?${params}`, [params]);
 
   const items = data?.items || [];
   const shown = showAll ? items : items.slice(0, TOP_STAFF);
@@ -1390,7 +1412,20 @@ export function StaffView({ shopsParam = '' }) {
         <select className="select select-inline" value={range} onChange={e => setRange(e.target.value)}>
           {RANGES.map(r => <option key={r.id} value={r.id}>{t('range.' + r.id)}</option>)}
         </select>
+        <button type="button" className="select select-inline by-date-btn"
+                aria-expanded={dateOpen} onClick={() => setDateOpen(o => !o)}>
+          <span>
+            {t('history.pane.periods')}
+            {picked.length > 0 && ` · ${picked.length}`}
+          </span>
+          <ChevronDown size={16} className={dateOpen ? 'is-open' : ''} aria-hidden="true" />
+        </button>
       </div>
+
+      {dateOpen && (
+        <ByDatePanel params={params} at={at} picked={picked.length} onToggle={toggleAt}
+                     onClear={() => setAt({ year: null, month: null, week: null, day: null })} />
+      )}
 
       {loading && <div className="loading">{t('common.loading')}</div>}
       {error && <div className="error-banner">{error}</div>}
@@ -1407,7 +1442,7 @@ export function StaffView({ shopsParam = '' }) {
 
           <div className="notice" style={{ marginBottom: 14 }}>{t('commission.rule')}</div>
 
-          <ExportButton href={`/api/staff/summary.csv?${qs}`} label={t('staff.export')} />
+          <ExportButton href={`/api/staff/summary.csv?${params}`} label={t('staff.export')} />
 
           <div className="panel" style={{ marginTop: 12 }}>
             <div className="panel-body">
@@ -1450,7 +1485,7 @@ export function StaffView({ shopsParam = '' }) {
                   <ChevronDown size={18} className="comm-chevron" aria-hidden="true" />
                 </div>
                 {open && (
-                  <StaffSales name={p.name} qs={qs} showShop={!shopsParam}
+                  <StaffSales name={p.name} qs={params} showShop={!shopsParam}
                               onClose={() => setOpenName(null)} />
                 )}
                 </React.Fragment>
@@ -1521,6 +1556,25 @@ function StaffSales({ name, qs, showShop, onClose }) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// The dropdown behind "By date". Only mounted while it is open, so the chips are
+// not fetched until somebody asks for them.
+function ByDatePanel({ params, at, picked, onToggle, onClear }) {
+  const t = useT();
+  const { data, error, loading } = useLoad(`/api/sales/periods?${params}`, [params]);
+  return (
+    <div className="by-date-panel">
+      {error && <div className="error-banner">{error}</div>}
+      {loading && !data && <div className="loading">{t('common.loading')}</div>}
+      {data && <DatePickers data={data} at={at} onToggle={onToggle} />}
+      {picked > 0 && (
+        <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={onClear}>
+          {t('drill.clear')}
+        </button>
+      )}
     </div>
   );
 }
