@@ -40,6 +40,10 @@ export function buildChecklistHtml({ title, subtitle, groups, columns = 1, label
       <span class="box"></span>
       <span class="qty">${esc(it.qty)}</span>
       <span class="text"><span class="nm">${esc(it.name)}</span>${
+        // The material, in the same type as the name and between it and the
+        // small print, so the rail can be searched by what it is made of.
+        it.fabric ? `<span class="nm">${esc(it.fabric)}</span>` : ''
+      }${
         detail ? `<span class="dt">${esc(detail)}</span>` : ''
       }</span>
       <span class="blank"></span>
