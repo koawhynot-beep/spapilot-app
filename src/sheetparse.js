@@ -54,6 +54,7 @@ export function parseStockSheet(text) {
   const rows = [];
   const problems = [];
   let skippedBlank = 0, skippedHeader = 0;
+  let fabricAt = -1;
 
   lines.forEach((line, i) => {
     const lineNo = i + 1;
@@ -67,7 +68,16 @@ export function parseStockSheet(text) {
     // Section markers and header rows are checked before the column count:
     // the sheet pads its single-letter dividers out to full width, so
     // counting columns alone does not tell them apart from a product row.
-    if (looksLikeHeader(cells) || looksLikeSectionBreak(cells)) { skippedHeader++; return; }
+    if (looksLikeHeader(cells) || looksLikeSectionBreak(cells)) {
+      // A header that names a FABRIC column says where it sits, so the
+      // material can come with the sheet instead of being guessed from the
+      // code. Found by its name, not by position, because the trailing
+      // columns of the real sheet are free-text notes.
+      const at = cells.findIndex(c => String(c).trim().toUpperCase() === 'FABRIC');
+      if (at >= 0) fabricAt = at;
+      skippedHeader++;
+      return;
+    }
 
     if (cells.length < 10) {
       problems.push({ line: lineNo, kode: (cells[0] || '').trim(), reason: 'tooFewColumns', detail: String(cells.length) });
@@ -108,6 +118,7 @@ export function parseStockSheet(text) {
       sku: kode,
       name,
       style: String(cells[COLUMNS.style] || '').trim(),
+      fabric: fabricAt >= 0 ? String(cells[fabricAt] || '').trim() : '',
       color: String(cells[COLUMNS.colour] || '').trim(),
       size: String(cells[COLUMNS.size] || '').trim(),
       price: price === null ? 0 : price,

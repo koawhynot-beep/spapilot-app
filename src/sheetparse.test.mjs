@@ -101,5 +101,22 @@ eq('    a row that does not reconcile is flagged but kept', m.unbalanced.length,
 eq('    the unbalanced row still carries saldo akhir', m.rows.find(r => r.sku === 'UNBAL').qty, 2);
 eq('    refused rows are not in the output', m.rows.length, 3);
 
+// A header that names FABRIC brings the material with the sheet.
+console.log('\n  a FABRIC column');
+{
+  const withFabric = [
+    'KODE\tPRODUCT NAME\tSTYLE\tCOLOUR\tSIZE\tPRICE\tSALDO AWAL\tBRG MASUK\tBRG KELUAR\tSALDO AKHIR\tFABRIC',
+    row('AG-1004','AGUSTINE DRESS LONG NATURAL O/S','AGUSTINE DRESS LONG','NATURAL','O/S','950000','5','0','0','5','BULU KUDA RAYON LINEN'),
+    row('X-1','X','X','RED','S','100','1','0','0','1',''),
+  ].join('\n');
+  const out = parseStockSheet(withFabric);
+  eq('    the material is read from the column the header names', out.rows[0].fabric, 'BULU KUDA RAYON LINEN');
+  eq('    a blank cell stays blank', out.rows[1].fabric, '');
+  eq('    nothing else about the row changes', [out.rows[0].qty, out.rows[0].style], [5, 'AGUSTINE DRESS LONG']);
+  const plain = parseStockSheet(sheet);
+  check('    a sheet with no FABRIC header reads exactly as before', plain.rows.every(r => r.fabric === ''), 'fabric appeared');
+}
+
+
 console.log(failures === 0 ? '\nall checks passed' : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);

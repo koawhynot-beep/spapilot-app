@@ -2992,7 +2992,7 @@ function ImportStockModal({ shops, onClose, onDone }) {
         body: {
           shopId: Number(shopId),
           rows: parsed.rows.map(r => ({
-            sku: r.sku, name: r.name, style: r.style,
+            sku: r.sku, name: r.name, style: r.style, fabric: r.fabric || '',
             color: r.color, size: r.size, price: r.price, qty: r.qty,
           })),
         },

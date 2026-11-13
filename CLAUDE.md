@@ -11,6 +11,12 @@ Two repositories: this one (`spapilot-app`, React front end) and `spapilot-backe
   kode, name, style, colour, size, price, saldo awal, brg masuk, brg keluar, saldo akhir.
   Quantity is read from saldo akhir. Name is "STYLE COLOUR SIZE". Put the stock quantity in saldo awal and
   saldo akhir, and 0 in masuk and keluar so the balance check passes.
+- A header that names a `FABRIC` column (any position after the first ten) brings the material with the sheet.
+  Without one, fabric is filled from the master list in `fabrics.js`.
+- A code another shop already stocks keeps that shop's name, style, fabric and colour on import (Quick check
+  groups by style, fabric and colour, so a different spelling splits one garment across two cards). The sheet
+  still decides quantity and price.
+- To rebuild one shop from its sheet: Settings → Clear all stock data → pick the shop, then import.
 - The screen defaults to **Rose Gold**. Always choose the correct shop (Office) before confirming.
 - The backend endpoint is `POST /api/admin/import-stock`. It matches on code, so it adds and updates but
   **never deletes**. Codes missing from the sheet keep their old quantity.
