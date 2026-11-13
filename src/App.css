@@ -2540,13 +2540,10 @@ input[type="datetime-local"].input {
   .quick-label { grid-column: 1 / -1; }
 }
 
-/* Clothing / Cosmetics switch in the top bar. Stays one tight row on a phone. */
-.mode-switch { flex-shrink: 0; }
-.mode-switch button { white-space: nowrap; }
-@media (max-width: 480px) {
-  .topbar-actions { gap: 4px; }
-  .mode-switch button { padding: 6px 8px; font-size: 12px; }
-}
+/* Clothing / Cosmetics switch: its own row above the shop picker, on every
+   tab, so it is the first thing seen rather than something tucked in a corner. */
+.kind-switch { margin-bottom: var(--s-3); }
+.kind-switch button { white-space: nowrap; }
 
 /* The thin bar under a name on the Staff tab: how far each person is from the
    top seller, at a glance. */

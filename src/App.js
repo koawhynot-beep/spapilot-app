@@ -10,6 +10,7 @@ import {
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
 import { HistoryView, StaffView } from './views';
+import { joinReason, OTHER_REASON_MAX } from './reasons';
 import { Modal, SearchField, ByYear } from './ui';
 import { tStatic } from './i18n';
 import { StockCheckView } from './stockcheck';
@@ -254,6 +255,24 @@ function StatCard({ value, label, tone, active, onClick }) {
   );
 }
 
+function KindSwitch({ kind, busy, onPick }) {
+  const t = useT();
+  return (
+    <div className="segmented segmented-wide kind-switch" role="group" aria-label={t('mode.label')}>
+      {['clothing', 'cosmetics'].map(m => (
+        <button
+          key={m}
+          type="button"
+          className={kind === m ? 'is-active' : ''}
+          aria-pressed={kind === m}
+          disabled={busy}
+          onClick={() => onPick(m)}
+        >{t(`mode.${m}`)}</button>
+      ))}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 // MAIN APP (post-auth)
 // ═══════════════════════════════════════════════════════════
@@ -376,18 +395,6 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
           )}
         </div>
         <div className="topbar-actions">
-          <div className="segmented segmented-sm mode-switch" role="group" aria-label={t('mode.label')}>
-            {['clothing', 'cosmetics'].map(m => (
-              <button
-                key={m}
-                type="button"
-                className={kind === m ? 'is-active' : ''}
-                aria-pressed={kind === m}
-                disabled={switchingMode}
-                onClick={() => pickMode(m)}
-              >{t(`mode.${m}`)}</button>
-            ))}
-          </div>
           <ThemeToggle />
           <button className="topbar-btn" onClick={() => setShowSettings(true)} aria-label={t('settings.title')}>
             <Settings size={19} />
@@ -405,6 +412,10 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
             </button>
           ))}
         </nav>
+
+        {/* Clothing or cosmetics: two separate sets of stock under one login.
+            Above the shop picker and on every tab, staff included. */}
+        <KindSwitch kind={kind} busy={switchingMode} onPick={pickMode} />
 
         {/* One picker, above everything, so the shop in view is never in
             doubt. Hidden for staff, who have nothing to choose. */}
@@ -458,7 +469,8 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
           <TransferCheckView isAdmin={isAdmin} onChanged={reloadTransfers} />
         )}
         {tab === 'history' && (
-          <HistoryView staff={staff.data} shops={shopList} shopsParam={shopsParam} isAdmin={isAdmin} />
+          <HistoryView staff={staff.data} shops={shopList} shopsParam={shopsParam} isAdmin={isAdmin}
+                       kind={kind} switchingKind={switchingMode} onPickKind={pickMode} />
         )}
         {tab === 'staff' && isAdmin && <StaffView shopsParam={shopsParam} />}
       </div>
@@ -1716,6 +1728,8 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
   // What this scan does. Sell is the everyday case and stays the default.
   const [scanMode, setScanMode] = useState('sell');
   const [outReason, setOutReason] = useState(OUT_REASONS[0]);
+  // What 'Other' actually was, in the person's own words.
+  const [outNote, setOutNote] = useState('');
   // Deliberately unset to begin with: a default would be chosen once, by me,
   // and then quietly applied to every sale for the rest of the shop's life.
   // It stays on the last method used within the session, which is visible on
@@ -1843,7 +1857,7 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
     ...identifier,
     qty,
     mode: scanMode,
-    reason: scanMode === 'out' ? outReason : '',
+    reason: scanMode === 'out' ? joinReason(outReason, outNote) : '',
     payment: scanMode === 'sell' ? payment : '',
     discountPct: scanMode === 'sell' && discountEntered ? discountNum : 0,
     staffId: staffId || undefined,
@@ -2105,6 +2119,17 @@ function SellView({ shops, staff, isAdmin = true, onManageStaff, onChanged }) {
             <select className="select" value={outReason} onChange={e => setOutReason(e.target.value)}>
               {OUT_REASONS.map(r => <option key={r} value={r}>{t(`sell.reason.${r}`)}</option>)}
             </select>
+            {outReason === 'Other' && (
+              <input
+                className="input"
+                style={{ marginTop: 8 }}
+                maxLength={OTHER_REASON_MAX}
+                placeholder={t('sell.otherWhy')}
+                aria-label={t('sell.otherWhy')}
+                value={outNote}
+                onChange={e => setOutNote(e.target.value)}
+              />
+            )}
             <div className="field-hint">{t('sell.notASale')}</div>
           </div>
         )}

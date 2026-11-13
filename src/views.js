@@ -10,6 +10,7 @@ import { Calendar, History, TrendingUp, Users, Download, RefreshCw, Pencil, Chec
 import { Modal, SearchField, FilterBar, ByYear, ByShop } from './ui';
 import { useT } from './i18n';
 import { api, download, idr } from './api';
+import { reasonLabel } from './reasons';
 
 // ── Shared helpers ────────────────────────────────────────
 // How far back a sale's time may be moved. Mirrors EDIT_WINDOW_DAYS on the
@@ -264,7 +265,7 @@ function rangeToQuery(id) {
   return { from: iso(from) };
 }
 
-export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true }) {
+export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true, kind = 'clothing', switchingKind = false, onPickKind }) {
   const t = useT();
   // A year, not a month. Every visit began by changing it, which is the
   // screen telling you what its default should have been.
@@ -273,12 +274,15 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('recent');
   const [pane, setPane] = useState('log');
+  // Stock in / out is its own history, switched on beside the report rather
+  // than competing with the sales views for a place in the row of panes.
+  const [showMoves, setShowMoves] = useState(false);
   const [filters, setFilters] = useState({ style: '', fabric: '', color: '', size: '' });
 
   const panes = useMemo(
     () => (isAdmin
-      ? ['log', 'periods', 'stock', 'sellers']
-      : ['log', 'stock']),
+      ? ['log', 'periods', 'sellers']
+      : ['log']),
     [isAdmin]
   );
   // A pane that is no longer on offer must not be left selected.
@@ -345,6 +349,19 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
       {/* What sold, and separately where the stock went. Staff get both —
           they are the ones who scanned it — but not the rankings, the
           commission figures or the exports. */}
+      <div className="scope-picker" style={{ marginBottom: 12 }}>
+        <button type="button" className={`scope-chip ${kind === 'cosmetics' ? 'is-active' : ''}`}
+                aria-pressed={kind === 'cosmetics'} disabled={switchingKind}
+                onClick={() => onPickKind && onPickKind(kind === 'cosmetics' ? 'clothing' : 'cosmetics')}>
+          {t('mode.cosmetics')}
+        </button>
+        <button type="button" className={`scope-chip ${showMoves ? 'is-active' : ''}`}
+                aria-pressed={showMoves} onClick={() => setShowMoves(v => !v)}>
+          {t('history.pane.stock')}
+        </button>
+      </div>
+
+      {!showMoves && (
       <div className="segmented segmented-wide" style={{ marginBottom: 18 }}>
         {panes.map(p => (
           <button key={p} className={pane === p ? 'is-active' : ''} onClick={() => setPane(p)}>
@@ -352,15 +369,16 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
           </button>
         ))}
       </div>
+      )}
 
       {/* The filed report. Admin only, and per shop: it is a document about
           one shop's takings, not a mixture. */}
       {isAdmin && <ReportExport shopsParam={shopsParam} />}
 
-      {pane === 'log' && <SalesLog qs={qs} showShop={showShop} isAdmin={isAdmin} />}
-      {pane === 'periods' && <PeriodsPane qs={qs} showShop={showShop} />}
-      {pane === 'stock' && <StockMovesPane qs={qs} showShop={showShop} isAdmin={isAdmin} />}
-      {pane === 'sellers' && <SellersPane qs={qs} />}
+      {showMoves && <StockMovesPane qs={qs} showShop={showShop} isAdmin={isAdmin} />}
+      {!showMoves && pane === 'log' && <SalesLog qs={qs} showShop={showShop} isAdmin={isAdmin} />}
+      {!showMoves && pane === 'periods' && <PeriodsPane qs={qs} showShop={showShop} />}
+      {!showMoves && pane === 'sellers' && <SellersPane qs={qs} />}
     </>
   );
 }
@@ -994,7 +1012,7 @@ const MoveRow = ({ r, showShop, onEdit }) => {
           {r.color ? ` · ${r.color}` : ''}
           {r.size ? ` · ${r.size}` : ''}
           {showShop && r.shopName ? ` · ${r.shopName}` : ''}
-          {r.reason ? ` · ${t('sell.reason.' + r.reason.replace(/\s+/g, '')) || r.reason}` : ''}
+          {r.reason ? ` · ${reasonLabel(t, r.reason)}` : ''}
         </div>
       </div>
       <div className="sale-who">{r.staffName}</div>
