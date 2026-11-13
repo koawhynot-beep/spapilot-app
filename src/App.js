@@ -5,11 +5,11 @@ import {
   ChevronRight, Minus, ScanLine, Search, SlidersHorizontal,
   MoreHorizontal, Sun, Moon, Printer, Undo2, ClipboardCheck,
   Calendar, FolderOpen, FolderPlus, History, TrendingUp, TrendingDown,
-  Banknote, CreditCard, Wallet, Keyboard, Truck, ClipboardList, Eye,
+  Banknote, CreditCard, Wallet, Keyboard, Truck, ClipboardList, Eye, Users,
 } from 'lucide-react';
 import { LanguageProvider, LANGUAGES, useLang, useT } from './i18n';
 import { api, getToken, setToken, download, idr } from './api';
-import { HistoryView } from './views';
+import { HistoryView, StaffView } from './views';
 import { Modal, SearchField, ByYear } from './ui';
 import { tStatic } from './i18n';
 import { StockCheckView } from './stockcheck';
@@ -341,6 +341,7 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
     { id: 'transfercheck', label: t('tab.transferCheck'), icon: ClipboardList,
       staff: true, badge: pendingTransfers },
     { id: 'history',  label: t('tab.history'),  icon: History,  staff: true },
+    { id: 'staff',    label: t('tab.staff'),    icon: Users },
   ];
   const tabs = isAdmin ? allTabs : allTabs.filter(x => x.staff);
 
@@ -459,6 +460,7 @@ function MainApp({ user, shop, kind = 'clothing', onSwitchAccess, onSwitchMode }
         {tab === 'history' && (
           <HistoryView staff={staff.data} shops={shopList} shopsParam={shopsParam} isAdmin={isAdmin} />
         )}
+        {tab === 'staff' && isAdmin && <StaffView shopsParam={shopsParam} />}
       </div>
 
       {showSettings && (

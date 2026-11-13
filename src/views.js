@@ -277,12 +277,11 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
 
   const panes = useMemo(
     () => (isAdmin
-      ? ['log', 'periods', 'staff', 'stock', 'sellers', 'commission']
+      ? ['log', 'periods', 'stock', 'sellers']
       : ['log', 'stock']),
     [isAdmin]
   );
-  // A staff member who had 'commission' selected before losing it would be
-  // left staring at nothing.
+  // A pane that is no longer on offer must not be left selected.
   useEffect(() => { if (!panes.includes(pane)) setPane('log'); }, [panes, pane]);
 
   const qs = useMemo(() => {
@@ -361,9 +360,7 @@ export function HistoryView({ staff, shops = [], shopsParam = '', isAdmin = true
       {pane === 'log' && <SalesLog qs={qs} showShop={showShop} isAdmin={isAdmin} />}
       {pane === 'periods' && <PeriodsPane qs={qs} showShop={showShop} />}
       {pane === 'stock' && <StockMovesPane qs={qs} showShop={showShop} isAdmin={isAdmin} />}
-      {pane === 'staff' && <StaffTotalsPane qs={qs} />}
       {pane === 'sellers' && <SellersPane qs={qs} />}
-      {pane === 'commission' && <CommissionPane qs={qs} />}
     </>
   );
 }
@@ -1145,87 +1142,6 @@ function ReportExport({ shopsParam }) {
   );
 }
 
-// ── Best and worst ────────────────────────────────────────
-// ── Takings per seller ────────────────────────────────────
-// What each person sold over the period on screen. Sales net of returns and
-// of discounts, so nobody's total is flattered by a rail that went out at
-// half price.
-//
-// Sales with no name recorded are shown as their own row rather than hidden.
-// Leaving them out would make this page disagree with the sales list, and a
-// total that does not reconcile with the log is worse than an awkward row.
-function StaffTotalsPane({ qs }) {
-  const t = useT();
-  const { data, error, loading } = useLoad(`/api/sales/by-staff?${qs}`, [qs]);
-
-  if (loading) return <div className="loading">{t('common.loading')}</div>;
-  if (error) return <div className="error-banner">{error}</div>;
-
-  const items = data?.items || [];
-  if (items.length === 0) return <Empty icon={Users} title={t('staff.nothing')} />;
-
-  const totals = data.totals || { units: 0, revenue: 0, entries: 0, sellers: 0 };
-  const peak = Math.max(1, ...items.map(i => Math.abs(i.revenue)));
-
-  return (
-    <>
-      <div className="section-head">
-        <h2 className="section-title">{t('staff.heading')}</h2>
-        <span className="section-meta">
-          {totals.sellers === 1
-            ? t('staff.oneSeller')
-            : t('staff.sellers').replace('{n}', String(totals.sellers))}
-        </span>
-      </div>
-
-      <div className="panel">
-        <div className="panel-body">
-          {items.map((s, i) => (
-            <div className="seller-row" key={(s.staffId || 's') + '-' + i}>
-              <div className="seller-name">
-                {s.name || <span className="seller-unnamed">{t('staff.noName')}</span>}
-              </div>
-              <div className="seller-bar" aria-hidden="true">
-                <div className="seller-fill"
-                     style={{ width: `${Math.max(2, (Math.abs(s.revenue) / peak) * 100)}%` }} />
-              </div>
-              <div className="seller-sub">
-                {t('drill.pieces').replace('{n}', String(s.units))}
-                {' · '}
-                {s.entries === 1
-                  ? t('drill.oneEntry')
-                  : t('drill.entries').replace('{n}', String(s.entries))}
-                {totals.revenue > 0 && (
-                  <> {' · '}
-                    {t('staff.share').replace('{n}',
-                      String(Math.round((s.revenue / totals.revenue) * 100)))}
-                  </>
-                )}
-              </div>
-              <div className="seller-money">{idr(s.revenue)}</div>
-            </div>
-          ))}
-
-          <div className="seller-row is-total">
-            <div className="seller-name">{t('staff.total')}</div>
-            <div className="seller-bar" aria-hidden="true" />
-            <div className="seller-sub">
-              {t('drill.pieces').replace('{n}', String(totals.units))}
-              {' · '}
-              {t('drill.entries').replace('{n}', String(totals.entries))}
-            </div>
-            <div className="seller-money">{idr(totals.revenue)}</div>
-          </div>
-        </div>
-      </div>
-
-      {items.some(s => !s.name) && (
-        <div className="field-hint" style={{ marginTop: 8 }}>{t('staff.noNameNote')}</div>
-      )}
-    </>
-  );
-}
-
 function SellersPane({ qs }) {
   const t = useT();
   // How long the lists are. Twenty by default; type any number up to 200.
@@ -1414,54 +1330,122 @@ function Rank({ title, rows, metric }) {
   );
 }
 
-// ── Commission ────────────────────────────────────────────
-function CommissionPane({ qs }) {
-  const t = useT();
-  const { data: d, error, loading } = useLoad(`/api/commission?${qs}`, [qs]);
+// ── Staff ─────────────────────────────────────────────────
+// Who sold what and what they earned, in one ranked list. Everyone on the
+// staff list is here — a person who sold nothing in the period is a fact too
+// — biggest first. Ten show at first; the rest are one tap away.
+//
+// Sales are counted from the app and from the shop's own book, so the figures
+// agree with the sales log. Commission is the rate on the person's staff row
+// times what they sold, less returns; the people with no rate earn nothing.
+const TOP_STAFF = 10;
 
-  if (loading) return <div className="loading">{t('common.loading')}</div>;
-  if (error) return <div className="error-banner">{error}</div>;
-  if (!d || !d.items || d.items.length === 0) {
-    return <Empty icon={TrendingUp} title={t('history.nothing')} />;
-  }
+export function StaffView({ shopsParam = '' }) {
+  const t = useT();
+  const [range, setRange] = useState('12m');
+  const [showAll, setShowAll] = useState(false);
+
+  const qs = useMemo(() => {
+    const q = { ...rangeToQuery(range) };
+    if (shopsParam) q.shops = shopsParam;
+    return new URLSearchParams(q).toString();
+  }, [range, shopsParam]);
+  const { data, error, loading } = useLoad(`/api/staff/summary?${qs}`, [qs]);
+
+  const items = data?.items || [];
+  const shown = showAll ? items : items.slice(0, TOP_STAFF);
+  const peak = Math.max(1, ...items.map(i => Math.abs(i.net)));
+  const totals = data?.totals;
 
   return (
     <>
-      <div className="stat-grid">
-        <StatTile value={idr(d.totals.gross)} label={t('commission.gross')} money />
-        <StatTile value={idr(d.totals.returned)} label={t('commission.returned')}
-                  tone={d.totals.returned > 0 ? 'bad' : undefined} money />
-        <StatTile value={idr(d.totals.net)} label={t('commission.net')} money />
-        <StatTile value={idr(d.totals.commission)} label={t('commission.owed')} tone="good" money />
+      <div className="section-head">
+        <h2 className="section-title">{t('tab.staff')}</h2>
+        {totals && (
+          <span className="section-meta">
+            {totals.sellers === 1
+              ? t('staff.oneSeller')
+              : t('staff.sellers').replace('{n}', String(totals.sellers))}
+          </span>
+        )}
       </div>
 
-      <div className="notice" style={{ marginBottom: 14 }}>{t('commission.rule')}</div>
+      <div className="scope-picker">
+        <span className="scope-picker-label">{t('common.period')}</span>
+        <select className="select select-inline" value={range} onChange={e => setRange(e.target.value)}>
+          {RANGES.map(r => <option key={r.id} value={r.id}>{t('range.' + r.id)}</option>)}
+        </select>
+      </div>
 
-      <ExportButton href={`/api/commission.csv?${qs}`} label={t('commission.export')} />
+      {loading && <div className="loading">{t('common.loading')}</div>}
+      {error && <div className="error-banner">{error}</div>}
 
-      <div className="panel" style={{ marginTop: 12 }}>
-        <div className="panel-body">
-          {d.items.map(p => (
-            <div className="comm-row" key={p.name}>
-              <div className="comm-main">
-                <div className="rank-name">{p.name}</div>
-                <div className="rank-sub">
-                  {p.rate > 0 ? `${p.rate}%` : t('commission.noRate')}
-                  {' · '}{p.soldUnits} {t('commission.sold')}
-                  {p.returnedUnits > 0 && (
-                    <span className="comm-returned"> · {p.returnedUnits} {t('commission.returnedShort')}</span>
-                  )}
+      {data && items.length === 0 && <Empty icon={Users} title={t('staff.nobody')} />}
+
+      {data && items.length > 0 && (
+        <>
+          <div className="stat-grid">
+            <StatTile value={idr(totals.net)} label={t('commission.net')} money />
+            <StatTile value={totals.soldUnits - totals.returnedUnits} label={t('staff.pieces')} />
+            <StatTile value={idr(totals.commission)} label={t('commission.owed')} tone="good" money />
+          </div>
+
+          <div className="notice" style={{ marginBottom: 14 }}>{t('commission.rule')}</div>
+
+          <ExportButton href={`/api/staff/summary.csv?${qs}`} label={t('staff.export')} />
+
+          <div className="panel" style={{ marginTop: 12 }}>
+            <div className="panel-body">
+              {shown.map((p, i) => (
+                <div className="comm-row" key={(p.staffId || 'n') + '-' + p.name}>
+                  <div className="rank-index">{i + 1}</div>
+                  <div className="comm-main">
+                    <div className="rank-name">
+                      {p.name}
+                      {!p.listed && <span className="topbar-scope">{t('staff.notListed')}</span>}
+                      {p.listed && !p.active && <span className="topbar-scope">{t('staff.left')}</span>}
+                    </div>
+                    <div className="staff-bar" aria-hidden="true">
+                      <span style={{ width: `${Math.max(p.net > 0 ? 2 : 0, (Math.abs(p.net) / peak) * 100)}%` }} />
+                    </div>
+                    <div className="rank-sub">
+                      {p.rate > 0 ? `${p.rate}%` : t('commission.noRate')}
+                      {' · '}{p.shopName || t('staff.anyShop')}
+                      {' · '}{p.soldUnits} {t('commission.sold')}
+                      {p.returnedUnits > 0 && (
+                        <span className="comm-returned"> · {p.returnedUnits} {t('commission.returnedShort')}</span>
+                      )}
+                      {p.lastAt && (
+                        <> {' · '}{t('staff.last').replace('{d}',
+                          new Date(p.lastAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }))}</>
+                      )}
+                    </div>
+                  </div>
+                  <div className="comm-figures">
+                    <div className="comm-net">{idr(p.net)}</div>
+                    {p.returned > 0 && <div className="comm-deduction">− {idr(p.returned)}</div>}
+                  </div>
+                  <div className="comm-owed">{idr(p.commission)}</div>
                 </div>
-              </div>
-              <div className="comm-figures">
-                <div className="comm-net">{idr(p.net)}</div>
-                {p.returned > 0 && <div className="comm-deduction">− {idr(p.returned)}</div>}
-              </div>
-              <div className="comm-owed">{idr(p.commission)}</div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+
+          {items.length > TOP_STAFF && (
+            <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 10 }}
+                    onClick={() => setShowAll(v => !v)}>
+              {showAll ? t('staff.topOnly').replace('{n}', String(TOP_STAFF))
+                       : t('staff.showAll').replace('{n}', String(items.length))}
+            </button>
+          )}
+
+          {data.unnamed && (
+            <div className="field-hint" style={{ marginTop: 8 }}>
+              {t('staff.noNameNote')}: {idr(data.unnamed.net)}
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }
