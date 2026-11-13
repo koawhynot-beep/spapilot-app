@@ -1053,6 +1053,14 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
               {isAll ? (
                 <div className="qty-stack">
                   <div className="qty-value">{item.qty}</div>
+                  {/* Where the total is held, so a combined figure can be
+                      checked against one shop's own list. */}
+                  <div className="qty-byshop">
+                    {Object.entries(item.byShop || {})
+                      .filter(([, q]) => Number(q) > 0)
+                      .map(([name, q]) => `${name} ${q}`)
+                      .join(' · ')}
+                  </div>
                   <ByYear rows={item.byYear} />
                 </div>
               ) : (
