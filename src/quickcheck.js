@@ -15,6 +15,9 @@ import { useT } from './i18n';
 import { api, idr } from './api';
 import { FilterBar, KindChip } from './ui';
 
+// Rose Gold is listed above Office on every card; other shops keep their order.
+const shopRank = (n) => (String(n).toLowerCase() === 'rose gold' ? 1 : String(n).toLowerCase() === 'office' ? 2 : 0);
+
 const title = (g) => [g.style || g.name, g.fabric, g.color].filter(Boolean).join(' · ');
 
 export function QuickCheckView({ shopsParam, kind, switchingKind, onPickKind }) {
@@ -184,7 +187,7 @@ export function QuickCheckView({ shopsParam, kind, switchingKind, onPickKind }) 
                     are none. A size that is missing and a size that is out
                     look the same on a list, and only one of them is worth
                     walking to the rail for. */}
-                {(g.perShop || []).map(line => {
+                {[...(g.perShop || [])].sort((a, b) => shopRank(a.shop) - shopRank(b.shop)).map(line => {
                   const held = new Map(line.sizes.map(z => [z.size, z.qty]));
                   // This year, unless she asks for the lot. What is moving
                   // now is the question asked at the counter; the switch at
