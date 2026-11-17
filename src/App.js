@@ -1453,7 +1453,7 @@ function StockModal({ item, shopId, shops, onClose, onSaved }) {
     imageUrl: item.imageUrl || '',
   } : {
     name: '', category: '', fabric: '', print: '', size: '', color: '', sku: '', brand: '',
-    qty: '0', threshold: '5', supplier: '', notes: '',
+    qty: '0', threshold: '3', supplier: '', notes: '',
     price: '', cost: '', imageUrl: '',
   });
   const [busy, setBusy] = useState(false);
