@@ -809,7 +809,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
           <option value="name">{t('stock.sortName')}</option>
           {!isAll && <option value="custom">{t('stock.sortCustom')}</option>}
         </select>
-        {perms.canAddItems && !isAll && (
+        {perms.canAddItems && (
           <button className="btn btn-primary" onClick={() => setModal('new')}>
             <Plus size={18} /> {t('stock.addItem')}
           </button>
@@ -1102,6 +1102,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
         <StockModal
           item={modal === 'new' ? null : modal}
           shopId={selectedShopId}
+          shops={shops}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); loadStock(); toast(modal === 'new' ? t('stock.itemAdded') : t('stock.itemUpdated')); }}
         />
@@ -1439,8 +1440,10 @@ function MoveToGroupModal({ item, groups, onClose, onPick, onAddGroup }) {
 
 
 // ── Stock modal ───────────────────────────────────────────
-function StockModal({ item, shopId, onClose, onSaved }) {
+function StockModal({ item, shopId, shops, onClose, onSaved }) {
   const t = useT();
+  // In All shops there is no one shop to add to, so the form asks.
+  const [pickedShop, setPickedShop] = useState(shopId === 'all' ? (shops && shops[0] ? String(shops[0].id) : '') : String(shopId));
   const [f, setF] = useState(item ? {
     ...item,
     qty: String(item.qty ?? ''),
@@ -1469,7 +1472,7 @@ function StockModal({ item, shopId, onClose, onSaved }) {
         imageUrl: (f.imageUrl || '').trim(),
       };
       if (item) await api(`/api/stock/${item.id}`, { method: 'PUT', body: payload });
-      else      await api(`/api/shops/${shopId}/stock`, { method: 'POST', body: payload });
+      else      await api(`/api/shops/${pickedShop}/stock`, { method: 'POST', body: payload });
       onSaved();
     } catch (e) { setErr(e.message); setBusy(false); }
   };
@@ -1478,6 +1481,14 @@ function StockModal({ item, shopId, onClose, onSaved }) {
     <Modal title={item ? t('form.editItem') : t('form.newItem')} onClose={onClose}>
       <form onSubmit={save}>
         {err && <div className="error-banner"><AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />{err}</div>}
+        {!item && shopId === 'all' && (
+          <div className="field">
+            <label>{t('stock.addToShop')}</label>
+            <select className="select" value={pickedShop} onChange={e => setPickedShop(e.target.value)}>
+              {(shops || []).map(sh => <option key={sh.id} value={sh.id}>{sh.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="field">
           <label>{t('common.name')}</label>
           <input className="input" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={t('form.egName')} />
