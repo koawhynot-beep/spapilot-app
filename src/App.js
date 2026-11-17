@@ -617,7 +617,7 @@ function StockView({ shops, selectedShopId, onSelectShop, user, onReloadShops, j
             size: it.size,
             price: it.price,
             qty: it.total || 0,
-            threshold: 5,
+            threshold: it.threshold ?? 0,
             byShop: it.byShop || {},
           }));
           setItems(items);
