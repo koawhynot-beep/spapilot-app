@@ -925,8 +925,13 @@ function StockMovesPane({ qs, showShop, isAdmin }) {
   const [offset, setOffset] = useState(0);
   const [dir, setDir] = useState('');
   const [editing, setEditing] = useState(null);
+  // Choosing several entries at once, to give them all a new date.
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState(() => new Set());
+  const [lastPicked, setLastPicked] = useState(null);
+  const [dateOpen, setDateOpen] = useState(false);
 
-  useEffect(() => { setOffset(0); setRows([]); }, [qs, dir]);
+  useEffect(() => { setOffset(0); setRows([]); setPicked(new Set()); }, [qs, dir]);
 
   const { data, error, loading } = useLoad(
     `/api/movements?${qs}&dir=${dir}&limit=${PAGE}&offset=${offset}`,
@@ -941,6 +946,26 @@ function StockMovesPane({ qs, showShop, isAdmin }) {
 
   const total = data?.total || 0;
   const totals = data?.totals || {};
+
+  const stopSelecting = () => { setSelecting(false); setPicked(new Set()); setLastPicked(null); setDateOpen(false); };
+  // Tap to pick; shift-tap picks everything between this and the last one.
+  const toggle = (r, range) => {
+    setPicked(prev => {
+      const next = new Set(prev);
+      if (range && lastPicked != null) {
+        const a = rows.findIndex(x => x.id === lastPicked), b = rows.findIndex(x => x.id === r.id);
+        if (a >= 0 && b >= 0) {
+          const [lo, hi] = a < b ? [a, b] : [b, a];
+          for (let i = lo; i <= hi; i++) next.add(rows[i].id);
+          return next;
+        }
+      }
+      if (next.has(r.id)) next.delete(r.id); else next.add(r.id);
+      return next;
+    });
+    setLastPicked(r.id);
+  };
+  const allPicked = rows.length > 0 && picked.size === rows.length;
 
   return (
     <>
@@ -965,14 +990,50 @@ function StockMovesPane({ qs, showShop, isAdmin }) {
         <Empty icon={PackagePlus} title={t('moves.nothing')} hint={t('moves.nothingHint')} />
       )}
 
+      {isAdmin && rows.length > 0 && (
+        <div className="pick-bar">
+          {!selecting ? (
+            <button className="btn btn-secondary btn-sm" onClick={() => setSelecting(true)}>
+              <Calendar size={15} /> {t('moves.changeDates')}
+            </button>
+          ) : (
+            <>
+              <button className="btn btn-secondary btn-sm"
+                      onClick={() => setPicked(allPicked ? new Set() : new Set(rows.map(r => r.id)))}>
+                {allPicked ? t('moves.pickNone') : `${t('moves.pickAll')} (${rows.length})`}
+              </button>
+              <span className="pick-count">{t('moves.pickedN').replace('{n}', String(picked.size))}</span>
+              <button className="btn btn-primary btn-sm" disabled={!picked.size} onClick={() => setDateOpen(true)}>
+                <Calendar size={15} /> {t('moves.setDate')}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={stopSelecting}>{t('common.cancel')}</button>
+            </>
+          )}
+          {selecting && <div className="field-hint pick-hint">{t('moves.pickHint')}</div>}
+        </div>
+      )}
+
       {rows.length > 0 && (
         <div className="panel">
           <div className="panel-body">
             {rows.map(r => (
-              <MoveRow key={r.id} r={r} showShop={showShop} onEdit={isAdmin ? setEditing : undefined} />
+              <MoveRow key={r.id} r={r} showShop={showShop} onEdit={isAdmin ? setEditing : undefined}
+                       selecting={selecting} selected={picked.has(r.id)} onToggle={toggle} />
             ))}
           </div>
         </div>
+      )}
+
+      {dateOpen && (
+        <MoveRedateModal
+          moves={rows.filter(r => picked.has(r.id))}
+          onClose={() => setDateOpen(false)}
+          onDone={(updated) => {
+            const at = new Map(updated.map(u => [u.id, u.occurredAt]));
+            setRows(prev => prev.map(x => (at.has(x.id) ? { ...x, occurredAt: at.get(x.id) } : x)));
+            setDateOpen(false); stopSelecting();
+          }}
+        />
       )}
 
       {editing && (
@@ -997,16 +1058,22 @@ function StockMovesPane({ qs, showShop, isAdmin }) {
   );
 }
 
-const MoveRow = ({ r, showShop, onEdit }) => {
+const MoveRow = ({ r, showShop, onEdit, selecting, selected, onToggle }) => {
   const t = useT();
   const inbound = r.units > 0;
-  const Row = onEdit ? 'button' : 'div';
+  const Row = onEdit || selecting ? 'button' : 'div';
   return (
     <Row
-      type={onEdit ? 'button' : undefined}
-      className={`sale-row ${inbound ? '' : 'is-return'} ${onEdit ? 'is-clickable' : ''}`}
-      onClick={onEdit ? () => onEdit(r) : undefined}
+      type={onEdit || selecting ? 'button' : undefined}
+      className={`sale-row ${inbound ? '' : 'is-return'} ${onEdit || selecting ? 'is-clickable' : ''} ${selected ? 'is-selected' : ''}`}
+      onClick={selecting ? (e) => onToggle(r, e.shiftKey) : onEdit ? () => onEdit(r) : undefined}
+      aria-pressed={selecting ? !!selected : undefined}
     >
+      {selecting && (
+        <span className={`pick-box ${selected ? 'is-on' : ''}`} aria-hidden="true">
+          {selected && <Check size={13} />}
+        </span>
+      )}
       <div className="sale-when">
         <span className="sale-date">{day(r.occurredAt)}</span>
         <span className="sale-time">{clock(r.occurredAt)}</span>
@@ -1035,6 +1102,57 @@ const MoveRow = ({ r, showShop, onEdit }) => {
     </Row>
   );
 };
+
+// One new day for every entry picked. Each keeps its own time of day, so a
+// delivery logged at 4pm today lands at 4pm yesterday rather than every row
+// collapsing onto the same minute.
+function MoveRedateModal({ moves, onClose, onDone }) {
+  const t = useT();
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
+  const [day, setDay] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const save = async () => {
+    setBusy(true); setError(null);
+    try {
+      const [y, m, d] = day.split('-').map(Number);
+      const payload = moves.map(r => {
+        const o = new Date(r.occurredAt);
+        const n = new Date(y, m - 1, d, o.getHours(), o.getMinutes(), o.getSeconds());
+        return { id: r.id, occurredAt: n.toISOString() };
+      });
+      const res = await api('/api/movements/redate', { method: 'POST', body: { moves: payload } });
+      onDone(res.moves || payload);
+    } catch (e) {
+      setError(e.message || t('edit.failed'));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title={t('moves.setDate')} onClose={onClose}>
+      {error && <div className="error-banner">{error}</div>}
+      <p className="field-hint" style={{ marginBottom: 12 }}>
+        {t('moves.redateExplain').replace('{n}', String(moves.length))}
+      </p>
+      <div className="field">
+        <label>{t('moves.newDate')}</label>
+        <input className="input" type="date" value={day} max={today} onChange={e => setDay(e.target.value)} />
+      </div>
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onClose} disabled={busy}>{t('common.cancel')}</button>
+        <button className="btn btn-primary" onClick={save} disabled={busy || !day}>
+          <Check size={15} /> {busy ? t('common.saving') : t('moves.saveDate').replace('{n}', String(moves.length))}
+        </button>
+      </div>
+    </Modal>
+  );
+}
 
 // Stock movements are not corrected in place the way a sale is — a delivery
 // entered wrongly is re-entered, not edited — so this only offers the one
